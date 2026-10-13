@@ -1,6 +1,6 @@
 # Portability and publication audit
 
-Reviewed on 2026-10-13 against version 0.7.0.
+Reviewed on 2026-10-13 against version 0.7.1.
 
 ## Runtime and export
 
@@ -16,6 +16,9 @@ time zone follow HA. An optional network_entity uses the user's own entity.
 Metrics/actions retain the reviewed live 0.6.1 behaviour. Version 0.7.0 adds
 automatic bundled frontend registration, real repository metadata, internal
 map routing and cache versions. Examples remain generic.
+Version 0.7.1 updates English documentation, dashboard examples and funding links;
+it does not change metric collection or control behaviour. Code comments and
+docstrings are in English; translated interface strings remain supported.
 Tests use synthetic addresses and inline fixtures, with no external captures.
 An explicit file-selection audit excludes credentials, deployment helpers,
 inventories, screenshots, private backups and virtual environments.
@@ -46,4 +49,5 @@ The 0.7.0 panel's shared setup/reload, preservation of other panels and bundled
 asset imports were tested in isolated real HA, alongside browser-side tab, locale
 and update-coalescing tests. The running household HA has not been upgraded to
 0.7.0. Uploading this clean copy does not publish private captures. Repository
-visibility is public and the owner approved MIT; a first release is being prepared.
+visibility is public and the owner approved MIT. Release 0.7.0 is published;
+0.7.1 packages the documentation and funding update separately.

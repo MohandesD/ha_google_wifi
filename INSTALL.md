@@ -1,6 +1,7 @@
 # Installation
 
 This is an experimental community integration, published under the MIT licence.
+It is a Home Assistant custom integration, not a Supervisor add-on.
 
 ## HACS installation
 
@@ -66,8 +67,8 @@ link to a chosen map view. User language follows HA, with English/Portuguese UI.
 ### Optional cards in another dashboard
 
 Copy all four `www/*.js` files to `/config/www` and register
-`/local/google-wifi-insights-map.js?v=0.7.0` and
-`/local/google-wifi-dashboard-ui.js?v=0.7.0` as JavaScript modules.
+`/local/google-wifi-insights-map.js?v=0.7.1` and
+`/local/google-wifi-dashboard-ui.js?v=0.7.1` as JavaScript modules.
 Create a manual dashboard with `dashboard-overview.yaml` or `dashboard-map.yaml`.
 Shared model/history modules are imported automatically. This is optional and
 does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.

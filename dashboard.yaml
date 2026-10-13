@@ -1,46 +1,46 @@
-title: Rede Google WiFi
+title: Google WiFi Network
 views:
-  - title: Rede
-    path: rede
+  - title: Network
+    path: network
     icon: mdi:wifi
     cards:
       - type: markdown
-        title: O que conseguimos medir
+        title: Available measurements
         content: >-
-          Os dados são atualizados de acordo com o intervalo configurado na integração. O modo Google permite observar
-          clientes e pontos associados, sujeito aos dados devolvidos pela conta.
-          "Desconhecido" significa que a métrica não foi fornecida.
-          Contagem de clientes e tráfego não medem saturação do rádio.
-          RSSI, quando disponível, é apenas uma indicação de sinal.
+          Data is refreshed at the integration's configured polling interval. Google account mode reports
+          clients and their associated points, subject to the data returned by the account.
+          "Unknown" means that a measurement was not supplied.
+          Client counts and traffic do not measure radio saturation.
+          RSSI, when available, is only an indication of signal strength.
       - type: markdown
-        title: Pontos WiFi
+        title: WiFi points
         content: |-
-          | Ponto | Estado | Clientes observados |
+          | Point | Status | Observed clients |
           |:---|:---|---:|
           {% for s in states.sensor if s.attributes.get('gwi_kind') == 'point' and s.attributes.get('gwi_metric') == 'clients' -%}
-          | {{ s.attributes.device_name | replace('|', '/') | replace('\n', ' ') }} | {{ 'Indisponível' if s.state == 'unavailable' else ('Online' if s.attributes.get('online') == true else ('Offline' if s.attributes.get('online') == false else 'Desconhecido')) }} | {{ s.state if s.state not in ['unknown', 'unavailable'] else '—' }} |
+          | {{ s.attributes.device_name | replace('|', '/') | replace('\n', ' ') }} | {{ 'Unavailable' if s.state == 'unavailable' else ('Online' if s.attributes.get('online') == true else ('Offline' if s.attributes.get('online') == false else 'Unknown')) }} | {{ s.state if s.state not in ['unknown', 'unavailable'] else '—' }} |
           {% endfor -%}
       - type: markdown
-        title: Dispositivos ligados
+        title: Connected devices
         content: |-
-          | Dispositivo | Ponto | RSSI | Download / Upload |
+          | Device | Point | RSSI | Download / Upload |
           |:---|:---|---:|---:|
           {% set ns = namespace(found=false) -%}
           {% for s in states.sensor if s.attributes.get('gwi_kind') == 'client' and s.attributes.get('gwi_metric') == 'point' and s.attributes.get('connected') == true and s.state != 'unavailable' -%}
           {% set ns.found = true -%}
-          | {{ s.attributes.device_name | replace('|', '/') | replace('\n', ' ') }} | {{ s.attributes.get('point') | default('Desconhecido', true) | replace('|', '/') | replace('\n', ' ') }} | {{ (s.attributes.rssi ~ ' dBm') if s.attributes.get('rssi') != none else '—' }} | {{ s.attributes.download_mbps if s.attributes.get('download_mbps') != none else '—' }} / {{ s.attributes.upload_mbps if s.attributes.get('upload_mbps') != none else '—' }} Mbps |
+          | {{ s.attributes.device_name | replace('|', '/') | replace('\n', ' ') }} | {{ s.attributes.get('point') | default('Unknown', true) | replace('|', '/') | replace('\n', ' ') }} | {{ (s.attributes.rssi ~ ' dBm') if s.attributes.get('rssi') != none else '—' }} | {{ s.attributes.download_mbps if s.attributes.get('download_mbps') != none else '—' }} / {{ s.attributes.upload_mbps if s.attributes.get('upload_mbps') != none else '—' }} Mbps |
           {% endfor -%}
           {% if not ns.found %}
-          Sem clientes ligados observados. No modo local, a lista de clientes não está disponível. Se os sensores estiverem indisponíveis, a última consulta falhou.
+          No connected clients observed. The client list is unavailable in local mode. Unavailable sensors indicate that the latest query failed.
           {% endif %}
       - type: markdown
-        title: Avaliação e limites
+        title: Assessment and limitations
         content: |-
           {% for s in states.sensor if s.attributes.get('gwi_kind') == 'network' and s.attributes.get('gwi_metric') == 'diagnosis' %}
-          **{{ s.attributes.device_name }}**: {% if s.state == 'point_offline' %}há um ponto reportado como offline.{% elif s.state == 'weak_signal_detected' %}há pelo menos um cliente com RSSI fraco ou classificação Google fraca.{% elif s.state == 'unavailable' %}consulta indisponível; não é possível avaliar agora.{% else %}faltam métricas de rádio para avaliar saturação ou justificar a deslocação de pontos.{% endif %}
+          **{{ s.attributes.device_name }}**: {% if s.state == 'point_offline' %}a point is reported offline.{% elif s.state == 'weak_signal_detected' %}at least one client has weak RSSI or a weak Google rating.{% elif s.state == 'unavailable' %}the query is unavailable; assessment is currently impossible.{% else %}radio metrics are missing, so saturation or the need to move points cannot be established.{% endif %}
           {% endfor %}
 
-          Consulte o histórico dos sensores de tráfego e de sinal ao comparar posições.
-          Um cliente com sinal fraco pode indicar distância ou obstáculos, mas o sinal
-          sozinho não identifica congestionamento. A ligação entre pontos também
-          precisa de ser avaliada com o teste de malha da aplicação Google Home.
+          Compare traffic and signal sensor history when evaluating point locations.
+          A client with weak signal may indicate distance or obstacles, but signal
+          alone does not identify congestion. Connectivity between points also
+          needs to be assessed with the mesh test in the Google Home app.

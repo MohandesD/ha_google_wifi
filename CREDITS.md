@@ -13,6 +13,6 @@ Google WiFi Insights is an independent Home Assistant custom integration.
 - [Shelly WiFi RPC documentation](https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/WiFi/):
   reference for supported signal measurements and roaming settings.
 
-Dependency licenses remain applicable to their respective projects. The license
-for this repository's own code has not yet been selected by its publisher.
+Dependency licenses remain applicable to their respective projects. This
+repository's own code is licensed under [MIT](LICENSE).
 See [publication steps](docs/PUBLISHING.md).

@@ -12,7 +12,7 @@ files = sorted(p for p in component.rglob("*") if p.is_file() and p.suffix in ("
 if (component / "LICENSE").is_file():
     files.append(component / "LICENSE")
 files += sorted((root / "www").glob("*.js"))
-files += [root / name for name in ("README.md", "INSTALL.md", "CREDITS.md", "dashboard.yaml", "dashboard-map.yaml", "dashboard-overview.yaml")]
+files += [root / name for name in ("README.md", "INSTALL.md", "CONTRIBUTING.md", "CREDITS.md", "dashboard.yaml", "dashboard-map.yaml", "dashboard-overview.yaml")]
 files += sorted((root / "docs").glob("*.md"))
 if (root / "LICENSE").is_file():
     files.append(root / "LICENSE")

@@ -138,7 +138,7 @@ async def test_local_setup_real_entities_and_unload(real_hass, monkeypatch):
     rendered = Template(
         dashboard["views"][0]["cards"][2]["content"], real_hass
     ).async_render(parse_result=False)
-    assert "No modo local" in rendered
+    assert "The client list is unavailable in local mode." in rendered
     assert await real_hass.config_entries.async_unload(entry.entry_id)
 
 
