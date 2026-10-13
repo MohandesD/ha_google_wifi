@@ -206,7 +206,9 @@ export function mapModel(states, config = {}, language="en") {
     if(a.gwi_kind==="network") {
       if(a.gwi_metric==="google_telemetry_at") {
         n.metricsEntityId=entityId;n.usageWindows=a.google_telemetry?.usage_windows || {};n.usageHourly=a.google_telemetry?.usage_hourly || [];
+        n.networkInfo=a.google_telemetry?.networkInformation;
       }
+      if(a.gwi_metric==="network_information_status")n.networkInfo=a.network_information;
       if(a.gwi_metric==="capability_count") {n.capabilities=a.capabilities;n.capabilitiesEntityId=entityId;}
       if(a.gwi_metric==="last_operation") {n.lastOperation=state.state;n.operationEntityId=entityId;}
       if(["wan_test_download_mbps","wan_test_upload_mbps","wan_test_at"].includes(a.gwi_metric))n[a.gwi_metric]=["unknown","unavailable"].includes(state.state)?null:state.state;
@@ -215,7 +217,11 @@ export function mapModel(states, config = {}, language="en") {
       const c=n.clients.find(c=>c.id===a.gwi_item_id);if(c)c.metricsEntityId=entityId;
     }
     if(a.gwi_kind==="point" && a.gwi_metric==="google_telemetry_at") {
-      const p=n.points.find(p=>p.id===a.gwi_item_id);if(p){p.metricsEntityId=entityId;p.meshTest=a.mesh_test_mbps;p.meshTestAt=a.mesh_test_at;p.backhaul=a.backhaul_type;}
+      const p=n.points.find(p=>p.id===a.gwi_item_id);if(p){p.metricsEntityId=entityId;p.meshTest=a.mesh_test_mbps;p.meshTestAt=a.mesh_test_at;p.backhaul=a.backhaul_type;p.firmwareInfo=a.google_telemetry?.firmwareInformation;p.lanInfo=a.google_telemetry?.lanInformation;p.hardwareInfo=a.google_telemetry?.hardwareSetupInformation;}
+    }
+    if(a.gwi_kind==="point"){
+      const p=n.points.find(p=>p.id===a.gwi_item_id);
+      if(p){if(a.firmware_information)p.firmwareInfo=a.firmware_information;if(a.lan_information)p.lanInfo=a.lan_information;}
     }
     if(a.gwi_metric==="operation_status") {
       const target=a.gwi_kind==="network"?n:n.points.find(p=>p.id===a.gwi_item_id);

@@ -54,17 +54,17 @@ These reads use the authenticated account inside HA.
 The groups response already contains DHCP pools/reservations, DNS mode, IPv6 and
 UPnP settings, guest-network status, family policies, preferred QoS support and
 firmware update information. These non-credential fields are available through
-`get_google_metrics`; duplicating `groups/{groupId}` adds no new measurements in
-the observed deployment. Passwords, tokens and opaque configuration stay excluded.
+`get_google_metrics`; `groups/{groupId}` adds no new measurements in the observed deployment and is
+now cached for 15 minutes as supplemental group information. Passwords, tokens and opaque configuration stay excluded.
 
 ## Additional cloud reads investigated
 
-| Endpoint | Observed result | Potential use |
+| Endpoint | Observed result | Use in 0.9.0 |
 | --- | --- | --- |
-| `groups/{groupId}` | HTTP 200; duplicates group metadata already collected | Targeted manual refresh rather than another polling stream |
-| `apSoftware/{version}/releaseNotes` | HTTP 200; version, title, description and HTML | Firmware release notes and update context; plain text should be used for display |
-| `userPreferences` | HTTP 200; `optInFlow` in this account | Account setup context, not WiFi performance |
-| `accesspoints/{apId}/hardwareBundleSetupInfo` | HTTP 200; empty object for the tested point | Setup-specific information if another account/model supplies it |
+| `groups/{groupId}` | HTTP 200; duplicates group metadata already collected | Supplemental group information, cached for 15 minutes |
+| `apSoftware/{version}/releaseNotes` | HTTP 200; version, title, description and HTML | Versioned plain-text notes in HA and the map; cached for six hours per queried version |
+| `userPreferences` | HTTP 200; `optInFlow` in this account | Filtered account context, cached for one hour |
+| `accesspoints/{apId}/hardwareBundleSetupInfo` | HTTP 200; empty object for the tested point | Filtered hardware information if supplied; cached for one day per point |
 | `connectedhome/adapters` | HTTP 404 | Historical endpoint; no data obtained |
 | `groups/{groupId}/stationSets/{stationSetId}/stationActivity` | HTTP 400, including a bounded date-range attempt | Schema remains unverified; not added to normal polling |
 
@@ -80,14 +80,21 @@ Use the discovered point address, not a household-specific constant.
 
 | Endpoint | Observed result | Information / limitation |
 | --- | --- | --- |
-| `GET /api/v1/status` | HTTP 200 on three reachable points; another cloud address timed out | Firmware/update channel/state/progress, uptime, role, WAN mode/lease/gateway, DNS and exposed link flags |
+| `GET /api/v1/status` | HTTP 200 on all four local points in subsequent validation | Firmware/update channel/state/progress, uptime, role, WAN mode/lease/gateway, DNS and exposed link flags |
 | `GET /api/v1/wan-configuration` | HTTP 200 on two models, HTTP 404 on another | WAN type; no additional performance counters |
 | `GET /api/v1/developer-configuration` | HTTP 200 on the primary | API environment and firmware-update URL; useful for diagnostics |
 | `GET /api/v1/welcome-mat` | HTTP 200 on the primary | Enabled flag and guest welcome text/photo/title; configuration information |
 | `GET /api/v1/connected-devices` | HTTP 400 on the primary | Historical path; request requirements remain unverified |
 | `GET /api/v1/diagnostic-report` | HTTP 404 on one model; timeouts on others; HTTP 500 on the primary with a 60-second allowance | No usable report obtained on this firmware |
 
-Local status metadata is already retained when a local-mode entry supplies it.
+Version 0.9.0 collects the four successful LAN reads above. Local status is cached
+for 60 seconds and supplemental LAN reads for one hour. Existing local-mode
+addresses anchor the current cloud network; cloud-only users can configure
+a LAN gateway in the integration options. A duplicated online primary IP,
+mismatched LAN role or returned address prevents association. Denials and
+unsupported endpoints back off for six hours; failures retain their original
+timestamps and are explicitly stale. No diagnostic-report polling or
+provisioning calls are added.
 Read availability varies by model, firmware and reachability; cloud online state
 does not prove the stored IP currently responds to LAN HTTP requests.
 
@@ -109,8 +116,9 @@ The observed reads do not add airtime utilization, noise floor, retry counts,
 channel occupancy, actual intermediate mesh routes or pairwise RSSI. Link
 benchmarks measure throughput at a particular time; they do not establish radio
 saturation by themselves. Existing Google ratings and device-reported RSSI remain
-distinct measurements. Additional successful reads above have been documented;
-they are not silently added to routine polling in this maintenance release.
+distinct measurements. The additional successful reads above are collected in 0.9.0. Failed and
+unverified endpoints remain excluded from routine polling. See
+[INFORMATION.md](INFORMATION.md) for the information views and diagnostic entities.
 
 ## Primary references
 

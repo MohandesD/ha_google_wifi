@@ -1,6 +1,6 @@
 # Portability and publication audit
 
-Reviewed on 2026-10-13 against version 0.8.3.
+Reviewed on 2026-10-13 against version 0.9.0.
 
 ## Runtime and export
 
@@ -37,14 +37,18 @@ waiting for its readiness, then starting the selected client with the required
 server query parameter. A single request tracks both stages; failed preparation,
 uncertain writes and concurrent status readers cannot send duplicate client
 tests. Runtime has no household-specific server or point IDs.
+Version 0.9.0 adds bounded, cached reads for successful supplemental endpoints.
+Tests cover stale readings, false versus missing flags, credential filtering,
+historical firmware-version matching, escaped provider text, configured LAN
+anchors, ambiguous network addresses and per-point/network association.
 Tests use synthetic addresses and inline fixtures, with no external captures.
 An explicit file-selection audit excludes credentials, deployment helpers,
 inventories, screenshots, private backups and virtual environments.
 
 ## Verification
 
-The clean repository passed **155 Python tests** using the isolated HA
-2026.10.1 framework, and **27 JavaScript tests**. Coverage includes bucket
+The clean repository passed **170 Python tests** using the isolated HA
+2026.10.1 framework, and **30 JavaScript tests**. Coverage includes bucket
 boundaries, missing data, scoped targets, registry spoof rejection, typed action
 validation, permissions, operation handling, existing Shelly controls and
 frontend state-update coalescing. The backend passed Ruff's F/E9 checks.

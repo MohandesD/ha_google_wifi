@@ -19,6 +19,8 @@ from .telemetry import timestamp
 from .actions import build_action
 from .capabilities import ADVANCED
 from .operations import MONITORED_ACTIONS
+from .lan import LanDiagnostics
+from .information import apply_point_information, apply_network_information
 from homeassistant.exceptions import HomeAssistantError
 from datetime import UTC, datetime
 
@@ -37,6 +39,7 @@ class WifiCoordinator(DataUpdateCoordinator):
             ),
         )
         session = async_get_clientsession(hass)
+        self.lan = hass.data.setdefault(DOMAIN, {}).setdefault("lan_diagnostics", LanDiagnostics(session))
         self.radio = ShellyRadio(session)
         self._radio_update_lock = asyncio.Lock()
         self._operation_tasks = {}
@@ -44,7 +47,7 @@ class WifiCoordinator(DataUpdateCoordinator):
         entry.async_on_unload(self._cancel_operation_tasks)
         data = entry.data
         self.client = (
-            LocalClient(session, data["points"])
+            LocalClient(session, data["points"], self.lan)
             if data["mode"] == "local"
             else CloudClient(
                 session,
@@ -59,6 +62,14 @@ class WifiCoordinator(DataUpdateCoordinator):
         try:
             snapshot = enrich_snapshot(self.hass, self.config_entry, apply_roaming(await self.client.snapshot(), self.data))
             self._merge_local_points(snapshot)
+            if isinstance(self.client, CloudClient):
+                configured_hosts = {p["host"] for entry in self.hass.config_entries.async_entries(DOMAIN)
+                                    if entry.data.get("mode") == "local" for p in entry.data.get("points", [])}
+                await self.lan.enrich_cloud(snapshot, configured_hosts, self.config_entry.options.get("lan_gateway"))
+            for network in snapshot["networks"].values():
+                for point in network["points"].values():
+                    apply_point_information(point)
+                apply_network_information(network)
             async with self._radio_update_lock:
                 snapshot = await self.radio.enrich(snapshot)
             if isinstance(self.client, CloudClient):

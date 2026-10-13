@@ -10,7 +10,7 @@ args = parser.parse_args()
 target = root / "custom_components/google_wifi_insights/frontend"
 target.mkdir(exist_ok=True)
 files = sorted((root / "www").glob("*.js"))
-assert len(files) == 4, "Expected the map, overview, model and history modules"
+assert len(files) == 5, "Expected the map, overview, model, history and information modules"
 for source in files:
     destination = target / source.name
     value = source.read_bytes()
@@ -19,4 +19,4 @@ for source in files:
             raise SystemExit(f"Bundled frontend differs: {source.name}")
     else:
         destination.write_bytes(value)
-print("All four frontend modules are bundled inside custom_components")
+print("All five frontend modules are bundled inside custom_components")

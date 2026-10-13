@@ -175,8 +175,9 @@ async def json_request(session, method, url, headers=None, payload=None) -> dict
 
 
 class LocalClient:
-    def __init__(self, session, points):
+    def __init__(self, session, points, lan=None):
         self.session, self.points = session, points
+        self.lan = lan
 
     async def snapshot(self):
         points = {}
@@ -192,6 +193,9 @@ class LocalClient:
             except ApiError:
                 status = None
             points[point["host"]] = local_point(point, status)
+            if self.lan and status:
+                self.lan.observe_status(point["host"], status)
+                points[point["host"]]["lan_information"] = await self.lan.point(point["host"])
         if not any(point["reachable"] for point in points.values()):
             raise ApiError("No Google Wifi point responded")
         return {
@@ -589,6 +593,23 @@ class CloudClient:
                     if isinstance(result, BaseException):
                         raise result
                 extras = self._optional_cache.get(group_id, {})
+                await self._optional(group_id, "groupDetails", prefix.rstrip("/")+"?prettyPrint=false", 900)
+                await self._optional("_account", "userPreferences", "userPreferences?prettyPrint=false", 3600)
+                supplemental = []
+                for ap in group.get("accessPoints", [])[:30]:
+                    if not isinstance(ap, dict) or not isinstance(ap.get("id"), str):
+                        continue
+                    aid = ap["id"]
+                    supplemental.append(self._optional(group_id, "hardware:"+aid, "accesspoints/"+quote(aid, safe="")+"/hardwareBundleSetupInfo?prettyPrint=false", 86400))
+                versions = {(ap.get("accessPointProperties") or {}).get("firmwareVersion") for ap in group.get("accessPoints", []) if isinstance(ap, dict)}
+                import re
+                for version in sorted(v for v in versions if isinstance(v, str) and re.fullmatch(r"\d+(?:\.\d+){1,5}", v))[:10]:
+                    supplemental.append(self._optional("_firmware", "notes:"+version, "apSoftware/"+quote(version, safe="")+"/releaseNotes?prettyPrint=false", 21600))
+                results = await asyncio.gather(*supplemental, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, BaseException):
+                        raise result
+                extras = self._optional_cache.get(group_id, {})
                 network = cloud_network(
                     group, status, clients["stations"], metrics,
                     await self._station_macs(group_id, clients["stations"]),
@@ -600,6 +621,17 @@ class CloudClient:
                     network["clients"][station["id"]]["_station_metadata"] = station
                 apply_history(network, self._histories.get(group_id, {}))
                 apply_extras(network, group, extras, self._read_status.get(group_id, {}), self._action_status.get(group_id, {}))
+                from .information import clean, firmware_notes
+                network["google_telemetry"]["groupDetails"] = clean(extras.get("groupDetails", {}))
+                network["google_telemetry"]["accountPreferences"] = clean(self._optional_cache.get("_account", {}).get("userPreferences", {}))
+                read_status["userPreferences"] = self._read_status.get("_account", {}).get("userPreferences", {}).copy()
+                for aid, point in network["points"].items():
+                    version = point.get("firmware")
+                    note_status = self._read_status.get("_firmware", {}).get("notes:"+str(version), {"state": "not_supplied", "stale": True})
+                    read_status["notes:"+str(version)] = note_status.copy()
+                    point["firmware_notes"] = firmware_notes(self._optional_cache.get("_firmware", {}).get("notes:"+str(version), {}), version, note_status)
+                    point["hardware_setup_information"] = clean(extras.get("hardware:"+aid, {}))
+                    point["google_telemetry"]["hardwareSetupInformation"] = point["hardware_setup_information"]
                 network["operations"] = self._operations.get(group_id, []).copy()
                 network["last_operation"] = network["operations"][-1]["state"] if network["operations"] else "NONE"
                 networks[group_id] = network

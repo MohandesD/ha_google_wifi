@@ -85,7 +85,11 @@
         "title": "Recolha de dados",
         "data": {
           "scan_interval": "Intervalo de consulta (segundos)",
-          "points": "Pontos (Nome=IP por linha)"
+          "points": "Pontos (Nome=IP por linha)",
+          "lan_gateway": "Gateway LAN (opcional)"
+        },
+        "data_description": {
+          "lan_gateway": "IP do point principal na rede local. A configuração dos points de uma entrada local também é reutilizada; deixa vazio para usar apenas leituras cloud."
         }
       },
       "renew_auth": {
@@ -298,11 +302,98 @@
           "cancelled": "Cancelado",
           "unconfirmed": "Estado não confirmado"
         }
+      },
+      "network_information_status": {
+        "name": "Informação da rede"
+      },
+      "wan_ip_address": {
+        "name": "Endereço IP WAN"
+      },
+      "wan_gateway": {
+        "name": "Gateway WAN"
+      },
+      "wan_mode": {
+        "name": "Tipo de configuração WAN"
+      },
+      "wan_netmask": {
+        "name": "Máscara WAN"
+      },
+      "lan_ip_address": {
+        "name": "Endereço IP LAN"
+      },
+      "lan_netmask": {
+        "name": "Máscara LAN"
+      },
+      "dhcp_pool_begin": {
+        "name": "Início da gama DHCP"
+      },
+      "dhcp_pool_end": {
+        "name": "Fim da gama DHCP"
+      },
+      "dns_mode": {
+        "name": "Modo DNS"
+      },
+      "update_status": {
+        "name": "Estado da atualização do firmware"
+      },
+      "update_channel": {
+        "name": "Canal de atualização do firmware"
+      },
+      "update_progress_raw": {
+        "name": "Progresso reportado da atualização"
+      },
+      "new_firmware_version": {
+        "name": "Versão de firmware disponibilizada"
+      },
+      "firmware_notes_count": {
+        "name": "Notas de firmware"
+      },
+      "firmware_information_at": {
+        "name": "Data da informação LAN"
+      },
+      "lan_status": {
+        "name": "Informação LAN"
+      },
+      "wan_ip_method": {
+        "name": "Método IP WAN"
+      },
+      "wan_local_ip": {
+        "name": "Endereço IP local WAN"
+      },
+      "wan_prefix_length": {
+        "name": "Comprimento do prefixo WAN"
+      },
+      "wan_lease_seconds": {
+        "name": "Duração da concessão DHCP WAN"
+      },
+      "api_environment": {
+        "name": "Ambiente da API"
       }
     },
     "binary_sensor": {
       "connected": {
         "name": "Ligado"
+      },
+      "ipv6_enabled": {
+        "name": "IPv6 ativo"
+      },
+      "upnp_enabled": {
+        "name": "UPnP ativo"
+      },
+      "guest_wifi_enabled": {
+        "name": "Wi-Fi de convidados ativo"
+      },
+      "update_required": {
+        "name": "Atualização do firmware necessária"
+      },
+      "wan_online": {
+        "name": "WAN ligada"
+      },
+      "ethernet_link": {
+        "name": "Ligação Ethernet"
+      },
+      "lan0_link": {
+        "name": "Ligação da porta LAN"
       }
     },
     "device_tracker": {

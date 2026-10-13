@@ -198,6 +198,14 @@ class WifiEntity(CoordinatorEntity):
         if self.key == "google_telemetry_at":
             attributes["google_telemetry"] = item.get("google_telemetry", {})
             attributes["measurement"] = "Read-only Google telemetry; absent fields are not supplied. The timestamp is the HA retrieval time."
+        if self.key in ("firmware_notes_count", "update_status", "update_required", "update_progress_raw", "new_firmware_version"):
+            attributes["firmware_information"] = item.get("firmware_information", {})
+            if self.key == "update_progress_raw":
+                attributes["measurement"] = "Raw progress reported by Google; its scale is not established, so no percentage is inferred."
+        if self.key == "lan_status":
+            attributes["lan_information"] = item.get("lan_information", {})
+        if self.key == "network_information_status":
+            attributes["network_information"] = item.get("network_information", {})
         if self.key in ("point", "clients", "google_telemetry_at", "mesh_test_mbps", "wifi_test_mbps"):
             attributes.update({key: item.get(key) for key in (
                 "wifi_test_mbps", "wifi_test_at", "wifi_test_ap_id", "wifi_test_point",

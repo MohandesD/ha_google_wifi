@@ -1,5 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.8.3";
-import {formatBytes} from "./gwi-usage-history.js?v=0.8.3";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.0";
+import {formatBytes} from "./gwi-usage-history.js?v=0.9.0";
+import {pointInformation,networkInformation} from "./gwi-information.js?v=0.9.0";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -203,7 +204,9 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(p.backhaul)point.append(element("span","meta",t("backhaul",{type:p.backhaul})));
     if(p.meshTest!=null && p.meshTestAt)point.append(element("span","meta",t("mesh_test",{speed:p.meshTest,time:new Date(p.meshTestAt).toLocaleString(this._language)})));
     point.addEventListener("click",()=>this._moreInfo(p.entityId));
-    const wrapper=element("div");wrapper.append(point,this._controls(p.controls));return wrapper;
+    const wrapper=element("div");wrapper.append(point,this._controls(p.controls));
+    if(p.firmwareInfo||p.lanInfo){const info=element("details"),summary=element("summary",null,this._language==="pt"?"Firmware e informação LAN/WAN":"Firmware and LAN/WAN information"),body=element("div");body.innerHTML=pointInformation(p,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}));info.append(summary,body);wrapper.append(info);}
+    return wrapper;
   }
   _meshOverview(n) {
     const t=translate(this._language);
@@ -266,6 +269,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
         if(n.clients.some(c=>c.roaming))section.append(element("p",null,t("roaming_hint")));
       }
       section.append(element("h3",null,t("client_groups")));
+      if(n.networkInfo){const details=element("details"),summary=element("summary",null,this._language==="pt"?"Configuração LAN/WAN":"LAN/WAN configuration"),body=element("div");body.innerHTML=networkInformation(n,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}));details.append(summary,body);section.append(details);}
       for(const p of n.points) {
         const cluster = element("div","cluster");
         const svg = document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.classList.add("edges"); svg.setAttribute("aria-hidden","true"); cluster.append(svg);

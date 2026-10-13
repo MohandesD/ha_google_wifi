@@ -263,9 +263,20 @@ class OptionsFlow(config_entries.OptionsFlow):
                         self.config_entry,
                         data={**self.config_entry.data, "points": points},
                     )
+            gateway = user_input.get("lan_gateway", "").strip()
+            if self.config_entry.data["mode"] == "cloud" and gateway:
+                from .lan import private_host
+                if private_host(gateway) is None:
+                    errors["base"] = "invalid_points"
             if not errors:
+                options = {**self.config_entry.options, "scan_interval": user_input["scan_interval"]}
+                if self.config_entry.data["mode"] == "cloud":
+                    if gateway:
+                        options["lan_gateway"] = gateway
+                    else:
+                        options.pop("lan_gateway", None)
                 return self.async_create_entry(
-                    title="", data={"scan_interval": user_input["scan_interval"]}
+                    title="", data=options
                 )
         fields = {
             vol.Required(
@@ -283,6 +294,8 @@ class OptionsFlow(config_entries.OptionsFlow):
             fields[vol.Required("points", default=text)] = selector.TextSelector(
                 selector.TextSelectorConfig(multiline=True)
             )
+        else:
+            fields[vol.Optional("lan_gateway", default=self.config_entry.options.get("lan_gateway", ""))] = selector.TextSelector()
         return self.async_show_form(
             step_id="polling", errors=errors, data_schema=vol.Schema(fields)
         )

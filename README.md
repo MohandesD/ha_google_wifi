@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.8.3.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.9.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -41,6 +41,10 @@ manual installation, upgrades and troubleshooting.
 - English/Portuguese UI following Home Assistant's user language and time zone.
 - Guided Google authentication, automatic Android ID for browser tokens, specific
   errors and credential renewal from the integration's options.
+- Firmware release notes with explicit version matching, local update state/channel/
+  raw progress and additional LAN/WAN diagnostics in HA and the map.
+- Complete collected network configuration and endpoint availability, excluding
+  credentials and provisioning secrets.
 - Sanitized additional telemetry, capability status and explicit operation results.
 - Live restart/speed-test feedback: sending, accepted, running and completed states
   reported by Google, with separate failure and unconfirmed-delivery states.
@@ -102,7 +106,9 @@ with each point and button, and bounded status polling after explicit actions.
 Version 0.8.3 fixes mesh testing by preparing the primary measurement server and
 providing the required server query parameter. See the
 [LAN/cloud endpoint research](docs/API_ENDPOINTS.md) for validated reads,
-additional information and firmware-dependent limitations.
+additional information and firmware-dependent limitations. Version 0.9.0
+collects the successful supplemental reads with caching and adds the firmware
+and LAN/WAN information views described in [INFORMATION.md](docs/INFORMATION.md).
 
 ## Support the project
 

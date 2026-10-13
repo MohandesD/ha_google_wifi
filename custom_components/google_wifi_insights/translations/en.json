@@ -85,7 +85,11 @@
         "title": "Polling",
         "data": {
           "scan_interval": "Polling interval (seconds)",
-          "points": "Points (Name=IP per line)"
+          "points": "Points (Name=IP per line)",
+          "lan_gateway": "LAN gateway (optional)"
+        },
+        "data_description": {
+          "lan_gateway": "Primary Wifi point IP on your local network. Existing local-mode point configuration is also reused; leave blank for cloud-only readings."
         }
       },
       "renew_auth": {
@@ -298,11 +302,98 @@
           "cancelled": "Cancelled",
           "unconfirmed": "Status not confirmed"
         }
+      },
+      "network_information_status": {
+        "name": "Network information"
+      },
+      "wan_ip_address": {
+        "name": "WAN IP address"
+      },
+      "wan_gateway": {
+        "name": "WAN gateway"
+      },
+      "wan_mode": {
+        "name": "WAN configuration type"
+      },
+      "wan_netmask": {
+        "name": "WAN netmask"
+      },
+      "lan_ip_address": {
+        "name": "LAN IP address"
+      },
+      "lan_netmask": {
+        "name": "LAN netmask"
+      },
+      "dhcp_pool_begin": {
+        "name": "DHCP pool start"
+      },
+      "dhcp_pool_end": {
+        "name": "DHCP pool end"
+      },
+      "dns_mode": {
+        "name": "DNS mode"
+      },
+      "update_status": {
+        "name": "Firmware update status"
+      },
+      "update_channel": {
+        "name": "Firmware update channel"
+      },
+      "update_progress_raw": {
+        "name": "Firmware update progress reported"
+      },
+      "new_firmware_version": {
+        "name": "Offered firmware version"
+      },
+      "firmware_notes_count": {
+        "name": "Firmware release notes"
+      },
+      "firmware_information_at": {
+        "name": "LAN information time"
+      },
+      "lan_status": {
+        "name": "LAN information"
+      },
+      "wan_ip_method": {
+        "name": "WAN IP method"
+      },
+      "wan_local_ip": {
+        "name": "WAN local IP address"
+      },
+      "wan_prefix_length": {
+        "name": "WAN prefix length"
+      },
+      "wan_lease_seconds": {
+        "name": "WAN DHCP lease duration"
+      },
+      "api_environment": {
+        "name": "API environment"
       }
     },
     "binary_sensor": {
       "connected": {
         "name": "Connected"
+      },
+      "ipv6_enabled": {
+        "name": "IPv6 enabled"
+      },
+      "upnp_enabled": {
+        "name": "UPnP enabled"
+      },
+      "guest_wifi_enabled": {
+        "name": "Guest Wi-Fi enabled"
+      },
+      "update_required": {
+        "name": "Firmware update required"
+      },
+      "wan_online": {
+        "name": "WAN online"
+      },
+      "ethernet_link": {
+        "name": "Ethernet link"
+      },
+      "lan0_link": {
+        "name": "LAN port link"
       }
     },
     "device_tracker": {

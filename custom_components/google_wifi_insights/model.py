@@ -88,11 +88,13 @@ def local_point(point: dict, status: dict | None) -> dict:
         (status or {}).get("software", {}),
     )
     online = wan.get("online")
-    return {
+    from .information import clean
+    result = {
         "name": point["name"],
         "host": point["host"],
         "online": online if isinstance(online, bool) else None,
         "role": system.get("groupRole"),
+        "is_root": system.get("groupRole") == "root" if system.get("groupRole") in ("root", "leaf") else None,
         "firmware": software.get("softwareVersion"),
         "uptime_seconds": number(system.get("uptime"), 0),
         "clients": None,
@@ -103,13 +105,16 @@ def local_point(point: dict, status: dict | None) -> dict:
         "local_status_at": datetime.now(UTC).isoformat() if status else None,
         "local_status": {
             "setupState": (status or {}).get("setupState"),
-            "software": selected(software, ("blockingUpdate", "softwareVersion", "updateChannel", "updateNewVersion", "updateProgress", "updateStatus")),
+            "software": selected(software, ("blockingUpdate", "softwareVersion", "updateChannel", "updateNewVersion", "updateProgress", "updateStatus", "updateRequired")),
             "system": selected(system, ("countryCode", "groupRole", "hardwareId", "lan0Link", "ledAnimation", "ledIntensity", "modelId", "oobeDetailedStatus", "uptime")),
             "wan": selected(wan, ("ethernetLink", "gatewayIpAddress", "ipAddress", "ipMethod", "ipPrefixLength", "leaseDurationSeconds", "localIpAddress", "nameServers", "online", "vlanScanAttemptCount", "vlanScanComplete")),
             "dns": selected((status or {}).get("dns"), ("mode", "servers")),
             "migration": selected((status or {}).get("vorlonInfo"), ("migrationMode",)),
         } if status else {},
     }
+    if status:
+        result["local_status"] = {**clean(status), "migration": selected(status.get("vorlonInfo"), ("migrationMode",))}
+    return result
 
 
 def cloud_network(

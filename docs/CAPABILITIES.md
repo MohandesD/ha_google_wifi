@@ -1,4 +1,4 @@
-# Google WiFi Insights 0.8.3
+# Google WiFi Insights 0.9.0
 
 This custom integration collects the network, points and clients returned by the Google account, without household-specific names, addresses or IDs in the runtime.
 
@@ -12,6 +12,10 @@ credential retries and renewal through the integration options. See
 Version 0.8.3 fixes mesh-test server preparation and the required server query
 parameter. See [API_ENDPOINTS.md](API_ENDPOINTS.md) for the LAN/cloud investigation.
 
+Version 0.9.0 collects the verified supplemental cloud and LAN reads and exposes
+firmware notes, update diagnostics and network configuration through HA entities
+and both information views. See [INFORMATION.md](INFORMATION.md).
+
 ## Collected data
 
 | Source | Collected information |
@@ -24,7 +28,10 @@ parameter. See [API_ENDPOINTS.md](API_ENDPOINTS.md) for the LAN/cloud investigat
 | Backhaul | Google's returned backhaul type/band; no inferred intermediate links |
 | Historical usage | WAN and per-client bytes received/sent: minutes in a rolling hour, hours in 24 hours, days in 7 and 30 days; peak traffic records |
 | Insights | Google advisory cards and their available actions/links |
-| Local point status | Firmware, uptime and exposed local status metadata |
+| Firmware notes | Returned version, title and plain-text description; explicit installed-version matching |
+| Supplemental cloud reads | Cached group details, account preferences and hardware setup information when supplied |
+| Local point status | Firmware, uptime, update state/channel/raw progress, WAN method/address/gateway/lease and link flags |
+| Supplemental LAN reads | WAN configuration, developer configuration and guest welcome metadata; endpoint availability and timestamps |
 | Shelly local radio | MAC-verified RSSI, BSSID, channel and supported roaming settings |
 
 Intervals are requested UTC rolling windows, not Google Home's local-calendar “today”. Bucket timestamps mark their **end**. Missing buckets remain missing: complete totals become unknown and charts identify the partial sample. Rolling totals are measurement sensors, never monotonic lifetime counters. Minute buckets may be interpolated or delayed by Google; requesting one-minute granularity does not prove one-minute physical sampling.

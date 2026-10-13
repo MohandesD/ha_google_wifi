@@ -70,6 +70,19 @@ EXTRA_SENSORS = {
                ("priority_until", "Priority until")],
 }
 
+INFORMATION_SENSORS = {
+    "network": [("network_information_status", "Network information"), ("wan_ip_address", "WAN IP address"),
+                ("wan_gateway", "WAN gateway"), ("wan_mode", "WAN configuration type"), ("wan_netmask", "WAN netmask"),
+                ("lan_ip_address", "LAN IP address"), ("lan_netmask", "LAN netmask"),
+                ("dhcp_pool_begin", "DHCP pool start"), ("dhcp_pool_end", "DHCP pool end"), ("dns_mode", "DNS mode")],
+    "point": [("update_status", "Firmware update status"), ("update_channel", "Firmware update channel"),
+              ("update_progress_raw", "Firmware update progress reported"), ("new_firmware_version", "Offered firmware version"),
+              ("firmware_notes_count", "Firmware release notes"), ("firmware_information_at", "LAN information time"),
+              ("lan_status", "LAN information"), ("wan_ip_method", "WAN IP method"), ("wan_local_ip", "WAN local IP address"),
+              ("wan_gateway", "WAN gateway"), ("wan_prefix_length", "WAN prefix length"), ("wan_lease_seconds", "WAN DHCP lease duration"),
+              ("dns_mode", "DNS mode"), ("api_environment", "API environment")],
+}
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = entry.runtime_data
@@ -95,13 +108,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def extra_factory(nid, kind, sid, item):
         return [WifiSensor(coordinator, entry, nid, kind, sid, item, key, name) for key, name in EXTRA_SENSORS[kind]] if item.get("source") == "google_cloud" else []
     add_dynamic_entities(coordinator, entry, async_add_entities, extra_factory)
+    def information_factory(nid, kind, sid, item):
+        return [WifiSensor(coordinator, entry, nid, kind, sid, item, key, name)
+                for key, name in INFORMATION_SENSORS.get(kind, [])]
+    add_dynamic_entities(coordinator, entry, async_add_entities, information_factory)
 
 
 class WifiSensor(WifiEntity, SensorEntity):
+    _unrecorded_attributes = frozenset({"firmware_information", "lan_information", "network_information"})
     def __init__(self, coordinator, entry, network_id, kind, item_id, item, key, name):
         super().__init__(coordinator, entry, network_id, kind, item_id, item, key)
         self._attr_translation_key = key
         self._attr_icon = "mdi:wifi"
+        if key in {key for group in INFORMATION_SENSORS.values() for key, _ in group}:
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+            self._attr_icon = "mdi:information-outline"
         if key in ("ip_address", "mac_address", "wireless_band", "connection_type", "google_telemetry_at", "last_seen", "hardware_type", "led_brightness", "wireless_standard", "rx_spatial_streams", "wifi_bssid", "wifi_channel"):
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
         if key in ("ip_address", "mac_address"):
@@ -114,7 +135,7 @@ class WifiSensor(WifiEntity, SensorEntity):
             self._attr_native_unit_of_measurement = "dBm"
             self._attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
             self._attr_state_class = SensorStateClass.MEASUREMENT
-        elif key in ("google_telemetry_at", "last_seen", "wan_test_at", "wifi_test_at", "mesh_test_at", "priority_until"):
+        elif key in ("google_telemetry_at", "last_seen", "wan_test_at", "wifi_test_at", "mesh_test_at", "priority_until", "firmware_information_at"):
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif key.startswith("usage_"):
             self._attr_native_unit_of_measurement = UnitOfInformation.BYTES
@@ -133,7 +154,7 @@ class WifiSensor(WifiEntity, SensorEntity):
         elif key == "led_brightness":
             self._attr_native_unit_of_measurement = "%"
             self._attr_icon = "mdi:brightness-6"
-        elif key == "uptime_seconds":
+        elif key in ("uptime_seconds", "wan_lease_seconds"):
             self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
             self._attr_device_class = SensorDeviceClass.DURATION
             self._attr_state_class = SensorStateClass.MEASUREMENT
