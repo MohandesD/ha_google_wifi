@@ -32,7 +32,7 @@ def summary(operation):
     # Opaque Google operation IDs can contain large serialized command bodies.
     result = {key: operation[key] for key in (
         "request_id", "action", "target_kind", "target_id", "target_name", "state",
-        "requested_at", "updated_at", "finished_at", "http_status", "status_error",
+        "requested_at", "updated_at", "finished_at", "http_status", "status_error", "stage", "server_state",
     ) if key in operation}
     return {**result, "phase": phase(operation)}
 

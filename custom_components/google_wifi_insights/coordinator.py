@@ -127,10 +127,15 @@ class WifiCoordinator(DataUpdateCoordinator):
         if not isinstance(self.client, CloudClient):
             raise HomeAssistantError("Google account access is required")
         item = network if kind == "network" else network["points" if kind == "point" else "clients"][item_id]
+        preparation = {}
+        if action == "test_mesh":
+            from urllib.parse import quote
+            server_id = next(pid for pid, point in network["points"].items() if point.get("is_root") is True)
+            preparation["prepare_path"] = "accesspoints/"+quote(server_id, safe="")+"/localSpeedTest"
         try:
             result = await self.client.action(network_id, action, path, method, payload,
                                              target_kind=kind, target_id=item_id, target_name=item["name"],
-                                             on_update=lambda: self._publish_operations(network_id))
+                                             on_update=lambda: self._publish_operations(network_id), **preparation)
         except ApiError as error:
             self._publish_operations(network_id)
             raise HomeAssistantError(str(error)) from None

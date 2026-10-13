@@ -38,6 +38,34 @@ def test_advanced_removal_group_members_and_insight_actions_require_concrete_con
         build_action(n, "group", "run_insight_action", "network", "group", {"confirmation": "Test WiFi", "card_id": "card"})
 
 
+def test_mesh_request_uses_only_the_discovered_primary_in_the_selected_network():
+    n = network()
+    n["points"]["primary/point"] = {"name": "Primary", "is_root": True}
+    assert build_action(n, "group", "test_mesh", "point", "point", {"serverApId": "foreign"}) == (
+        "POST", "accesspoints/point/meshSpeedTest?serverApId=primary%2Fpoint", None)
+    with pytest.raises(HomeAssistantError, match="separate"):
+        build_action(n, "group", "test_mesh", "point", "primary/point", {})
+
+
+@pytest.mark.parametrize("roots", [[], ["first", "second"]])
+def test_mesh_request_rejects_missing_or_ambiguous_primary_instead_of_guessing(roots):
+    n = network()
+    n["points"].update({pid: {"name": pid, "is_root": True} for pid in roots})
+    with pytest.raises(HomeAssistantError, match="uniquely identified"):
+        build_action(n, "group", "test_mesh", "point", "point", {})
+
+
+@pytest.mark.asyncio
+async def test_mesh_server_query_survives_the_transport_and_is_sent_once_without_json_body():
+    client = api.CloudClient(None, None, "test@example.invalid", "dummy", "0"*16)
+    client._request = AsyncMock(return_value={"operation": {"operationId": "mesh", "operationState": "CREATED"}})
+    n = network()
+    n["points"]["primary/point"] = {"name": "Primary", "is_root": True}
+    method, path, body = build_action(n, "group", "test_mesh", "point", "point", {})
+    await client.action("group", "test_mesh", path, method, body, target_kind="point", target_id="point")
+    client._request.assert_awaited_once_with("POST", "accesspoints/point/meshSpeedTest?serverApId=primary%2Fpoint&prettyPrint=false", None)
+
+
 @pytest.mark.asyncio
 async def test_write_transport_failure_is_never_retried_and_acceptance_is_not_completion():
     client = api.CloudClient(None, None, "test@example.invalid", "dummy", "0"*16)

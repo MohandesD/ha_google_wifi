@@ -3,6 +3,7 @@ const TEXT = {
   en: {
     action_queued:"Queued",action_sending:"Sending request",action_accepted:"Request accepted",action_running:"Running",action_completed:"Completed",action_failed:"Failed",action_cancelled:"Cancelled",action_unconfirmed:"Status not confirmed",
     action_restart_network:"Restart network",action_restart_point:"Restart point",action_test_internet:"Internet speed test",action_test_mesh:"Mesh speed test",action_test_local:"Local speed test",action_test_clients:"Client WiFi speed test",
+    action_mesh_preparing_note:"Preparing the measurement server on the primary point. The mesh measurement has not finished.",action_mesh_measuring_note:"Testing the selected point against the primary. Metrics are refreshed after the test finishes.",
     action_google_note:"Status reported by Google. A restarting point may still be reconnecting; test results can take longer to appear.",action_unconfirmed_note:"Google has not confirmed completion. Check the point before sending the request again.",action_timeout_note:"No completion was confirmed within ten minutes. Monitoring stopped without repeating the request.",action_failed_note:"Google rejected or failed the operation. Check the action status for details.",action_auth_note:"Renew Google authentication to check the operation status.",action_rate_note:"Google requested a pause. The write is not retried automatically.",action_status_missing_note:"Google's status lookup is unavailable; the last confirmed state is shown.",
     back_overview:"Back to overview",navigation_config_error:"overview_path must be a local Home Assistant path.",
     wifi_test:"Stored WiFi test · {speed} Mbit/s · {point} · {time}",usage_24h:"Usage 24h · ↓ {download} · ↑ {upload}",controls:"Google controls",history:"Usage history",backhaul:"Backhaul · {type}",mesh_test:"Stored mesh test · {speed} Mbit/s · {time}",capabilities:"Google capabilities",operation:"Last operation · {state}",
@@ -34,6 +35,7 @@ const TEXT = {
     card_description:"Points, associated clients and observed connection quality",
   },
   pt: {
+    action_mesh_preparing_note:"A preparar o servidor de medição no point principal. A medição mesh ainda não terminou.",action_mesh_measuring_note:"A testar o point selecionado com o principal. As métricas são atualizadas quando o teste termina.",
     action_queued:"Em fila",action_sending:"A enviar pedido",action_accepted:"Pedido aceite",action_running:"Em execução",action_completed:"Concluído",action_failed:"Falhou",action_cancelled:"Cancelado",action_unconfirmed:"Estado não confirmado",
     action_restart_network:"Reiniciar rede",action_restart_point:"Reiniciar point",action_test_internet:"Teste de velocidade da Internet",action_test_mesh:"Teste de velocidade mesh",action_test_local:"Teste de velocidade local",action_test_clients:"Teste de velocidade WiFi dos dispositivos",
     action_google_note:"Estado comunicado pela Google. Um point a reiniciar pode ainda estar a restabelecer a ligação; os resultados dos testes podem demorar a aparecer.",action_unconfirmed_note:"A Google ainda não confirmou a conclusão. Verifica o point antes de voltar a enviar o pedido.",action_timeout_note:"A conclusão não foi confirmada em dez minutos. A monitorização terminou sem repetir o pedido.",action_failed_note:"A Google rejeitou o pedido ou a operação falhou. Consulta o estado da ação para mais detalhes.",action_auth_note:"Renova a autenticação Google para consultar o estado da operação.",action_rate_note:"A Google pediu uma pausa. O comando não é repetido automaticamente.",action_status_missing_note:"A consulta do estado à Google está indisponível; é mostrado o último estado confirmado.",
@@ -87,7 +89,9 @@ export function overviewPath(config = {}, pathname = "") {
 export function operationFeedback(operation, language="en") {
   if (!operation || !operation.phase || operation.phase === "none") return null;
   const t=translate(language),phase=["queued","sending","accepted","running","completed","failed","cancelled","unconfirmed"].includes(operation.phase)?operation.phase:"unconfirmed";
-  const note={monitoring_timeout:"action_timeout_note",authentication_required:"action_auth_note",rate_limited:"action_rate_note",status_unavailable:"action_status_missing_note"}[operation.status_error] || (phase==="unconfirmed"?"action_unconfirmed_note":phase==="failed"?"action_failed_note":"action_google_note");
+  const busy=["queued","sending","accepted","running"].includes(phase);
+  const stageNote=busy&&operation.action==="test_mesh"?{preparing_server:"action_mesh_preparing_note",measuring:"action_mesh_measuring_note"}[operation.stage]:null;
+  const note={monitoring_timeout:"action_timeout_note",authentication_required:"action_auth_note",rate_limited:"action_rate_note",status_unavailable:"action_status_missing_note"}[operation.status_error] || stageNote || (phase==="unconfirmed"?"action_unconfirmed_note":phase==="failed"?"action_failed_note":"action_google_note");
   return {phase,label:t("action_"+phase),actionLabel:t("action_"+operation.action),busy:["queued","sending","accepted","running"].includes(phase),
     symbol:{completed:"✓",failed:"!",cancelled:"−",unconfirmed:"?"}[phase]||"◌",note:t(note),at:operation.finished_at||operation.updated_at||operation.requested_at};
 }

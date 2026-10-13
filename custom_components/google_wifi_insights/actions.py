@@ -24,8 +24,15 @@ def build_action(network, network_id, action, kind, item_id, parameters):
         raise HomeAssistantError("Confirm removal by entering the exact target name; this can erase the network configuration")
     prefix = "groups/"+quote(network_id, safe="")+"/"
     ap = "accesspoints/"+quote(item_id, safe="")+"/"
+    if action == "test_mesh":
+        # Google requires a server AP query parameter, not an empty test body.
+        roots = [pid for pid, point in network.get("points", {}).items()
+                 if point.get("is_root") is True]
+        if len(roots) != 1 or roots[0] == item_id:
+            raise HomeAssistantError("A mesh test requires a separate, uniquely identified primary point in this network")
+        return "POST", ap+"meshSpeedTest?serverApId="+quote(roots[0], safe=""), None
     endpoints = {"restart_network": prefix+"reboot", "restart_point": ap+"reboot",
-                 "test_internet": prefix+"wanSpeedTest", "test_mesh": ap+"meshSpeedTest",
+                 "test_internet": prefix+"wanSpeedTest",
                  "test_local": ap+"localSpeedTest", "test_clients": ap+"wifiblasterSpeedTest"}
     if action in endpoints:
         return "POST", endpoints[action], {}

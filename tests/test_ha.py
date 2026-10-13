@@ -82,6 +82,7 @@ async def test_real_ha_restart_feedback_targets_progress_and_unload(real_hass, m
     monkeypatch.setattr("custom_components.google_wifi_insights.coordinator.OPERATION_POLL_SECONDS", 60)
     await real_hass.services.async_call("button", "press", {"entity_id": states["test_mesh"].entity_id}, blocking=True)
     assert real_hass.states.get(status).state == "accepted"
+    assert request.call_args.args == ("POST", "accesspoints/other/localSpeedTest?prettyPrint=false", None)
     pending_task = entry.runtime_data._operation_tasks["home"]
     coordinator = entry.runtime_data
     unsubscribe()

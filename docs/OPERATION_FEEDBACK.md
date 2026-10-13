@@ -23,6 +23,15 @@ or its clients have reconnected. Check connectivity and uptime separately.
 Speed-test results may appear after the operation completes and are then read
 back through the existing metrics endpoints. No progress percentage is invented.
 
+Starting with 0.8.3, a mesh test prepares a measurement server on the discovered
+primary point with `localSpeedTest`, waits for Google's preparation operation to
+finish, then sends the selected point's `meshSpeedTest` with `serverApId` in the
+query string. Both stages belong to the same user request. Server preparation
+alone does not mean the mesh test completed. A failed or unconfirmed preparation
+does not send the client test; an ambiguous client write is never repeated.
+The interface explains which stage is pending. A missing or ambiguous primary,
+or selecting the primary as its own mesh client, is rejected before any write.
+
 Status reads run every five seconds only while an explicitly requested operation
 is pending. They stop after ten minutes, respect Google's rate-limit window and
 are cancelled when the entry unloads. Normal metric polling never starts a test

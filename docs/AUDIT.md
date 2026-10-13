@@ -1,6 +1,6 @@
 # Portability and publication audit
 
-Reviewed on 2026-10-13 against version 0.8.2.
+Reviewed on 2026-10-13 against version 0.8.3.
 
 ## Runtime and export
 
@@ -32,14 +32,19 @@ Version 0.8.2 correlates restart/test feedback with each target and button, adds
 network/point action-status sensors, and polls pending Google operation status
 every five seconds for at most ten minutes. Duplicate pending writes are blocked;
 acceptance, reported execution, completion and uncertain delivery are distinct.
+Version 0.8.3 fixes mesh requests by preparing the discovered primary server,
+waiting for its readiness, then starting the selected client with the required
+server query parameter. A single request tracks both stages; failed preparation,
+uncertain writes and concurrent status readers cannot send duplicate client
+tests. Runtime has no household-specific server or point IDs.
 Tests use synthetic addresses and inline fixtures, with no external captures.
 An explicit file-selection audit excludes credentials, deployment helpers,
 inventories, screenshots, private backups and virtual environments.
 
 ## Verification
 
-The clean repository passed **140 Python tests** using the isolated HA
-2026.10.1 framework, and **26 JavaScript tests**. Coverage includes bucket
+The clean repository passed **155 Python tests** using the isolated HA
+2026.10.1 framework, and **27 JavaScript tests**. Coverage includes bucket
 boundaries, missing data, scoped targets, registry spoof rejection, typed action
 validation, permissions, operation handling, existing Shelly controls and
 frontend state-update coalescing. The backend passed Ruff's F/E9 checks.
@@ -82,3 +87,10 @@ visibility is public and the owner approved MIT. Release 0.7.0 is published;
 0.7.1 packages the documentation and funding update separately.
 Version 0.8.0 publishes the guided authentication flow and the English
 [authentication guide](AUTHENTICATION.md).
+
+The 0.8.3 mesh protocol was also checked against a real deployment: the initial
+request was rejected, a server-qualified request without preparation failed at
+the device, and preparing the primary first produced a completed operation with
+a positive, newly dated saved result. Private captures are excluded. The added
+[endpoint research](API_ENDPOINTS.md) distinguishes successful additional reads,
+historical paths, unverified schemas and unusable local diagnostic responses.

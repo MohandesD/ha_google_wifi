@@ -138,3 +138,15 @@ test('rendered restart feedback follows Google states and belongs to its own con
   assert.match(card.shadowRoot.textContent,/No completion was confirmed within ten minutes/);
   assert.doesNotMatch(card.shadowRoot.textContent,/Completed/);
 });
+
+test('mesh feedback explains preparation and measurement without claiming early completion',()=>{
+  const operation={action:'test_mesh',phase:'accepted',stage:'preparing_server'};
+  assert.match(operationFeedback(operation,'en').note,/Preparing the measurement server/);
+  assert.match(operationFeedback(operation,'pt').note,/A preparar o servidor/);
+  operation.stage='measuring';operation.phase='running';
+  assert.match(operationFeedback(operation,'en').note,/Testing the selected point/);
+  operation.phase='failed';
+  assert.match(operationFeedback(operation,'en').note,/failed the operation/);
+  operation.phase='completed';
+  assert.equal(operationFeedback(operation,'en').busy,false);
+});

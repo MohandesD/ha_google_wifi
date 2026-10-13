@@ -229,6 +229,7 @@ class CloudClient:
         self._optional_cache, self._optional_next, self._read_status = {}, {}, {}
         self._histories, self._action_status, self._operations = {}, {}, {}
         self._action_lock = asyncio.Lock()
+        self._mesh_requests = {}
         self._optional_slots = asyncio.Semaphore(3)
 
     async def async_validate_account(self):
@@ -310,19 +311,26 @@ class CloudClient:
             if identity[0] == group_id:
                 self._optional_next.pop(identity)
 
-    async def action(self, group_id, action, path, method, payload, *, target_kind=None, target_id=None, target_name=None, on_update=None):
+    async def action(self, group_id, action, path, method, payload, *, target_kind=None, target_id=None, target_name=None, on_update=None, prepare_path=None):
         """No automatic retry of a transport failure or ambiguous write response."""
+        if prepare_path is not None and action != "test_mesh":
+            raise ApiError("Server preparation is only valid for a mesh test")
         operations = self._operations.setdefault(group_id, [])
         if any(pending(op) and (op.get("action"), op.get("target_kind"), op.get("target_id")) == (action, target_kind, target_id) for op in operations):
             raise ApiError("This action is already pending for the selected target")
         if sum(pending(op) for op in operations) >= 20:
             raise ApiError("Too many Google operations are pending")
         while len(operations) >= 20:
-            operations.remove(next(op for op in operations if not pending(op)))
+            previous = next(op for op in operations if not pending(op))
+            self._mesh_requests.pop(previous.get("request_id"), None)
+            operations.remove(previous)
         record = {"request_id": uuid4().hex, "action": action, "target_kind": target_kind,
                   "target_id": target_id, "target_name": target_name, "state": "QUEUED",
                   "operation_id": None, "requested_at": now_iso(), "updated_at": now_iso()}
         operations.append(record)
+        if prepare_path is not None:
+            record["stage"] = "preparing_server"
+            self._mesh_requests[record["request_id"]] = (method, path, payload)
         if on_update:
             on_update()
         async with self._action_lock:
@@ -330,7 +338,9 @@ class CloudClient:
             if on_update:
                 on_update()
             try:
-                response = await self._request(method, path + "?prettyPrint=false", payload)
+                request_path = prepare_path or path
+                separator = "&" if "?" in request_path else "?"
+                response = await self._request(method, request_path + separator + "prettyPrint=false", None if prepare_path else payload)
                 if not isinstance(response, dict):
                     raise ApiError("Google returned an unconfirmed operation")
                 op = response.get("operation") or response
@@ -340,6 +350,12 @@ class CloudClient:
                 state = op.get("operationState")
                 record.update(operation_id=operation_id if isinstance(operation_id, str) and operation_id else None,
                               state=state if isinstance(state, str) and state else "ACCEPTED_UNCONFIRMED", updated_at=now_iso())
+                if prepare_path:
+                    record["server_state"] = record["state"]
+                    if not record["operation_id"] and record["state"] not in ("ERROR", "FAILED", "CANCELLED"):
+                        record["state"] = "ACCEPTED_UNCONFIRMED"
+                    elif state == "DONE":
+                        record["state"] = "CREATED"
                 if record["state"] in TERMINAL_STATES:
                     record["finished_at"] = now_iso()
                 if record["state"] in ("ERROR", "FAILED", "CANCELLED"):
@@ -364,11 +380,51 @@ class CloudClient:
                 record.update(state="DELIVERY_UNCONFIRMED", updated_at=now_iso())
                 raise
             finally:
+                if not pending(record):
+                    self._mesh_requests.pop(record["request_id"], None)
                 if on_update:
                     on_update()
             self._action_status.setdefault(group_id, {})[action] = "accepted"
             self.invalidate(group_id)
             return record.copy()
+
+    async def _start_mesh_measurement(self, group_id, operation):
+        """Continue one user request after server readiness; never resend a write."""
+        async with self._action_lock:
+            if operation.get("stage") != "preparing_server" or not pending(operation):
+                return
+            request = self._mesh_requests.pop(operation["request_id"], None)
+            if request is None:
+                return
+            operation.update(stage="measuring", state="SENDING", server_state="DONE", operation_id=None, updated_at=now_iso())
+            method, path, payload = request
+            try:
+                separator = "&" if "?" in path else "?"
+                response = await self._request(method, path+separator+"prettyPrint=false", payload)
+                if not isinstance(response, dict):
+                    raise ApiError("Google returned an unconfirmed mesh operation")
+                result = response.get("operation") or response
+                if not isinstance(result, dict):
+                    raise ApiError("Google returned an unconfirmed mesh operation")
+                oid, state = result.get("operationId"), result.get("operationState")
+                operation.update(operation_id=oid if isinstance(oid, str) and oid else None,
+                                 state=state if isinstance(state, str) and state else "ACCEPTED_UNCONFIRMED", updated_at=now_iso())
+                if operation["state"] == "DONE":
+                    self.invalidate(group_id)
+            except ApiError as error:
+                if isinstance(error, RateLimitError):
+                    self._retry_until = time.monotonic()+error.retry_after
+                rejected = error.status is not None and 400 <= error.status < 500 or isinstance(error, (AuthError, RateLimitError))
+                operation.update(state="REJECTED" if rejected else "DELIVERY_UNCONFIRMED", updated_at=now_iso())
+                if error.status:
+                    operation["http_status"] = error.status
+                if isinstance(error, AuthError):
+                    operation["status_error"] = "authentication_required"
+            except asyncio.CancelledError:
+                operation.update(state="DELIVERY_UNCONFIRMED", updated_at=now_iso())
+                raise
+            if operation["state"] in TERMINAL_STATES:
+                operation["finished_at"] = now_iso()
 
     def has_pending_operations(self, group_id):
         return any(pending(op) for op in self._operations.get(group_id, []))
@@ -381,18 +437,28 @@ class CloudClient:
                 continue
             if (datetime.now(UTC)-instant(operation["requested_at"])).total_seconds() > MONITOR_SECONDS:
                 operation.update(state="PENDING_UNCONFIRMED", status_error="monitoring_timeout", updated_at=now_iso())
+                self._mesh_requests.pop(operation.get("request_id"), None)
                 continue
             if operation["state"] in ("QUEUED", "SENDING"):
                 continue
             if time.monotonic() < self._retry_until:
                 continue
             try:
+                stage = operation.get("stage")
+                if stage == "preparing_server" and operation.get("server_state") == "DONE":
+                    await self._start_mesh_measurement(group_id, operation)
+                    continue
                 progress = await self._get("operations/"+quote(operation["operation_id"], safe="")+"?prettyPrint=false")
-                if not pending(operation):
+                if not pending(operation) or operation.get("stage") != stage:
                     continue  # Another status reader already received a terminal result.
                 if isinstance(progress, dict) and isinstance(progress.get("operation"), dict):
                     progress = progress["operation"]
                 state = progress.get("operationState") if isinstance(progress, dict) else None
+                if stage == "preparing_server":
+                    operation["server_state"] = state
+                    if state == "DONE":
+                        await self._start_mesh_measurement(group_id, operation)
+                        continue
                 if operation["state"] in ("RUNNING", "IN_PROGRESS") and state in ("CREATED", "PENDING"):
                     continue
                 if isinstance(state, str) and state and operation.get("status_error"):
@@ -404,10 +470,12 @@ class CloudClient:
                     operation.pop("status_error", None)
                     if state in TERMINAL_STATES:
                         operation["finished_at"] = now_iso()
+                        self._mesh_requests.pop(operation.get("request_id"), None)
                     if state == "DONE":
                         self.invalidate(group_id)
             except AuthError:
                 operation.update(state="PENDING_UNCONFIRMED", status_error="authentication_required", updated_at=now_iso())
+                self._mesh_requests.pop(operation.get("request_id"), None)
                 raise
             except RateLimitError as error:
                 self._retry_until = time.monotonic() + error.retry_after

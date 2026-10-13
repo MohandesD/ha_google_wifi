@@ -76,8 +76,8 @@ User language follows HA, with English/Portuguese UI.
 ### Optional cards in another dashboard
 
 Copy all four `www/*.js` files to `/config/www` and register
-`/local/google-wifi-insights-map.js?v=0.8.2` and
-`/local/google-wifi-dashboard-ui.js?v=0.8.2` as JavaScript modules.
+`/local/google-wifi-insights-map.js?v=0.8.3` and
+`/local/google-wifi-dashboard-ui.js?v=0.8.3` as JavaScript modules.
 Create a manual dashboard with `dashboard-overview.yaml` or `dashboard-map.yaml`.
 Shared model/history modules are imported automatically. This is optional and
 does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.

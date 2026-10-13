@@ -1,5 +1,5 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.8.2";
-import {formatBytes} from "./gwi-usage-history.js?v=0.8.2";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.8.3";
+import {formatBytes} from "./gwi-usage-history.js?v=0.8.3";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
