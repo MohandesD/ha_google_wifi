@@ -1,11 +1,14 @@
-import { mapModel, translate, languageOf } from "./gwi-map-model.js?v=0.8.0";
-import {formatBytes} from "./gwi-usage-history.js?v=0.8.0";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath } from "./gwi-map-model.js?v=0.8.1";
+import {formatBytes} from "./gwi-usage-history.js?v=0.8.1";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
   * { box-sizing:border-box; }
   ha-card { display:block; background:var(--ha-card-background,var(--card-background-color)); border-radius:var(--ha-card-border-radius,12px); }
   .content { padding:20px; container-type:inline-size; }
+  .back-link { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin:0 0 12px; padding:8px 12px; border-radius:8px; color:var(--primary-color); font-size:14px; text-decoration:none; }
+  .back-link:hover { background:var(--secondary-background-color); }
+  .back-link:focus-visible { outline:2px solid var(--primary-color); outline-offset:3px; }
   h2 { font-size:20px; font-weight:500; margin:0 0 8px; }
   h3 { font-size:14px; font-weight:500; margin:18px 0 4px; }
   p { font-size:12px; line-height:1.5; margin:6px 0; color:var(--secondary-text-color); }
@@ -73,6 +76,8 @@ class GoogleWifiInsightsMap extends HTMLElement {
     this._config = { max_clients:8, ...config };
     if ((this._config.title!=null && typeof this._config.title !== "string") || !Number.isInteger(this._config.max_clients) || this._config.max_clients < 1 || this._config.max_clients > 100)
       throw new Error(translate(this._language)("config_error"));
+    if (this._config.overview_path != null && !isLocalHaPath(this._config.overview_path))
+      throw new Error(translate(this._language)("navigation_config_error"));
     this._signature=undefined;
     this._updateStates(this._states || {});
   }
@@ -200,6 +205,12 @@ class GoogleWifiInsightsMap extends HTMLElement {
     const t=translate(this._language); this.lang=this._language;
     this.shadowRoot.replaceChildren(element("style",null,CSS));
     const card = element("ha-card"), content = element("div","content");
+    const returnPath=overviewPath(this._config,window.location?.pathname || "");
+    if(returnPath) {
+      const back=element("a","back-link");back.href=returnPath;
+      const arrow=element("span",null,"←");arrow.setAttribute("aria-hidden","true");
+      back.append(arrow,document.createTextNode(t("back_overview")));content.append(back);
+    }
     content.append(element("h2",null,this._config.title || t("title")));
     content.append(element("p",null,t("subtitle")));
     const legend = element("div","legend");

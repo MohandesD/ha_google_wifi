@@ -1,7 +1,7 @@
 {
   "domain": "google_wifi_insights",
   "name": "Google WiFi Insights",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "config_flow": true,
   "documentation": "https://github.com/spkon/ha_google_wifi",
   "after_dependencies": ["frontend", "panel_custom"],

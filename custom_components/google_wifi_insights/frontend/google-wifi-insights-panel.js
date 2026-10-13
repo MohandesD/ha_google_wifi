@@ -1,6 +1,6 @@
-import './google-wifi-dashboard-ui.js?v=0.8.0';
-import './google-wifi-insights-map.js?v=0.8.0';
-import {languageOf} from './gwi-map-model.js?v=0.8.0';
+import './google-wifi-dashboard-ui.js?v=0.8.1';
+import './google-wifi-insights-map.js?v=0.8.1';
+import {languageOf,overviewPath} from './gwi-map-model.js?v=0.8.1';
 
 class GoogleWifiInsightsPanel extends HTMLElement {
   constructor() {
@@ -21,6 +21,7 @@ class GoogleWifiInsightsPanel extends HTMLElement {
   _update() {
     const language=languageOf(this._hass);
     const mapPath=this._panel?.config?.map_path||'/google-wifi-insights/mapa';
+    const returnPath=overviewPath(this._panel?.config,mapPath);
     if (!this._built) {
       const style=document.createElement('style');
       style.textContent=':host{display:block;background:var(--primary-background-color);min-height:100%;color:var(--primary-text-color)}nav{display:flex;gap:8px;position:sticky;top:0;z-index:2;padding:10px 16px;background:var(--card-background-color);border-bottom:1px solid var(--divider-color)}button{font:inherit;min-height:44px;padding:8px 16px;border:0;border-radius:12px;background:transparent;color:var(--primary-text-color);cursor:pointer}button[aria-selected=true]{background:var(--primary-color);color:var(--text-primary-color)}button:focus-visible{outline:3px solid var(--primary-color);outline-offset:3px}main{max-width:1600px;margin:auto}main>google-wifi-insights-map{padding:16px}';
@@ -29,17 +30,18 @@ class GoogleWifiInsightsPanel extends HTMLElement {
       for (const [view,tag] of [['overview','google-wifi-dashboard-ui'],['map','google-wifi-insights-map']]) {
         const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');
         button.addEventListener('click',()=>this._select(view));this._buttons[view]=button;this._nav.append(button);
-        const card=document.createElement(tag);card.setConfig(view==='map'?{max_clients:8}:{language:'auto',map_path:mapPath});
+        const card=document.createElement(tag);card.setConfig(view==='map'?{max_clients:8,overview_path:returnPath}:{language:'auto',map_path:mapPath});
         this._cards[view]=card;
       }
       this.shadowRoot.append(style,this._nav,this._main);
       this.shadowRoot.addEventListener('click',event=>{
-        const link=event.composedPath().find(node=>node?.tagName==='A'&&node.getAttribute('href')===this._mapPath);
-        if(link){event.preventDefault();this._select('map');}
+        const link=event.composedPath().find(node=>node?.tagName==='A'&&[this._mapPath,this._returnPath].includes(node.getAttribute('href')));
+        if(link){event.preventDefault();this._select(link.getAttribute('href')===this._mapPath?'map':'overview');}
       });
       this._built=true;
     }
-    if (mapPath!==this._mapPath) {
+    if (mapPath!==this._mapPath || returnPath!==this._returnPath) {
+      this._returnPath=returnPath;this._cards.map.setConfig({max_clients:8,overview_path:returnPath});
       this._mapPath=mapPath;this._cards.overview.setConfig({language:'auto',map_path:mapPath});
     }
     this._language=language;this.lang=language;

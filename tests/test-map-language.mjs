@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {languageOf,translate,mapModel} from '../www/gwi-map-model.js';
+import {languageOf,translate,mapModel,isLocalHaPath,overviewPath} from '../www/gwi-map-model.js';
 
 test('effective HA language wins over browser defaults and handles regional variants',()=>{
   assert.equal(languageOf({language:'en-GB',locale:{language:'pt'}}),'en');
@@ -37,7 +37,7 @@ function cardEnvironment(config={},timers={}) {
     }
   }
   const elements=new Map();
-  const context=vm.createContext({mapModel,translate,languageOf,formatBytes:value=>value==null?'—':String(value)+' B',
+  const context=vm.createContext({mapModel,translate,languageOf,isLocalHaPath,overviewPath,formatBytes:value=>value==null?'—':String(value)+' B',
     HTMLElement:Node,document:{createElement:tag=>new Node(tag),createElementNS:(_,tag)=>new Node(tag),createTextNode:text=>{const n=new Node();n.textContent=text;return n;}},
     CustomEvent:class{constructor(type,options){this.type=type;Object.assign(this,options);}},
     ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:()=>1,cancelAnimationFrame(){},
@@ -94,4 +94,24 @@ test('HA state bursts are coalesced and render the latest state once',()=>{
   jobs[0]();
   assert.equal(card._model[0].points[0].count,30);
   card.disconnectedCallback();
+});
+
+test('standalone map provides a localized return link for a configured dashboard',()=>{
+  const {card}=cardEnvironment({overview_path:'/my-wifi/status'});
+  const link=()=>card.shadowRoot.children[1].children[0].children[0];
+  assert.equal(link().tag,'a');
+  assert.equal(link().href,'/my-wifi/status');
+  assert.match(link().textContent,/Back to overview/);
+  card.hass={states:{},language:'pt-PT'};
+  assert.match(link().textContent,/Voltar à visão geral/);
+  for(const path of ['https://example.invalid','//example.invalid','/\\example.invalid'])
+    assert.throws(()=>card.setConfig({overview_path:path}),/overview_path/);
+});
+
+test('automatic return paths stay within the current HA panel',()=>{
+  assert.equal(overviewPath({},'/my-wifi/mapa'),'/my-wifi/overview');
+  assert.equal(overviewPath({},'/my-wifi/diagnostics/'),'/my-wifi/overview');
+  assert.equal(overviewPath({overview_path:'/custom-dashboard/status'},'/my-wifi/mapa'),'/custom-dashboard/status');
+  assert.equal(overviewPath({},'/my-wifi/unrelated'),null);
+  assert.equal(overviewPath({overview_path:'//example.invalid'}),null);
 });

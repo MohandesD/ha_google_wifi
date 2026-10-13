@@ -66,13 +66,18 @@ HTTP asset registration is shared by entries and reused on reload.
 The map includes all available network scopes; the overview chooses the first
 available network. Existing manual cards can still set `network_entity` using
 an entity from that user's network. The overview accepts a local `map_path` to
-link to a chosen map view. User language follows HA, with English/Portuguese UI.
+link to a chosen map view. The map has a **Back to overview** link at the top.
+It stays inside the bundled panel and automatically returns from a manual
+`mapa`, `map` or `diagnostics` route to the same dashboard's `overview` route.
+For different view names, set `overview_path: /your-dashboard/your-overview`
+on the map card. Both navigation paths must be local Home Assistant paths.
+User language follows HA, with English/Portuguese UI.
 
 ### Optional cards in another dashboard
 
 Copy all four `www/*.js` files to `/config/www` and register
-`/local/google-wifi-insights-map.js?v=0.8.0` and
-`/local/google-wifi-dashboard-ui.js?v=0.8.0` as JavaScript modules.
+`/local/google-wifi-insights-map.js?v=0.8.1` and
+`/local/google-wifi-dashboard-ui.js?v=0.8.1` as JavaScript modules.
 Create a manual dashboard with `dashboard-overview.yaml` or `dashboard-map.yaml`.
 Shared model/history modules are imported automatically. This is optional and
 does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.

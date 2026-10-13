@@ -1,6 +1,7 @@
 // Read only observed HA entities. Never infer a point or mesh link from a name/IP.
 const TEXT = {
   en: {
+    back_overview:"Back to overview",navigation_config_error:"overview_path must be a local Home Assistant path.",
     wifi_test:"Stored WiFi test · {speed} Mbit/s · {point} · {time}",usage_24h:"Usage 24h · ↓ {download} · ↑ {upload}",controls:"Google controls",history:"Usage history",backhaul:"Backhaul · {type}",mesh_test:"Stored mesh test · {speed} Mbit/s · {time}",capabilities:"Google capabilities",operation:"Last operation · {state}",
     title:"WiFi network map",subtitle:"Devices by point and connection quality",
     unavailable:"Unavailable",unknown_point:"unknown",unknown_status:"Unknown status",
@@ -30,6 +31,7 @@ const TEXT = {
     card_description:"Points, associated clients and observed connection quality",
   },
   pt: {
+    back_overview:"Voltar à visão geral",navigation_config_error:"overview_path deve ser um caminho local do Home Assistant.",
     wifi_test:"Teste WiFi guardado · {speed} Mbit/s · {point} · {time}",usage_24h:"Utilização 24h · ↓ {download} · ↑ {upload}",controls:"Controlos Google",history:"Histórico de utilização",backhaul:"Backhaul · {type}",mesh_test:"Teste mesh guardado · {speed} Mbit/s · {time}",capabilities:"Capacidades Google",operation:"Última operação · {state}",
     title:"Mapa da rede WiFi",subtitle:"Dispositivos por ponto e qualidade das ligações",
     unavailable:"Indisponível",unknown_point:"desconhecido",unknown_status:"Estado desconhecido",
@@ -64,6 +66,16 @@ export function languageOf(value) {
   const raw = typeof value === "string" ? value : value?.language || value?.locale?.language;
   const code = typeof raw === "string" ? raw.replaceAll("_","-").toLowerCase() : "en";
   return code.split("-")[0] === "pt" ? "pt" : "en";
+}
+
+export function isLocalHaPath(value) {
+  return typeof value === "string" && /^\/(?!\/)[^\\?#\x00-\x20]*$/.test(value);
+}
+
+export function overviewPath(config = {}, pathname = "") {
+  if (config.overview_path != null) return isLocalHaPath(config.overview_path) ? config.overview_path : null;
+  if (!isLocalHaPath(pathname) || !/\/(?:mapa|map|diagnostics)\/?$/.test(pathname)) return null;
+  return pathname.replace(/\/(?:mapa|map|diagnostics)\/?$/, "/overview");
 }
 
 export function translate(language="en") {
