@@ -1,10 +1,13 @@
-# Google WiFi Insights 0.7.1
+# Google WiFi Insights 0.8.0
 
 This custom integration collects the network, points and clients returned by the Google account, without household-specific names, addresses or IDs in the runtime.
 
 Version 0.7.0 bundles the existing metrics/actions UI for HACS installation and registers the sidebar panel automatically. Metrics/actions retain the 0.6.1 behaviour.
 Version 0.7.1 standardizes documentation and examples in English and adds optional
 funding links. Metrics, controls and interface translations retain their behaviour.
+Version 0.8.0 adds guided Google authentication, a lightweight discovery check,
+credential retries and renewal through the integration options. See
+[AUTHENTICATION.md](AUTHENTICATION.md); Google cookie acquisition remains manual.
 
 ## Collected data
 

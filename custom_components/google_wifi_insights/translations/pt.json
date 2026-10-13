@@ -17,13 +17,79 @@
         }
       },
       "cloud": {
-        "title": "Autenticação Google",
-        "description": "Método não oficial. Obtenha o cookie oauth_token após login em https://accounts.google.com/EmbeddedSetup e introduza-o aqui. Trate-o como uma palavra-passe. Só disponibiliza métricas devolvidas pela Google.",
-        "data": {
-          "email": "Email Google",
-          "oauth_token": "Token Google",
-          "android_id": "Identificador Android"
+        "title": "Ligar a conta Google",
+        "description": "Use a conta Google que gere esta rede WiFi no Google Home. Escolha o método pelo navegador, exceto se já tiver um master token Google reutilizável e o respetivo identificador Android original. Esta integração usa acesso Google não oficial. [Ajuda de autenticação, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "menu_options": {
+          "cloud_cookie": "Obter token no navegador (recomendado)",
+          "cloud_master": "Usar master token existente (avançado)"
         }
+      },
+      "cloud_cookie": {
+        "title": "Obter um token Google no navegador",
+        "description": "1. [Abrir o login Google](https://accounts.google.com/EmbeddedSetup) no Chrome ou Edge de computador, fora do navegador da aplicação Home Assistant.\n2. Inicie sessão e conclua as verificações Google. Leia os termos e clique em **I agree** se os aceitar. A página pode continuar a carregar depois; procure o cookie antes de repetir o login.\n3. Prima **F12**, abra **Application → Storage → Cookies → https://accounts.google.com**, procure **oauth_token** e copie o respetivo **Value**.\n4. Introduza o mesmo email Google e cole abaixo o valor do cookie.\n\nO identificador Android é tratado automaticamente. Este é um token Google, diferente do token do Home Assistant e da palavra-passe Google. [Ajuda sobre Agree, cookies e tokens, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "data": {
+          "email": "Email da conta Google",
+          "oauth_token": "Valor do cookie oauth_token"
+        }
+      },
+      "cloud_master": {
+        "title": "Usar um token Google reutilizável",
+        "description": "Apenas para master tokens **aas_et/** ou **oauth2rt_1/** existentes. Introduza o identificador Android originalmente usado com esse token. Se não tiver ambos, cancele e escolha o método recomendado pelo navegador. A palavra-passe Google e o token do Home Assistant não são aceites. [Ajuda de autenticação, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "data": {
+          "email": "Email da conta Google",
+          "oauth_token": "Master token Google",
+          "android_id": "Identificador Android original (16 caracteres hexadecimais)"
+        }
+      },
+      "cloud_retry": {
+        "title": "Repetir a ligação à Google",
+        "description": "O token reutilizável fica apenas neste assistente aberto; não é necessário voltar a trocar o cookie original. Submeta para repetir a descoberta da rede. Para mudar de conta ou substituir o token, selecione a opção abaixo. Fechar o assistente descarta as credenciais pendentes; poderá depois ser necessário obter um novo cookie.",
+        "data": {
+          "new_token": "Escolher outra conta ou introduzir um novo token"
+        }
+      }
+    },
+    "error": {
+      "invalid_points": "Use um endereço IPv4 privado único por linha: Nome=IP.",
+      "cannot_connect": "A descoberta da rede falhou. Verifique a ligação do Home Assistant à Internet e tente novamente. Se aparecer o ecrã de repetição, não precisa de voltar a copiar o cookie.",
+      "invalid_auth": "A Google rejeitou o token. Obtenha um novo oauth_token com a mesma conta ou confirme o identificador Android original do master token existente.",
+      "invalid_input": "Introduza o email e um identificador Android hexadecimal de 16 caracteres.",
+      "invalid_token": "Cole o valor completo do token Google. Apenas o prefixo, uma palavra-passe, a tabela de cookies ou espaços dentro do token não são válidos.",
+      "account_mismatch": "Use a conta já configurada nesta integração.",
+      "invalid_email": "Introduza o email da conta Google que gere a rede.",
+      "invalid_android_id": "Introduza o identificador Android original: exatamente 16 caracteres hexadecimais (0-9, a-f).",
+      "wrong_service_token": "Este parece ser um token do Home Assistant ou de outro serviço. Use o cookie oauth_token da Google.",
+      "wrong_token_type": "Este token requer o outro método. O formulário correspondente já está aberto; volte a colar o token neste formulário.",
+      "google_challenge": "A Google exige uma verificação da conta. Conclua as verificações de login/segurança num navegador completo e obtenha um novo oauth_token. Não desative a verificação em dois passos.",
+      "auth_unavailable": "Não foi possível contactar o serviço de autenticação Google ou este está temporariamente indisponível. Verifique a ligação do Home Assistant à Internet e tente mais tarde.",
+      "rate_limited": "A Google pediu uma pausa nas consultas. Aguarde alguns minutos antes de tentar novamente; submeter repetidamente não resolve.",
+      "no_networks": "A conta autenticou, mas a Google não devolveu redes WiFi. Confirme que esta mesma conta consegue gerir a rede no Google Home; mude de conta se necessário.",
+      "account_access": "A Google recusou o acesso à rede WiFi. Confirme as permissões desta conta no Google Home. Um novo token do Home Assistant não resolve permissões Google."
+    },
+    "abort": {
+      "already_configured": "Esta rede já está configurada.",
+      "reauth_successful": "Autenticação atualizada.",
+      "not_cloud": "A autenticação Google só está disponível numa entrada de conta Google."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções da integração",
+        "menu_options": {
+          "polling": "Consultas e pontos locais",
+          "renew_auth": "Renovar autenticação Google"
+        }
+      },
+      "polling": {
+        "title": "Recolha de dados",
+        "data": {
+          "scan_interval": "Intervalo de consulta (segundos)",
+          "points": "Pontos (Nome=IP por linha)"
+        }
+      },
+      "renew_auth": {
+        "title": "Renovar autenticação Google"
       }
     },
     "error": {
@@ -35,27 +101,7 @@
       "account_mismatch": "Use a conta já configurada nesta integração."
     },
     "abort": {
-      "already_configured": "Esta rede já está configurada.",
-      "reauth_successful": "Autenticação atualizada."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Recolha de dados",
-        "data": {
-          "scan_interval": "Intervalo de consulta (segundos)",
-          "points": "Pontos (Nome=IP por linha)"
-        }
-      }
-    },
-    "error": {
-      "invalid_points": "Use um endereço IPv4 privado único por linha: Nome=IP.",
-      "cannot_connect": "Não foi possível consultar a rede. Verifique a ligação e o acesso da conta.",
-      "invalid_auth": "A Google rejeitou o token. Obtenha um novo oauth_token.",
-      "invalid_input": "Introduza o email e um identificador Android hexadecimal de 16 caracteres.",
-      "invalid_token": "Use um token oauth2_4/ ou um master token aas_et/ ou oauth2rt_1/ existente.",
-      "account_mismatch": "Use a conta já configurada nesta integração."
+      "not_cloud": "A autenticação Google só está disponível numa entrada de conta Google."
     }
   },
   "entity": {

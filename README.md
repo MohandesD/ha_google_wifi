@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.7.1.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.8.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -39,6 +39,8 @@ manual installation, upgrades and troubleshooting.
   typed administrator services for supported group/insight actions.
 - MAC-verified Shelly RSSI/BSSID/channel and eligible roaming controls.
 - English/Portuguese UI following Home Assistant's user language and time zone.
+- Guided Google authentication, automatic Android ID for browser tokens, specific
+  errors and credential renewal from the integration's options.
 - Sanitized additional telemetry, capability status and explicit operation results.
 
 The [capability inventory](docs/CAPABILITIES.md) distinguishes implemented actions,
@@ -89,8 +91,9 @@ See [validation/audit](docs/AUDIT.md), [credits](CREDITS.md) and
 [publication checklist](docs/PUBLISHING.md). Documentation, code comments and
 docstrings are written in English; see [CONTRIBUTING.md](CONTRIBUTING.md).
 The interface follows Home Assistant's user language, with English and Portuguese
-translations. Version 0.7.0 introduced bundled UI registration; 0.7.1 updates
-documentation and funding links without changing metrics or controls.
+translations. See the [authentication guide](docs/AUTHENTICATION.md) for browser
+tokens, the Agree/loading screen, retries and renewal. Version 0.8.0 improves
+setup and authentication without changing metric collection or Google controls.
 
 ## Support the project
 

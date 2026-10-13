@@ -1,6 +1,6 @@
 # Portability and publication audit
 
-Reviewed on 2026-10-13 against version 0.7.1.
+Reviewed on 2026-10-13 against version 0.8.0.
 
 ## Runtime and export
 
@@ -19,17 +19,31 @@ map routing and cache versions. Examples remain generic.
 Version 0.7.1 updates English documentation, dashboard examples and funding links;
 it does not change metric collection or control behaviour. Code comments and
 docstrings are in English; translated interface strings remain supported.
+Version 0.8.0 changes authentication setup and renewal: separate browser/master
+methods, automatic Android ID for browser tokens, fixed error categories,
+lightweight account discovery and a retry step holding exchanged credentials
+only for the open flow. Metric collection and Google controls retain their
+behaviour. Stored entry data remains compatible with earlier versions.
 Tests use synthetic addresses and inline fixtures, with no external captures.
 An explicit file-selection audit excludes credentials, deployment helpers,
 inventories, screenshots, private backups and virtual environments.
 
 ## Verification
 
-The clean repository passed **93 Python tests**, including seven isolated HA
-2026.10.1 framework tests, and **22 JavaScript tests**. Coverage includes bucket
+The clean repository passed **128 Python tests** using the isolated HA
+2026.10.1 framework, and **22 JavaScript tests**. Coverage includes bucket
 boundaries, missing data, scoped targets, registry spoof rejection, typed action
 validation, permissions, operation handling, existing Shelly controls and
 frontend state-update coalescing. The backend passed Ruff's F/E9 checks.
+Authentication tests additionally cover copy/paste normalization, incomplete and
+wrong-service tokens, Google account challenges/outages/rate limits, lightweight
+network discovery, retry without repeating cookie exchange, duplicate accounts,
+native options-to-reauth routing and preservation of three device records,
+entity IDs, stored credentials on failure and polling options on success.
+English/Portuguese setup translations have matching keys and password fields
+never receive submitted values as defaults. These use dummy credentials and
+simulated Google responses; the new Google login has not been exercised with a
+real account or installed on the household HA.
 
 The 0.6.1 telemetry/actions baseline was installed with backups and validated on real HA: both
 entries loaded, existing entities and unrelated device IDs/names were preserved,
@@ -51,3 +65,5 @@ and update-coalescing tests. The running household HA has not been upgraded to
 0.7.0. Uploading this clean copy does not publish private captures. Repository
 visibility is public and the owner approved MIT. Release 0.7.0 is published;
 0.7.1 packages the documentation and funding update separately.
+Version 0.8.0 publishes the guided authentication flow and the English
+[authentication guide](AUTHENTICATION.md).

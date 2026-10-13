@@ -34,6 +34,18 @@ class ApiError(Exception):
 class AuthError(ApiError):
     """Google authentication was rejected."""
 
+    def __init__(self, message="Google rejected authentication", reason="invalid_auth"):
+        super().__init__(message)
+        self.reason = reason if reason in {"invalid_auth", "google_challenge"} else "invalid_auth"
+
+
+class AuthServiceError(ApiError):
+    """A temporary Google authentication outage, not a rejected credential."""
+
+
+class NoNetworksError(ApiError):
+    """Authentication succeeded but the account returned no WiFi networks."""
+
 
 class RateLimitError(ApiError):
     """Back off polling when Google throttles requests."""
@@ -94,17 +106,29 @@ def google_auth(
                 allow_redirects=False,
                 verify=True,
             )
-            if response.status_code == 429 or response.status_code >= 500:
-                raise ApiError("Google authentication service unavailable")
-            if response.status_code in (401, 403):
-                raise AuthError("Google rejected authentication")
-            if response.status_code != 200:
+            if response.status_code == 429:
+                retry = response.headers.get("Retry-After", "300")
+                raise RateLimitError(min(max(int(retry), 60), 3600) if retry.isdigit() else 300)
+            if response.status_code >= 500:
+                raise AuthServiceError("Google authentication service unavailable")
+            if response.status_code not in (200, 401, 403):
                 raise ApiError("Unexpected authentication response")
-            result = gpsoauth.google.parse_auth_response(response.text)
+            try:
+                if len(response.text) > 65536:
+                    raise ValueError
+                result = gpsoauth.google.parse_auth_response(response.text)
+            except (TypeError, ValueError):
+                raise ApiError("Unexpected authentication response") from None
+            if result.get("Error") in {"NeedsBrowser", "WebLoginRequired", "CaptchaRequired", "InvalidSecondFactor"}:
+                raise AuthError(reason="google_challenge")
+            if result.get("Error") == "ServiceUnavailable":
+                raise AuthServiceError("Google authentication service unavailable")
+            if response.status_code in (401, 403) or result.get("Error"):
+                raise AuthError()
     except requests.RequestException:
-        raise ApiError("Cannot contact Google authentication") from None
+        raise AuthServiceError("Cannot contact Google authentication") from None
     if not result.get("Token" if exchange else "Auth"):
-        raise AuthError("Google rejected authentication")
+        raise ApiError("Incomplete Google authentication response")
     return result
 
 
@@ -204,6 +228,17 @@ class CloudClient:
         self._histories, self._action_status, self._operations = {}, {}, {}
         self._action_lock = asyncio.Lock()
         self._optional_slots = asyncio.Semaphore(3)
+
+    async def async_validate_account(self):
+        """Check authentication and network discovery without polling every metric."""
+        result = await self._get("groups?prettyPrint=false")
+        groups = result.get("groups")
+        if not isinstance(groups, list):
+            raise ApiError("Unexpected network discovery response")
+        count = sum(isinstance(group, dict) and isinstance(group.get("id"), str) and bool(group["id"]) for group in groups)
+        if not count:
+            raise NoNetworksError("No Google Wifi networks found on this account")
+        return count
 
     async def _authenticate(self, force=False):
         async with self._lock:

@@ -371,11 +371,15 @@ async def test_cloud_dynamic_clients_missing_connection_and_reauth(
         [{"id": "phone", "friendlyName": "Phone", "connected": True, "apId": "ap1"}]
     )
     monkeypatch.setattr(CloudClient, "snapshot", AsyncMock(return_value=snapshot))
+    monkeypatch.setattr(CloudClient, "async_validate_account", AsyncMock(return_value=1))
     result = await real_hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     result = await real_hass.config_entries.flow.async_configure(
         result["flow_id"], {"next_step_id": "cloud"}
+    )
+    result = await real_hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "cloud_master"}
     )
     result = await real_hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -441,6 +445,9 @@ async def test_cloud_dynamic_clients_missing_connection_and_reauth(
         data=entry.data,
     )
     assert reauth["step_id"] == "cloud"
+    reauth = await real_hass.config_entries.flow.async_configure(
+        reauth["flow_id"], {"next_step_id": "cloud_master"}
+    )
     reauth = await real_hass.config_entries.flow.async_configure(
         reauth["flow_id"],
         {

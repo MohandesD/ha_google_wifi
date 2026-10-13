@@ -32,18 +32,22 @@ current parser accepts 1–10 unique private IPv4 addresses.
 
 ## Google authentication
 
-Cloud access is unofficial. Follow the upstream
-[gpsoauth alternative flow](https://github.com/simon-weber/gpsoauth#alternative-flow):
+Choose **Get a token in the browser (recommended)** in the Google account setup.
+The form includes a Google sign-in link and instructions for locating the
+`oauth_token` cookie. Use a full desktop Chrome or Edge browser and paste the
+cookie value directly in HA with the matching Google email. The Android ID is
+handled automatically. The Google page can keep loading after **I agree**;
+check whether the cookie exists before repeating sign-in.
 
-1. Open `https://accounts.google.com/EmbeddedSetup` in Chrome or Edge and sign in
-   with the Google account managing the WiFi network. Accept the terms yourself
-   if you agree. The page may continue loading after acceptance.
-2. In browser developer tools, open **Application → Storage → Cookies**, select
-   `https://accounts.google.com` and find the `oauth_token` cookie. Copy its value.
-   If that cookie is absent, this step has not succeeded.
-3. Enter the email and token directly in the Home Assistant integration form.
-   Keep the generated Android ID. A supported existing master token can also be
-   used with the Android ID originally associated with it.
+The advanced method accepts an existing reusable master token together with its
+original Android ID. A failed network check after exchange can be retried without
+exchanging the cookie again while the flow stays open. Renew an existing entry
+through **Configure → Renew Google authentication**; polling settings are under
+**Configure → Polling and local points**.
+
+See [the authentication guide](docs/AUTHENTICATION.md) for each step, missing
+cookies, specific errors, retries, token types and credential renewal. Google
+access remains unofficial; obtaining the browser cookie is still manual.
 
 Treat Google tokens like passwords. Do not put them in issues, screenshots,
 shared configuration files or source control. Home Assistant stores the reusable
@@ -67,8 +71,8 @@ link to a chosen map view. User language follows HA, with English/Portuguese UI.
 ### Optional cards in another dashboard
 
 Copy all four `www/*.js` files to `/config/www` and register
-`/local/google-wifi-insights-map.js?v=0.7.1` and
-`/local/google-wifi-dashboard-ui.js?v=0.7.1` as JavaScript modules.
+`/local/google-wifi-insights-map.js?v=0.8.0` and
+`/local/google-wifi-dashboard-ui.js?v=0.8.0` as JavaScript modules.
 Create a manual dashboard with `dashboard-overview.yaml` or `dashboard-map.yaml`.
 Shared model/history modules are imported automatically. This is optional and
 does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.
@@ -84,7 +88,8 @@ does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.
   Check HA logs for the integration; reserved panel-path collisions are preserved.
 - Grey/unknown signal means no valid measurement. Historic gaps are not zero.
 - Authentication failures require reauthentication in the HA form. Never send
-  passwords/tokens in issues. Use the integration's redacted HA diagnostics.
+  passwords/tokens in issues. Use the integration's redacted HA diagnostics and
+  [authentication troubleshooting](docs/AUTHENTICATION.md).
 
 ## Measurements and controls
 
