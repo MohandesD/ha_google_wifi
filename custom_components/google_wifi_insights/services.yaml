@@ -1,0 +1,71 @@
+google_action:
+  name: Google WiFi action
+  description: Run an explicit Google operation. Accepted requests may still be pending or fail; check the last operation sensor. Tests can temporarily affect throughput. Advanced actions require an administrator and exact network-name confirmation.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    action:
+      required: true
+      selector:
+        select:
+          options:
+            - restart_network
+            - restart_point
+            - test_internet
+            - test_mesh
+            - test_local
+            - test_clients
+            - pause_client
+            - resume_client
+            - prioritize_client
+            - clear_priority
+            - set_point_light
+            - pause_group
+            - resume_group
+            - create_device_group
+            - update_device_group
+            - delete_device_group
+            - dismiss_insight
+            - run_insight_action
+            - remove_point
+            - remove_network
+    parameters:
+      description: Optional typed parameters (duration_minutes, brightness, automatic, group_id, station_ids, name, card_id). Advanced actions need confirmation equal to the network name; removal additionally needs confirm_removal equal to the target name.
+      selector:
+        object:
+get_usage_history:
+  name: Get Google usage history
+  description: Return cached per-minute (1h), per-hour (24h), per-day (7d) or per-day (30d) byte buckets, their period and collection time. Missing data is not zero. Network targets return WAN usage; client targets return that client only.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    resolution:
+      required: true
+      default: hour
+      selector:
+        select:
+          options: [minute, hour, day, month]
+get_capabilities:
+  name: Get Google capabilities
+  description: Return read availability, known action support, unverified capabilities and recent operation states without credentials.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+get_google_metrics:
+  name: Get all collected Google metrics
+  description: Return collected metadata and saved test results. Credentials and opaque mesh configuration are excluded. Use get_usage_history for byte buckets.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights

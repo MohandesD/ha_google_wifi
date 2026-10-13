@@ -1,0 +1,9 @@
+title: Google WiFi
+views:
+  - title: Google WiFi
+    path: mapa
+    icon: mdi:access-point-network
+    type: panel
+    cards:
+      - type: custom:google-wifi-insights-map
+        max_clients: 8

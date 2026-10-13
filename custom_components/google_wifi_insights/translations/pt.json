@@ -1,0 +1,302 @@
+{
+  "title": "Google WiFi Insights",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Google WiFi Insights",
+        "menu_options": {
+          "local": "Estado local dos pontos",
+          "cloud": "Conta Google e clientes"
+        }
+      },
+      "local": {
+        "title": "Pontos locais",
+        "description": "Um ponto por linha: Nome=IP. Só fornece estado, firmware e tempo ligado.",
+        "data": {
+          "points": "Pontos"
+        }
+      },
+      "cloud": {
+        "title": "Autenticação Google",
+        "description": "Método não oficial. Obtenha o cookie oauth_token após login em https://accounts.google.com/EmbeddedSetup e introduza-o aqui. Trate-o como uma palavra-passe. Só disponibiliza métricas devolvidas pela Google.",
+        "data": {
+          "email": "Email Google",
+          "oauth_token": "Token Google",
+          "android_id": "Identificador Android"
+        }
+      }
+    },
+    "error": {
+      "invalid_points": "Use um endereço IPv4 privado único por linha: Nome=IP.",
+      "cannot_connect": "Não foi possível consultar a rede. Verifique a ligação e o acesso da conta.",
+      "invalid_auth": "A Google rejeitou o token. Obtenha um novo oauth_token.",
+      "invalid_input": "Introduza o email e um identificador Android hexadecimal de 16 caracteres.",
+      "invalid_token": "Use um token oauth2_4/ ou um master token aas_et/ ou oauth2rt_1/ existente.",
+      "account_mismatch": "Use a conta já configurada nesta integração."
+    },
+    "abort": {
+      "already_configured": "Esta rede já está configurada.",
+      "reauth_successful": "Autenticação atualizada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Recolha de dados",
+        "data": {
+          "scan_interval": "Intervalo de consulta (segundos)",
+          "points": "Pontos (Nome=IP por linha)"
+        }
+      }
+    },
+    "error": {
+      "invalid_points": "Use um endereço IPv4 privado único por linha: Nome=IP.",
+      "cannot_connect": "Não foi possível consultar a rede. Verifique a ligação e o acesso da conta.",
+      "invalid_auth": "A Google rejeitou o token. Obtenha um novo oauth_token.",
+      "invalid_input": "Introduza o email e um identificador Android hexadecimal de 16 caracteres.",
+      "invalid_token": "Use um token oauth2_4/ ou um master token aas_et/ ou oauth2rt_1/ existente.",
+      "account_mismatch": "Use a conta já configurada nesta integração."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ip_address": {
+        "name": "Endereço IP"
+      },
+      "mac_address": {
+        "name": "Endereço MAC"
+      },
+      "wireless_band": {
+        "name": "Banda WiFi",
+        "state": {
+          "BAND_2400_MHZ": "2,4 GHz",
+          "BAND_5000_MHZ": "5 GHz",
+          "BAND_6000_MHZ": "6 GHz",
+          "NOT_APPLICABLE": "Não se aplica"
+        }
+      },
+      "connection_type": {
+        "name": "Tipo de ligação",
+        "state": {
+          "WIRED": "Cabo",
+          "WIRELESS": "WiFi"
+        }
+      },
+      "connected_clients": {
+        "name": "Clientes ligados"
+      },
+      "weak_clients": {
+        "name": "Clientes com ligação fraca"
+      },
+      "clients_with_signal": {
+        "name": "Clientes com medição de sinal"
+      },
+      "clients_with_quality": {
+        "name": "Clientes com qualidade de ligação"
+      },
+      "weak_mesh_points": {
+        "name": "Pontos com ligação mesh fraca"
+      },
+      "download_mbps": {
+        "name": "Tráfego de download"
+      },
+      "upload_mbps": {
+        "name": "Tráfego de upload"
+      },
+      "diagnosis": {
+        "name": "Avaliação",
+        "state": {
+          "point_offline": "Ponto offline",
+          "weak_signal_detected": "Ligação fraca observada",
+          "weak_mesh_detected": "Ligação mesh fraca observada",
+          "quality_data_available": "Classificações de ligação disponíveis",
+          "insufficient_radio_data": "Métricas de rádio insuficientes"
+        }
+      },
+      "saturation": {
+        "name": "Saturação do rádio"
+      },
+      "clients": {
+        "name": "Clientes observados"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "uptime_seconds": {
+        "name": "Tempo ligado"
+      },
+      "point": {
+        "name": "Ponto associado"
+      },
+      "rssi": {
+        "name": "RSSI WiFi"
+      },
+      "signal_quality": {
+        "name": "Qualidade de ligação",
+        "state": {
+          "excellent": "Excelente",
+          "good": "Boa",
+          "fair": "Razoável",
+          "weak": "Fraca"
+        }
+      },
+      "mesh_quality": {
+        "name": "Qualidade da ligação mesh",
+        "state": {
+          "excellent": "Excelente",
+          "good": "Boa",
+          "fair": "Razoável",
+          "weak": "Fraca"
+        }
+      },
+      "wan_status": {
+        "name": "Ligação à Internet"
+      },
+      "wan_test_download_mbps": {
+        "name": "Último teste de download da Internet"
+      },
+      "wan_test_upload_mbps": {
+        "name": "Último teste de upload da Internet"
+      },
+      "wan_test_at": {
+        "name": "Hora do último teste da Internet"
+      },
+      "google_telemetry_at": {
+        "name": "Métricas Google atualizadas"
+      },
+      "last_seen": {
+        "name": "Última deteção pela Google"
+      },
+      "hardware_type": {
+        "name": "Hardware"
+      },
+      "led_brightness": {
+        "name": "Luminosidade do ponto"
+      },
+      "wireless_standard": {
+        "name": "Capacidade WiFi"
+      },
+      "rx_spatial_streams": {
+        "name": "Fluxos de receção"
+      },
+      "wifi_bssid": {
+        "name": "BSSID WiFi atual"
+      },
+      "wifi_channel": {
+        "name": "Canal WiFi atual"
+      },
+      "client_download_mbps": {
+        "name": "Tráfego de download dos clientes"
+      },
+      "client_upload_mbps": {
+        "name": "Tráfego de upload dos clientes"
+      },
+      "wifi_test_mbps": {
+        "name": "Último teste de velocidade WiFi"
+      },
+      "wifi_test_at": {
+        "name": "Hora do último teste WiFi"
+      },
+      "mesh_test_mbps": {
+        "name": "Último teste de velocidade mesh"
+      },
+      "mesh_test_at": {
+        "name": "Hora do último teste mesh"
+      },
+      "backhaul_type": {
+        "name": "Tipo de backhaul"
+      },
+      "priority_until": {
+        "name": "Prioridade até"
+      },
+      "capability_count": {
+        "name": "Capacidades Google"
+      },
+      "last_operation": {
+        "name": "Última operação Google"
+      },
+      "peak_1h_download_mbps": {
+        "name": "Pico de download na última hora"
+      },
+      "peak_1h_upload_mbps": {
+        "name": "Pico de upload na última hora"
+      },
+      "usage_24h_download": {
+        "name": "Utilização de download 24h"
+      },
+      "usage_24h_upload": {
+        "name": "Utilização de upload 24h"
+      },
+      "usage_7d_download": {
+        "name": "Utilização de download 7d"
+      },
+      "usage_7d_upload": {
+        "name": "Utilização de upload 7d"
+      },
+      "usage_30d_download": {
+        "name": "Utilização de download 30d"
+      },
+      "usage_30d_upload": {
+        "name": "Utilização de upload 30d"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Ligado"
+      }
+    },
+    "device_tracker": {
+      "network_presence": {
+        "name": "Presença na rede"
+      }
+    },
+    "number": {
+      "set_point_light": {
+        "name": "Luminosidade do ponto"
+      },
+      "roam_rssi_threshold": {
+        "name": "Limite de sinal para roaming"
+      },
+      "roam_interval": {
+        "name": "Intervalo de procura de roaming"
+      }
+    },
+    "switch": {
+      "roaming_enabled": {
+        "name": "Roaming WiFi"
+      },
+      "internet_paused": {
+        "name": "Internet em pausa"
+      }
+    },
+    "button": {
+      "restart_network": {
+        "name": "Reiniciar rede WiFi"
+      },
+      "restart_point": {
+        "name": "Reiniciar ponto"
+      },
+      "test_internet": {
+        "name": "Testar velocidade da Internet"
+      },
+      "test_mesh": {
+        "name": "Testar velocidade da mesh"
+      },
+      "test_local": {
+        "name": "Testar velocidade local"
+      },
+      "test_clients": {
+        "name": "Testar clientes WiFi deste ponto"
+      },
+      "prioritize_client": {
+        "name": "Dar prioridade por uma hora"
+      },
+      "clear_priority": {
+        "name": "Remover prioridade"
+      },
+      "refresh_metrics": {
+        "name": "Atualizar métricas Google"
+      }
+    }
+  }
+}

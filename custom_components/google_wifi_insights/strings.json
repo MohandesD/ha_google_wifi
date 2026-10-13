@@ -1,0 +1,302 @@
+{
+  "title": "Google WiFi Insights",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Google WiFi Insights",
+        "menu_options": {
+          "local": "Local point status",
+          "cloud": "Google account and clients"
+        }
+      },
+      "local": {
+        "title": "Local points",
+        "description": "One point per line: Name=IP. Provides status, firmware and uptime only.",
+        "data": {
+          "points": "Points"
+        }
+      },
+      "cloud": {
+        "title": "Google authentication",
+        "description": "Unofficial access. Obtain the oauth_token cookie after signing in at https://accounts.google.com/EmbeddedSetup and enter it here. Treat it like a password. Only Google-provided metrics are available.",
+        "data": {
+          "email": "Email Google",
+          "oauth_token": "Token Google",
+          "android_id": "Android ID"
+        }
+      }
+    },
+    "error": {
+      "invalid_points": "Use one unique private IPv4 address per line: Name=IP.",
+      "cannot_connect": "Could not read the network. Check connectivity and account access.",
+      "invalid_auth": "Google rejected the token. Obtain a new oauth_token.",
+      "invalid_input": "Enter an email and a 16-digit hexadecimal Android ID.",
+      "invalid_token": "Use an oauth2_4/ token or an existing aas_et/ or oauth2rt_1/ master token.",
+      "account_mismatch": "Use the account already configured for this integration."
+    },
+    "abort": {
+      "already_configured": "This network is already configured.",
+      "reauth_successful": "Authentication updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling",
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "points": "Points (Name=IP per line)"
+        }
+      }
+    },
+    "error": {
+      "invalid_points": "Use one unique private IPv4 address per line: Name=IP.",
+      "cannot_connect": "Could not read the network. Check connectivity and account access.",
+      "invalid_auth": "Google rejected the token. Obtain a new oauth_token.",
+      "invalid_input": "Enter an email and a 16-digit hexadecimal Android ID.",
+      "invalid_token": "Use an oauth2_4/ token or an existing aas_et/ or oauth2rt_1/ master token.",
+      "account_mismatch": "Use the account already configured for this integration."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ip_address": {
+        "name": "IP address"
+      },
+      "mac_address": {
+        "name": "MAC address"
+      },
+      "wireless_band": {
+        "name": "WiFi band",
+        "state": {
+          "BAND_2400_MHZ": "2.4 GHz",
+          "BAND_5000_MHZ": "5 GHz",
+          "BAND_6000_MHZ": "6 GHz",
+          "NOT_APPLICABLE": "Not applicable"
+        }
+      },
+      "connection_type": {
+        "name": "Connection type",
+        "state": {
+          "WIRED": "Wired",
+          "WIRELESS": "WiFi"
+        }
+      },
+      "connected_clients": {
+        "name": "Connected clients"
+      },
+      "weak_clients": {
+        "name": "Clients with weak connection"
+      },
+      "clients_with_signal": {
+        "name": "Clients reporting signal"
+      },
+      "clients_with_quality": {
+        "name": "Clients reporting connection quality"
+      },
+      "weak_mesh_points": {
+        "name": "Points with weak mesh connection"
+      },
+      "download_mbps": {
+        "name": "Download traffic"
+      },
+      "upload_mbps": {
+        "name": "Upload traffic"
+      },
+      "diagnosis": {
+        "name": "Assessment",
+        "state": {
+          "point_offline": "Point offline",
+          "weak_signal_detected": "Weak connection observed",
+          "weak_mesh_detected": "Weak mesh connection observed",
+          "quality_data_available": "Connection ratings available",
+          "insufficient_radio_data": "Insufficient radio metrics"
+        }
+      },
+      "saturation": {
+        "name": "Radio saturation"
+      },
+      "clients": {
+        "name": "Observed clients"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "uptime_seconds": {
+        "name": "Uptime"
+      },
+      "point": {
+        "name": "Connected point"
+      },
+      "rssi": {
+        "name": "WiFi RSSI"
+      },
+      "signal_quality": {
+        "name": "Connection quality",
+        "state": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "fair": "Fair",
+          "weak": "Weak"
+        }
+      },
+      "mesh_quality": {
+        "name": "Mesh connection quality",
+        "state": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "fair": "Fair",
+          "weak": "Weak"
+        }
+      },
+      "wan_status": {
+        "name": "Internet connection"
+      },
+      "wan_test_download_mbps": {
+        "name": "Last Internet download test"
+      },
+      "wan_test_upload_mbps": {
+        "name": "Last Internet upload test"
+      },
+      "wan_test_at": {
+        "name": "Last Internet test time"
+      },
+      "google_telemetry_at": {
+        "name": "Google metrics updated"
+      },
+      "last_seen": {
+        "name": "Last seen by Google"
+      },
+      "hardware_type": {
+        "name": "Hardware"
+      },
+      "led_brightness": {
+        "name": "Point light brightness"
+      },
+      "wireless_standard": {
+        "name": "WiFi capability"
+      },
+      "rx_spatial_streams": {
+        "name": "Receive spatial streams"
+      },
+      "wifi_bssid": {
+        "name": "Current WiFi BSSID"
+      },
+      "wifi_channel": {
+        "name": "Current WiFi channel"
+      },
+      "client_download_mbps": {
+        "name": "Clients download traffic"
+      },
+      "client_upload_mbps": {
+        "name": "Clients upload traffic"
+      },
+      "wifi_test_mbps": {
+        "name": "Last device WiFi speed test"
+      },
+      "wifi_test_at": {
+        "name": "Last device WiFi test time"
+      },
+      "mesh_test_mbps": {
+        "name": "Last mesh speed test"
+      },
+      "mesh_test_at": {
+        "name": "Last mesh test time"
+      },
+      "backhaul_type": {
+        "name": "Backhaul type"
+      },
+      "priority_until": {
+        "name": "Priority until"
+      },
+      "capability_count": {
+        "name": "Google capabilities"
+      },
+      "last_operation": {
+        "name": "Last Google operation"
+      },
+      "peak_1h_download_mbps": {
+        "name": "Peak download in last hour"
+      },
+      "peak_1h_upload_mbps": {
+        "name": "Peak upload in last hour"
+      },
+      "usage_24h_download": {
+        "name": "Download usage 24h"
+      },
+      "usage_24h_upload": {
+        "name": "Upload usage 24h"
+      },
+      "usage_7d_download": {
+        "name": "Download usage 7d"
+      },
+      "usage_7d_upload": {
+        "name": "Upload usage 7d"
+      },
+      "usage_30d_download": {
+        "name": "Download usage 30d"
+      },
+      "usage_30d_upload": {
+        "name": "Upload usage 30d"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Connected"
+      }
+    },
+    "device_tracker": {
+      "network_presence": {
+        "name": "Network presence"
+      }
+    },
+    "number": {
+      "set_point_light": {
+        "name": "Point light brightness"
+      },
+      "roam_rssi_threshold": {
+        "name": "Roaming signal threshold"
+      },
+      "roam_interval": {
+        "name": "Roaming scan interval"
+      }
+    },
+    "switch": {
+      "roaming_enabled": {
+        "name": "WiFi roaming"
+      },
+      "internet_paused": {
+        "name": "Internet paused"
+      }
+    },
+    "button": {
+      "restart_network": {
+        "name": "Restart WiFi network"
+      },
+      "restart_point": {
+        "name": "Restart point"
+      },
+      "test_internet": {
+        "name": "Run Internet speed test"
+      },
+      "test_mesh": {
+        "name": "Run mesh speed test"
+      },
+      "test_local": {
+        "name": "Run local speed test"
+      },
+      "test_clients": {
+        "name": "Test WiFi clients on this point"
+      },
+      "prioritize_client": {
+        "name": "Prioritize for one hour"
+      },
+      "clear_priority": {
+        "name": "Clear device priority"
+      },
+      "refresh_metrics": {
+        "name": "Refresh Google metrics"
+      }
+    }
+  }
+}

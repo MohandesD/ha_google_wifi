@@ -1,0 +1,16 @@
+title: Google WiFi
+views:
+  - title: Overview
+    path: overview
+    icon: mdi:view-dashboard-outline
+    type: panel
+    cards:
+      - type: custom:google-wifi-dashboard-ui
+        language: auto
+  - title: Map
+    path: map
+    icon: mdi:access-point-network
+    type: panel
+    cards:
+      - type: custom:google-wifi-insights-map
+        max_clients: 8

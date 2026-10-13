@@ -1,0 +1,452 @@
+"""Bounded LAN reads and explicit unofficial Google Home Wifi API operations."""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from collections.abc import Callable
+from urllib.parse import quote
+
+import aiohttp
+import gpsoauth
+import requests
+
+from .model import cloud_network, local_point
+from .identity import normalize_mac
+from .radio_schema import radio_schema
+from .capabilities import READS, apply_extras, safe_metadata
+from .history import WINDOWS, apply_history, normalize_history, request_window
+
+AUTH_URL = "https://android.clients.google.com/auth"
+CLOUD_URL = "https://googlehomefoyer-pa.googleapis.com/v2/"
+CLIENT_SIGNATURE = "24bb24c05e47e0aefa68a58a766179d9b613a600"
+MAX_RESPONSE = 4 * 1024 * 1024
+
+
+class ApiError(Exception):
+    """A sanitized communication failure."""
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
+
+
+class AuthError(ApiError):
+    """Google authentication was rejected."""
+
+
+class RateLimitError(ApiError):
+    """Back off polling when Google throttles requests."""
+
+    def __init__(self, retry_after=300):
+        super().__init__("Google rate limit")
+        self.retry_after = retry_after
+
+
+def google_auth(
+    email: str, token: str, android_id: str, exchange: bool = False
+) -> dict:
+    """Use gpsoauth's TLS adapter with bounded requests and no global patching."""
+    fields = {
+        "accountType": "HOSTED_OR_GOOGLE",
+        "Email": email,
+        "androidId": android_id,
+        "has_permission": 1,
+        "source": "android",
+        "device_country": "us",
+        "operatorCountry": "us",
+        "lang": "en",
+        "sdk_version": 17,
+        "google_play_services_version": 240913000,
+    }
+    if exchange:
+        signature = "38918a453d07199354f8b19af05ec6562ced5788"
+        fields.update(
+            {
+                "Token": token,
+                "ACCESS_TOKEN": 1,
+                "add_account": 1,
+                "service": "ac2dm",
+                "client_sig": signature,
+                "callerSig": signature,
+                "droidguard_results": "dummy123",
+            }
+        )
+    else:
+        fields.update(
+            {
+                "EncryptedPasswd": token,
+                "service": "oauth2:https://www.googleapis.com/auth/accesspoints",
+                "app": "com.google.android.apps.chromecast.app",
+                "client_sig": CLIENT_SIGNATURE,
+            }
+        )
+    try:
+        with requests.Session() as session:
+            session.mount(AUTH_URL, gpsoauth.AuthHTTPAdapter())
+            session.headers.update(
+                {"User-Agent": "GoogleAuth/1.4", "Accept-Encoding": "identity"}
+            )
+            response = session.post(
+                AUTH_URL,
+                data=fields,
+                timeout=(10, 30),
+                allow_redirects=False,
+                verify=True,
+            )
+            if response.status_code == 429 or response.status_code >= 500:
+                raise ApiError("Google authentication service unavailable")
+            if response.status_code in (401, 403):
+                raise AuthError("Google rejected authentication")
+            if response.status_code != 200:
+                raise ApiError("Unexpected authentication response")
+            result = gpsoauth.google.parse_auth_response(response.text)
+    except requests.RequestException:
+        raise ApiError("Cannot contact Google authentication") from None
+    if not result.get("Token" if exchange else "Auth"):
+        raise AuthError("Google rejected authentication")
+    return result
+
+
+async def json_get(session, url, headers=None) -> dict:
+    return await json_request(session, "GET", url, headers)
+
+
+async def json_request(session, method, url, headers=None, payload=None) -> dict:
+    """Never follow redirects with credentials or log response bodies."""
+    try:
+        async with session.request(
+            method, url,
+            headers=headers,
+            json=payload,
+            allow_redirects=False,
+            timeout=aiohttp.ClientTimeout(total=15),
+        ) as response:
+            if response.status == 429:
+                retry = response.headers.get("Retry-After", "300")
+                raise RateLimitError(
+                    min(max(int(retry), 60), 3600) if retry.isdigit() else 300
+                )
+            if response.status == 401:
+                raise AuthError("Google token expired or rejected")
+            if not 200 <= response.status < 300:
+                raise ApiError(f"Google endpoint returned HTTP {response.status}", response.status)
+            if response.content_length and response.content_length > MAX_RESPONSE:
+                raise ApiError("Response too large")
+            body = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                body.extend(chunk)
+                if len(body) > MAX_RESPONSE:
+                    raise ApiError("Response too large")
+            import json
+
+            result = json.loads(body) if body else {}
+            if not isinstance(result, dict):
+                raise ApiError("Unexpected response format")
+            return result
+    except aiohttp.ClientError, TimeoutError, ValueError:
+        raise ApiError("Network request failed; delivery of a write is unconfirmed") from None
+
+
+class LocalClient:
+    def __init__(self, session, points):
+        self.session, self.points = session, points
+
+    async def snapshot(self):
+        points = {}
+        for point in self.points:
+            try:
+                status = await json_get(
+                    self.session, f"http://{point['host']}/api/v1/status"
+                )
+                if not isinstance(status.get("system"), dict) or not isinstance(
+                    status.get("wan"), dict
+                ):
+                    raise ApiError("Not a Google Wifi status response")
+            except ApiError:
+                status = None
+            points[point["host"]] = local_point(point, status)
+        if not any(point["reachable"] for point in points.values()):
+            raise ApiError("No Google Wifi point responded")
+        return {
+            "networks": {
+                "local": {
+                    "name": "Google WiFi",
+                    "points": points,
+                    "clients": {},
+                    "connected_clients": None,
+                    "weak_clients": None,
+                    "clients_with_signal": None,
+                    "download_mbps": None,
+                    "upload_mbps": None,
+                    "unassigned_clients": None,
+                    "unknown_connection_clients": None,
+                    "saturation": None,
+                    "diagnosis": "insufficient_radio_data",
+                    "source": "local_status",
+                }
+            }
+        }
+
+
+class CloudClient:
+    def __init__(self, session, executor: Callable, email, master_token, android_id):
+        self.session, self.executor = session, executor
+        self.email, self.master_token, self.android_id = email, master_token, android_id
+        self._token, self._expiry, self._retry_until = None, 0, 0
+        self._lock = asyncio.Lock()
+        self.radio_evidence = {}
+        self._mac_cache = {}
+        self._mac_retry = {}
+        self._speed_cache = {}
+        self._speed_next_read = {}
+        self._optional_cache, self._optional_next, self._read_status = {}, {}, {}
+        self._histories, self._action_status, self._operations = {}, {}, {}
+        self._action_lock = asyncio.Lock()
+        self._optional_slots = asyncio.Semaphore(3)
+
+    async def _authenticate(self, force=False):
+        async with self._lock:
+            if not force and self._token and self._expiry > time.monotonic() + 60:
+                return
+            result = await self.executor(
+                google_auth, self.email, self.master_token, self.android_id
+            )
+            self._token = result["Auth"]
+            try:
+                lifetime = int(result.get("ExpiresInDurationSec", 3600))
+            except TypeError, ValueError:
+                lifetime = 3600
+            self._expiry = time.monotonic() + max(60, lifetime)
+
+    async def _get(self, path):
+        return await self._request("GET", path)
+
+    async def _request(self, method, path, payload=None):
+        if time.monotonic() < self._retry_until:
+            raise RateLimitError(int(self._retry_until - time.monotonic()) + 1)
+        await self._authenticate()
+        try:
+            return await json_request(
+                self.session, method,
+                CLOUD_URL + path,
+                {"Authorization": f"Bearer {self._token}"},
+                payload,
+            )
+        except AuthError:
+            await self._authenticate(force=True)
+            return await json_request(
+                self.session, method,
+                CLOUD_URL + path,
+                {"Authorization": f"Bearer {self._token}"},
+                payload,
+            )
+
+    async def _optional(self, group_id, key, path, ttl, period=None):
+        """Denied/empty optional measurements never remove core network entities."""
+        from datetime import UTC, datetime
+        identity = (group_id, key)
+        if self._optional_next.get(identity, 0) > time.monotonic():
+            return
+        self._optional_next[identity] = time.monotonic() + ttl
+        status = self._read_status.setdefault(group_id, {})
+        try:
+            async with self._optional_slots:
+                payload = await self._get(path)
+            if period is not None:
+                self._histories.setdefault(group_id, {})[key.removeprefix("usage_")] = normalize_history(payload, period)
+            else:
+                # This opaque encoded configuration is not telemetry and may contain keys.
+                self._optional_cache.setdefault(group_id, {})[key] = {} if key == "meshConfiguration" else payload
+            status[key] = {"state": "available", "retrieved_at": datetime.now(UTC).isoformat(), "stale": False}
+        except AuthError, RateLimitError:
+            raise
+        except (ApiError, TypeError, ValueError, AttributeError) as error:
+            code = getattr(error, "status", None)
+            denied = code in (403, 404, 405)
+            self._optional_next[identity] = time.monotonic() + max(ttl, 1800 if denied else 120)
+            status[key] = {**status.get(key, {}), "state": "denied" if denied else "error",
+                           "http_status": code, "stale": True}
+
+    def invalidate(self, group_id):
+        for identity in list(self._optional_next):
+            if identity[0] == group_id:
+                self._optional_next.pop(identity)
+
+    async def action(self, group_id, action, path, method, payload):
+        """No automatic retry of a transport failure or ambiguous write response."""
+        from datetime import UTC, datetime
+        async with self._action_lock:
+            try:
+                response = await self._request(method, path + "?prettyPrint=false", payload)
+            except RateLimitError as error:
+                self._retry_until = time.monotonic() + error.retry_after
+                raise
+            except ApiError as error:
+                self._action_status.setdefault(group_id, {})[action] = "denied" if error.status in (403, 404, 405) else "unconfirmed"
+                self._operations.setdefault(group_id, []).append({"action": action,
+                    "state": "REJECTED" if error.status else "DELIVERY_UNCONFIRMED",
+                    "http_status": error.status, "operation_id": None, "requested_at": datetime.now(UTC).isoformat()})
+                self._operations[group_id] = self._operations[group_id][-20:]
+                raise
+            op = response.get("operation") or response
+            if not isinstance(op, dict):
+                raise ApiError("Google returned an unconfirmed operation")
+            operation_id = op.get("operationId")
+            state = op.get("operationState")
+            if state in ("ERROR", "FAILED", "CANCELLED"):
+                raise ApiError("Google operation failed")
+            result = {"action": action, "state": state or "ACCEPTED_UNCONFIRMED",
+                      "requested_at": datetime.now(UTC).isoformat(),
+                      "operation_id": operation_id if isinstance(operation_id, str) else None}
+            self._operations.setdefault(group_id, []).append(result)
+            self._operations[group_id] = self._operations[group_id][-20:]
+            self._action_status.setdefault(group_id, {})[action] = "accepted"
+            self.invalidate(group_id)
+            return result.copy()
+
+    async def _poll_operations(self, group_id):
+        from datetime import UTC, datetime
+        from .history import instant
+        for operation in self._operations.get(group_id, [])[-5:]:
+            if operation["state"] in ("DONE", "ERROR", "FAILED", "CANCELLED", "PENDING_UNCONFIRMED") or not operation["operation_id"]:
+                continue
+            if (datetime.now(UTC)-instant(operation["requested_at"])).total_seconds() > 600:
+                operation["state"] = "PENDING_UNCONFIRMED"
+                continue
+            try:
+                progress = await self._get("operations/"+quote(operation["operation_id"], safe="")+"?prettyPrint=false")
+                state = progress.get("operationState")
+                if isinstance(state, str):
+                    operation["state"] = state
+                    if state == "DONE":
+                        self.invalidate(group_id)
+            except AuthError, RateLimitError:
+                raise
+            except ApiError:
+                pass
+
+    async def _station_macs(self, group_id, stations):
+        """Read MACs in bounded batches. Never run tests or modify router settings."""
+        now = time.monotonic()
+        active = {s["id"] for s in stations if s.get("connected") is True}
+        cache = self._mac_cache.setdefault(group_id, {})
+        needed = sorted(sid for sid in active if cache.get(sid, (None, 0))[1] < now)
+        if needed and self._mac_retry.get(group_id, 0) <= now:
+            try:
+                # Limit the total optional work per poll, including operation waiting.
+                async with asyncio.timeout(30):
+                    for start in range(0, min(len(needed), 200), 100):
+                        batch = needed[start:start + 100]
+                        created = await self._request(
+                            "POST", f"groups/{quote(group_id, safe='')}/stations/operations/sensitiveInfo?prettyPrint=false",
+                            {"stationIds": batch},
+                        )
+                        operation = (created.get("operation") or {}).get("operationId")
+                        if not isinstance(operation, str) or not operation:
+                            raise ApiError("MAC lookup operation unavailable")
+                        path = f"operations/{quote(operation, safe='')}"
+                        for attempt in range(8):
+                            progress = await self._get(path + "?prettyPrint=false")
+                            if progress.get("operationState") == "DONE":
+                                break
+                            if progress.get("operationState") in ("ERROR", "FAILED", "CANCELLED"):
+                                raise ApiError("MAC lookup operation failed")
+                            await asyncio.sleep(1)
+                        else:
+                            raise ApiError("MAC lookup operation pending")
+                        result = await self._get(path + "/sensitiveInfo?prettyPrint=false")
+                        rows = result.get("stationSensitiveInfos")
+                        if not isinstance(rows, list):
+                            raise ApiError("MAC lookup result unavailable")
+                        # Google may return additional records: accept requested IDs only.
+                        returned = {r.get("stationId"): normalize_mac(r.get("macAddress"))
+                                    for r in rows if isinstance(r, dict) and r.get("stationId") in batch}
+                        for sid in batch:
+                            mac = returned.get(sid)
+                            cache[sid] = (mac, now + (21600 if mac else 3600))
+            except AuthError, RateLimitError:
+                raise
+            except ApiError as error:
+                # Denied endpoints back off longer; transient startup failures retry
+                # at the next normal poll while preserving the already resolved MACs.
+                denied = any(f"HTTP {code}" in str(error) for code in (403, 404, 405))
+                self._mac_retry[group_id] = now + (1800 if denied else 120)
+            except TimeoutError:
+                self._mac_retry[group_id] = now + 120
+        return {sid: value[0] for sid, value in cache.items() if value[0]}
+
+    async def snapshot(self):
+        try:
+            groups_payload = await self._get("groups?prettyPrint=false")
+            self.radio_evidence = {"groups": radio_schema(groups_payload), "networks": []}
+            if not isinstance(groups_payload.get("groups"), list):
+                raise ApiError("Google returned no Wifi networks")
+            networks = {}
+            for group in groups_payload["groups"]:
+                if not isinstance(group, dict) or not isinstance(group.get("id"), str):
+                    continue
+                group_id = group["id"]
+                from datetime import UTC, datetime
+                read_status = self._read_status.setdefault(group_id, {})
+                collected_at = datetime.now(UTC).isoformat()
+                read_status["groups"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+                prefix = f"groups/{quote(group_id, safe='')}/"
+                status = await self._get(prefix + "status?prettyPrint=false")
+                clients = await self._get(prefix + "stations?prettyPrint=false")
+                if not isinstance(clients.get("stations"), list):
+                    raise ApiError("Google returned no client list")
+                if any(
+                    not isinstance(station, dict)
+                    or not isinstance(station.get("id"), str)
+                    for station in clients["stations"]
+                ):
+                    raise ApiError("Unexpected client record format")
+                for key in ("status", "stations"):
+                    read_status[key] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+                # Traffic is optional. A throttled request still triggers backoff.
+                try:
+                    metrics = await self._get(
+                        prefix + "realtimeMetrics?prettyPrint=false"
+                    )
+                    read_status["realtimeMetrics"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+                except AuthError, RateLimitError:
+                    raise
+                except ApiError as error:
+                    metrics = {}
+                    read_status["realtimeMetrics"] = {"state": "error", "http_status": error.status, "stale": True}
+                self.radio_evidence["networks"].append({
+                    "status": radio_schema(status),
+                    "stations": radio_schema(clients),
+                    "metrics": radio_schema(metrics),
+                })
+                await self._poll_operations(group_id)
+                reads = [self._optional(group_id, key, prefix+key+"?prettyPrint=false", ttl) for key, ttl in READS.items()]
+                for mode, (_, _, ttl) in WINDOWS.items():
+                    period, query = request_window(mode)
+                    reads.append(self._optional(group_id, "usage_"+mode, prefix+"historicalUsage?"+query, ttl, period))
+                read_results = await asyncio.gather(*reads, return_exceptions=True)
+                for result in read_results:
+                    if isinstance(result, BaseException):
+                        raise result
+                extras = self._optional_cache.get(group_id, {})
+                network = cloud_network(
+                    group, status, clients["stations"], metrics,
+                    await self._station_macs(group_id, clients["stations"]),
+                    extras.get("speedTestResults", {}),
+                )
+                network["google_telemetry"]["fullStatus"] = safe_metadata(status)
+                network["google_telemetry"]["fullRealtimeMetrics"] = safe_metadata(metrics)
+                for station in clients["stations"]:
+                    network["clients"][station["id"]]["_station_metadata"] = station
+                apply_history(network, self._histories.get(group_id, {}))
+                apply_extras(network, group, extras, self._read_status.get(group_id, {}), self._action_status.get(group_id, {}))
+                network["operations"] = self._operations.get(group_id, []).copy()
+                network["last_operation"] = network["operations"][-1]["state"] if network["operations"] else "NONE"
+                networks[group_id] = network
+            if not networks:
+                raise ApiError("No Google Wifi networks found on this account")
+            return {"networks": networks}
+        except RateLimitError as error:
+            self._retry_until = time.monotonic() + error.retry_after
+            raise
