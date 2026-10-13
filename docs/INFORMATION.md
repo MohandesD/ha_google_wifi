@@ -44,8 +44,9 @@ These reads do not provide a supported manual firmware-upgrade action.
 LAN reads accept private IPv4 addresses already configured in a local-mode entry.
 For a cloud-only installation, open the integration's polling options and enter
 the reachable primary point's **LAN gateway (optional)**. Discovered online points
-in that primary's subnet can then be read. A unique online primary, LAN role and
-returned local address must agree. Ambiguous identical gateway addresses on
+in that primary's subnet can then be read. A unique online primary and the LAN role must agree. A leaf
+WAN address must match its discovered mesh IP; a primary WAN address can belong
+to the upstream subnet and is kept separately from its configured LAN address. Ambiguous identical gateway addresses on
 different online networks are rejected; names alone never choose a network.
 
 Status uses a 60-second cache. Other LAN reads use a one-hour cache, a four-second

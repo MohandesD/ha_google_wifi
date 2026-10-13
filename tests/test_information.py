@@ -83,11 +83,25 @@ async def test_lan_reads_are_cached_gets_and_keep_unsupported_endpoint_status(mo
 
 
 @pytest.mark.asyncio
-async def test_lan_role_and_ip_mismatches_do_not_get_extra_endpoint_reads(monkeypatch):
+@pytest.mark.parametrize("expected_role", ["root", "leaf"])
+async def test_lan_role_and_ip_mismatches_do_not_get_extra_endpoint_reads(monkeypatch, expected_role):
     read = AsyncMock(return_value=status("10.7.0.2", "leaf"))
     monkeypatch.setattr("gwi_test.lan.json_get", read)
-    point = await LanDiagnostics(None).point("10.7.0.1", "root")
+    point = await LanDiagnostics(None).point("10.7.0.1", expected_role)
     assert point["stale"] and point["status"] == {} and read.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_primary_wan_in_an_upstream_subnet_keeps_its_lan_diagnostics(monkeypatch):
+    async def read(session, url, headers=None):
+        return status("172.20.0.2", "root") if url.endswith("/status") else {"enabled": False}
+
+    requests = AsyncMock(side_effect=read)
+    monkeypatch.setattr("gwi_test.lan.json_get", requests)
+    point = await LanDiagnostics(None).point("10.7.0.1", "root")
+    assert point["stale"] is False and requests.call_count == 4
+    assert point["status"]["wan"]["localIpAddress"] == "172.20.0.2"
+    assert point["status"]["software"]["updateRequired"] is False
 
 
 def network(host="10.7.0.1"):

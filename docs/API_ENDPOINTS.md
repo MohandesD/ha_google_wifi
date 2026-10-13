@@ -91,7 +91,8 @@ Version 0.9.0 collects the four successful LAN reads above. Local status is cach
 for 60 seconds and supplemental LAN reads for one hour. Existing local-mode
 addresses anchor the current cloud network; cloud-only users can configure
 a LAN gateway in the integration options. A duplicated online primary IP,
-mismatched LAN role or returned address prevents association. Denials and
+mismatched LAN role or leaf address prevents association. A primary WAN
+address belongs to its upstream subnet and need not equal the LAN gateway. Denials and
 unsupported endpoints back off for six hours; failures retain their original
 timestamps and are explicitly stale. No diagnostic-report polling or
 provisioning calls are added.

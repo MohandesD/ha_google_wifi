@@ -47,7 +47,7 @@ inventories, screenshots, private backups and virtual environments.
 
 ## Verification
 
-The clean repository passed **170 Python tests** using the isolated HA
+The clean repository passed **172 Python tests** using the isolated HA
 2026.10.1 framework, and **30 JavaScript tests**. Coverage includes bucket
 boundaries, missing data, scoped targets, registry spoof rejection, typed action
 validation, permissions, operation handling, existing Shelly controls and

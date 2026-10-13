@@ -64,7 +64,9 @@ class LanDiagnostics:
         payload, observed = status["payload"], status["read"]
         role = payload.get("system", {}).get("groupRole")
         local_ip = payload.get("wan", {}).get("localIpAddress")
-        if observed.get("stale") or expected_role and role != expected_role or local_ip and private_host(local_ip) != host:
+        # A primary's WAN address belongs to its upstream subnet, not its LAN host.
+        # Leaf WAN interfaces use the mesh subnet and must match their cloud address.
+        if observed.get("stale") or expected_role and role != expected_role or role == "leaf" and local_ip and private_host(local_ip) != host:
             return {"host": host, "status": {}, "stale": True, "retrieved_at": observed.get("retrieved_at"),
                     "endpoints": {"status": {**observed, "stale": True}}}
         names = [name for name in ENDPOINTS if name != "status"]
