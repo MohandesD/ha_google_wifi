@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfDataRate, UnitOfInformation, UnitOfTime, EntityCategory
 
 from .entity import WifiEntity, add_dynamic_entities
+from .operations import OPERATION_PHASES
 
 SENSORS = {
     "network": [
@@ -60,10 +61,10 @@ SENSORS = {
 }
 
 EXTRA_SENSORS = {
-    "network": [("capability_count", "Google capabilities"), ("last_operation", "Last Google operation"),
+    "network": [("capability_count", "Google capabilities"), ("last_operation", "Last Google operation"), ("operation_status", "Action status"),
                 ("peak_1h_download_mbps", "Peak download in last hour"), ("peak_1h_upload_mbps", "Peak upload in last hour")]
                + [(f"usage_{window}_{direction}", f"{direction.title()} usage {window}") for window in ("24h", "7d", "30d") for direction in ("download", "upload")],
-    "point": [("mesh_test_mbps", "Last mesh speed test"), ("mesh_test_at", "Last mesh test time"), ("backhaul_type", "Backhaul type")],
+    "point": [("mesh_test_mbps", "Last mesh speed test"), ("mesh_test_at", "Last mesh test time"), ("backhaul_type", "Backhaul type"), ("operation_status", "Action status")],
     "client": [("wifi_test_mbps", "Last device WiFi speed test"), ("wifi_test_at", "Last device WiFi test time"),
                ("usage_24h_download", "Download usage 24h"), ("usage_24h_upload", "Upload usage 24h"),
                ("priority_until", "Priority until")],
@@ -125,6 +126,10 @@ class WifiSensor(WifiEntity, SensorEntity):
             self._attr_icon = "mdi:api"
         elif key == "last_operation":
             self._attr_icon = "mdi:progress-check"
+        elif key == "operation_status":
+            self._attr_icon = "mdi:progress-check"
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = OPERATION_PHASES
         elif key == "led_brightness":
             self._attr_native_unit_of_measurement = "%"
             self._attr_icon = "mdi:brightness-6"
@@ -157,6 +162,8 @@ class WifiSensor(WifiEntity, SensorEntity):
 
     @property
     def native_value(self):
+        if self.key == "operation_status":
+            return (self.operation_feedback or {}).get("phase", "none")
         value = self.item.get("host") if self.kind == "point" and self.key == "ip_address" else self.item.get(self.key)
         if self.key in ("wireless_band", "connection_type") and value not in self._attr_options:
             return None

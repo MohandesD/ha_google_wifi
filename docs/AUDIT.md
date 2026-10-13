@@ -1,6 +1,6 @@
 # Portability and publication audit
 
-Reviewed on 2026-10-13 against version 0.8.1.
+Reviewed on 2026-10-13 against version 0.8.2.
 
 ## Runtime and export
 
@@ -28,17 +28,24 @@ Version 0.8.1 adds a localized return link from the map and diagnostics view.
 Bundled-panel navigation retains the overview instance; manual cards can use
 same-dashboard routes or an explicit local `overview_path`. Metric collection,
 stored entries and Google controls are unchanged.
+Version 0.8.2 correlates restart/test feedback with each target and button, adds
+network/point action-status sensors, and polls pending Google operation status
+every five seconds for at most ten minutes. Duplicate pending writes are blocked;
+acceptance, reported execution, completion and uncertain delivery are distinct.
 Tests use synthetic addresses and inline fixtures, with no external captures.
 An explicit file-selection audit excludes credentials, deployment helpers,
 inventories, screenshots, private backups and virtual environments.
 
 ## Verification
 
-The clean repository passed **128 Python tests** using the isolated HA
-2026.10.1 framework, and **25 JavaScript tests**. Coverage includes bucket
+The clean repository passed **140 Python tests** using the isolated HA
+2026.10.1 framework, and **26 JavaScript tests**. Coverage includes bucket
 boundaries, missing data, scoped targets, registry spoof rejection, typed action
 validation, permissions, operation handling, existing Shelly controls and
 frontend state-update coalescing. The backend passed Ruff's F/E9 checks.
+Operation feedback tests exercise actual HA button events, queued/sending/
+accepted/running/completed sensor transitions, target isolation, unload
+cancellation, ambiguous responses, write errors, expiry and out-of-order reads.
 Authentication tests additionally cover copy/paste normalization, incomplete and
 wrong-service tokens, Google account challenges/outages/rate limits, lightweight
 network discovery, retry without repeating cookie exchange, duplicate accounts,

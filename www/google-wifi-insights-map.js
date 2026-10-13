@@ -1,12 +1,12 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath } from "./gwi-map-model.js?v=0.8.1";
-import {formatBytes} from "./gwi-usage-history.js?v=0.8.1";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.8.2";
+import {formatBytes} from "./gwi-usage-history.js?v=0.8.2";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
   * { box-sizing:border-box; }
   ha-card { display:block; background:var(--ha-card-background,var(--card-background-color)); border-radius:var(--ha-card-border-radius,12px); }
   .content { padding:20px; container-type:inline-size; }
-  .back-link { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin:0 0 12px; padding:8px 12px; border-radius:8px; color:var(--primary-color); font-size:14px; text-decoration:none; }
+  .back-link { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin:0 0 12px; padding:8px 12px; border:1px solid var(--divider-color); border-radius:8px; color:var(--primary-text-color); font-size:14px; text-decoration:none; }
   .back-link:hover { background:var(--secondary-background-color); }
   .back-link:focus-visible { outline:2px solid var(--primary-color); outline-offset:3px; }
   h2 { font-size:20px; font-weight:500; margin:0 0 8px; }
@@ -48,6 +48,17 @@ const CSS = `
   .client-row .client { width:100%; }
   .actions { display:flex; flex-wrap:wrap; gap:4px 16px; padding-left:41px; }
   .actions button,.actions a { color:var(--primary-color); font-size:12px; text-decoration:none; padding:4px 0; }
+  .action-control { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:4px 0; }
+  .action-status { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; font-size:12px; color:var(--primary-text-color); border:1px solid var(--divider-color); border-left:4px solid var(--secondary-text-color); border-radius:6px; }
+  .action-status.busy { border-left-color:var(--primary-color); }
+  .action-status.completed { border-left-color:var(--success-color); }
+  .action-status.failed { border-left-color:var(--error-color); }
+  .action-status.unconfirmed { border-left-color:var(--warning-color); }
+  .action-banner { padding:12px; margin:12px 0; border:1px solid var(--divider-color); border-radius:8px; }
+  .action-banner strong { display:block; margin-bottom:8px; font-size:14px; }
+  .action-spinner { display:inline-block; animation:action-spin 1.2s linear infinite; }
+  @keyframes action-spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .action-spinner { animation:none; } }
   .summary { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 16px; }
   .summary span { padding:5px 9px; border-radius:6px; background:var(--secondary-background-color); font-size:12px; }
   .weak-count { color:var(--error-color,#db4437); }
@@ -115,11 +126,29 @@ class GoogleWifiInsightsMap extends HTMLElement {
   getCardSize() { return Math.max(4, Math.ceil((this.offsetHeight || 400) / 50)); }
   getGridOptions() { return { columns:12, min_columns:6 }; }
   _moreInfo(entityId) { this.dispatchEvent(new CustomEvent("hass-more-info", {detail:{entityId}, bubbles:true, composed:true})); }
+  _operationBadge(operation) {
+    const feedback=operationFeedback(operation,this._language);
+    if(!feedback)return null;
+    const badge=element("span","action-status "+feedback.phase+(feedback.busy?" busy":""));badge.setAttribute("role","status");
+    const symbol=element("span",feedback.busy?"action-spinner":null,feedback.symbol);symbol.setAttribute("aria-hidden","true");
+    badge.append(symbol,document.createTextNode(feedback.label));badge.title=feedback.note;return badge;
+  }
+  _operationBanner(operation) {
+    const feedback=operationFeedback(operation,this._language);
+    if(!feedback)return null;
+    const banner=element("div","action-banner");banner.setAttribute("role","status");
+    banner.append(element("strong",null,feedback.actionLabel+(operation.target_name?" · "+operation.target_name:"")),this._operationBadge(operation));
+    if(feedback.at)banner.append(element("p",null,new Date(feedback.at).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone||undefined})));
+    banner.append(element("p",null,feedback.note));return banner;
+  }
   _controls(controls) {
     const actions=element("div","actions");
     for(const control of controls || []) {
       const button=element("button",null,control.name);button.type="button";button.disabled=control.state==="unavailable";
-      button.addEventListener("click",()=>this._moreInfo(control.entityId));actions.append(button);
+      button.addEventListener("click",()=>this._moreInfo(control.entityId));
+      const wrapper=element("div","action-control");wrapper.append(button);
+      const badge=this._operationBadge(control.feedback);if(badge)wrapper.append(badge);
+      actions.append(wrapper);
     }
     return actions;
   }
@@ -169,6 +198,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     status.append(element("i","dot "+(p.online===true?"online":p.online===false?"offline":"")),document.createTextNode(p.unavailable?t("unavailable"):p.online===true?"Online":p.online===false?"Offline":t("unknown_status")));
     point.append(status,element("span","meta",p.isRoot?t("primary"):t("mesh_quality",{quality:p.mesh.label})),element("span","meta",p.count===null?t("no_clients_data"):t("observed_clients",{count:p.count})));
     if(p.ratedClients) point.append(element("span","meta",t("rated",{count:p.ratedClients})));
+    const operationBadge=this._operationBadge(p.operation);if(operationBadge)point.append(operationBadge);
     if(p.weakClients) point.append(element("span","meta weak-count",t("weak_clients",{count:p.weakClients})));
     if(p.backhaul)point.append(element("span","meta",t("backhaul",{type:p.backhaul})));
     if(p.meshTest!=null && p.meshTestAt)point.append(element("span","meta",t("mesh_test",{speed:p.meshTest,time:new Date(p.meshTestAt).toLocaleString(this._language)})));
@@ -221,6 +251,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(!this._model?.length) content.append(element("p","empty",t("no_entities")));
     for(const n of this._model || []) {
       const section = element("section","network"); section.append(element("h3",null,n.name));
+      const operation=this._operationBanner(n.operation);if(operation)section.append(operation);
       section.append(element("p",null,t(n.unavailable?"query_unavailable":n.source==="local_status"?"local_mode":"connected_clients",{count:n.clients.length})));
       if(n.source!=="local_status") {
         const summary=element("div","summary"); summary.append(element("span",null,t("coverage",{count:n.ratedClients,total:n.clients.length})));

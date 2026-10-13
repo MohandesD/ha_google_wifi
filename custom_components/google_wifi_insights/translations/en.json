@@ -284,6 +284,20 @@
       },
       "usage_30d_upload": {
         "name": "Upload usage 30d"
+      },
+      "operation_status": {
+        "name": "Action status",
+        "state": {
+          "none": "No action yet",
+          "queued": "Queued",
+          "sending": "Sending request",
+          "accepted": "Request accepted",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed",
+          "cancelled": "Cancelled",
+          "unconfirmed": "Status not confirmed"
+        }
       }
     },
     "binary_sensor": {

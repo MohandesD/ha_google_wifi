@@ -284,6 +284,20 @@
       },
       "usage_30d_upload": {
         "name": "Utilização de upload 30d"
+      },
+      "operation_status": {
+        "name": "Estado da ação",
+        "state": {
+          "none": "Sem operações",
+          "queued": "Em fila",
+          "sending": "A enviar pedido",
+          "accepted": "Pedido aceite",
+          "running": "Em execução",
+          "completed": "Concluído",
+          "failed": "Falhou",
+          "cancelled": "Cancelado",
+          "unconfirmed": "Estado não confirmado"
+        }
       }
     },
     "binary_sensor": {

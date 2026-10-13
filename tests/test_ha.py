@@ -28,6 +28,69 @@ DOMAIN = "google_wifi_insights"
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.asyncio
+async def test_real_ha_restart_feedback_targets_progress_and_unload(real_hass, monkeypatch):
+    from types import MappingProxyType
+    from homeassistant.core import callback
+    from custom_components.google_wifi_insights.api import CloudClient
+    from custom_components.google_wifi_insights.model import cloud_network
+
+    group = {"name": "Test WiFi", "accessPoints": [
+        {"id": "point", "accessPointSettings": {"name": "Test point"}},
+        {"id": "other", "accessPointProperties": {"isGroupRoot": True}},
+    ]}
+    snapshot = {"networks": {"home": cloud_network(group, {}, [], {})}}
+    monkeypatch.setattr(CloudClient, "snapshot", AsyncMock(side_effect=lambda: copy.deepcopy(snapshot)))
+    request = AsyncMock(side_effect=[
+        {"operation": {"operationId": "restart", "operationState": "CREATED"}},
+        {"operation": {"operationId": "mesh", "operationState": "CREATED"}},
+    ])
+    monkeypatch.setattr(CloudClient, "_request", request)
+    monkeypatch.setattr(CloudClient, "_get", AsyncMock(side_effect=[{"operationState": "RUNNING"}, {"operationState": "DONE"}]))
+    monkeypatch.setattr("custom_components.google_wifi_insights.coordinator.OPERATION_POLL_SECONDS", 0)
+    entry = config_entries.ConfigEntry(data={"mode": "cloud", "email": "test@example.invalid", "master_token": "dummy", "android_id": "0"*16},
+        domain=DOMAIN, discovery_keys=MappingProxyType({}), options={}, source="user", title="Test WiFi", unique_id="feedback", version=1, minor_version=1, subentries_data=None)
+    await real_hass.config_entries.async_add(entry)
+    await real_hass.async_block_till_done()
+    assert entry.state == config_entries.ConfigEntryState.LOADED
+    states = {s.attributes["gwi_metric"]: s for s in real_hass.states.async_all() if s.attributes.get("gwi_kind") == "point" and s.attributes.get("gwi_item_id") == "point"}
+    status = states["operation_status"].entity_id
+    assert real_hass.states.get(status).state == "none"
+    transitions = []
+
+    @callback
+    def observe(event):
+        if event.data.get("entity_id") == status and event.data.get("new_state"):
+            transitions.append(event.data["new_state"].state)
+
+    unsubscribe = real_hass.bus.async_listen("state_changed", observe)
+    await real_hass.services.async_call("button", "press", {"entity_id": states["restart_point"].entity_id}, blocking=True)
+    task = entry.runtime_data._operation_tasks.get("home")
+    if task:
+        await asyncio.wait_for(task, 5)
+    await real_hass.async_block_till_done()
+    assert {"queued", "sending", "accepted", "running", "completed"} <= set(transitions)
+    assert real_hass.states.get(status).state == "completed"
+    feedback = real_hass.states.get(states["restart_point"].entity_id).attributes["operation_feedback"]
+    assert feedback["phase"] == "completed" and feedback["target_id"] == "point"
+    assert "operation_id" not in feedback
+    assert real_hass.states.get(states["test_mesh"].entity_id).attributes["operation_feedback"] is None
+    foreign = next(s for s in real_hass.states.async_all() if s.attributes.get("gwi_item_id") == "other" and s.attributes.get("gwi_metric") == "operation_status")
+    assert foreign.state == "none"
+    network = next(s for s in real_hass.states.async_all() if s.attributes.get("gwi_kind") == "network" and s.attributes.get("gwi_metric") == "operation_status")
+    assert network.state == "completed" and network.attributes["operation_feedback"]["target_id"] == "point"
+    monkeypatch.setattr("custom_components.google_wifi_insights.coordinator.OPERATION_POLL_SECONDS", 60)
+    await real_hass.services.async_call("button", "press", {"entity_id": states["test_mesh"].entity_id}, blocking=True)
+    assert real_hass.states.get(status).state == "accepted"
+    pending_task = entry.runtime_data._operation_tasks["home"]
+    coordinator = entry.runtime_data
+    unsubscribe()
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+    assert pending_task.cancelled()
+    assert not coordinator._operation_tasks
+    assert request.call_count == 2
+
+
 @pytest.fixture
 async def real_hass(tmp_path, monkeypatch):
     shutil.copytree(
@@ -167,7 +230,7 @@ async def test_google_controls_history_permissions_and_readback_in_real_ha(real_
         network["operations"] = copy.deepcopy(client._operations.get("home", []))
         network["last_operation"] = network["operations"][-1]["state"] if network["operations"] else "NONE"
         return {"networks": {"home": network}}
-    async def action(client, nid, name, path, method, payload):
+    async def action(client, nid, name, path, method, payload, **metadata):
         requests.append((nid, name, path, method, payload))
         if name == "set_point_light":
             group["accessPoints"][0]["accessPointSettings"]["lightingSettings"]["intensity"] = payload["intensity"]
@@ -177,6 +240,8 @@ async def test_google_controls_history_permissions_and_readback_in_real_ha(real_
             group["groupSettings"]["lanSettings"]["prioritizedStation"] = payload
         result = {"state": "CREATED", "action": name, "operation_id": "mock", "requested_at": datetime.now(UTC).isoformat()}
         client._operations.setdefault(nid, []).append(result)
+        if metadata.get("on_update"):
+            metadata["on_update"]()
         return result
     monkeypatch.setattr(CloudClient, "snapshot", snapshot)
     monkeypatch.setattr(CloudClient, "action", action)

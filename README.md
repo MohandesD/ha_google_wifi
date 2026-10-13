@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.8.1.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.8.2.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -42,6 +42,8 @@ manual installation, upgrades and troubleshooting.
 - Guided Google authentication, automatic Android ID for browser tokens, specific
   errors and credential renewal from the integration's options.
 - Sanitized additional telemetry, capability status and explicit operation results.
+- Live restart/speed-test feedback: sending, accepted, running and completed states
+  reported by Google, with separate failure and unconfirmed-delivery states.
 
 The [capability inventory](docs/CAPABILITIES.md) distinguishes implemented actions,
 verified reads and configuration features whose write schemas remain unverified.
@@ -95,6 +97,8 @@ translations. See the [authentication guide](docs/AUTHENTICATION.md) for browser
 tokens, the Agree/loading screen, retries and renewal. Version 0.8.0 improves
 setup and authentication. Version 0.8.1 adds a localized return link from the
 map and diagnostics view without changing metric collection or Google controls.
+Version 0.8.2 adds [operation feedback](docs/OPERATION_FEEDBACK.md), correlated
+with each point and button, and bounded status polling after explicit actions.
 
 ## Support the project
 

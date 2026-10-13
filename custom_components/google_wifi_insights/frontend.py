@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 DATA_FRONTEND = f"{DOMAIN}_frontend"
 STATIC_URL = f"/{DOMAIN}/static"
 PANEL_NAME = "google-wifi-insights-panel"
-FRONTEND_VERSION = "0.8.1"
+FRONTEND_VERSION = "0.8.2"
 PANEL_PATHS = ("google-wifi-insights", "google-wifi-insights-integration")
 
 

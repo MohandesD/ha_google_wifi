@@ -6,6 +6,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .operations import MONITORED_ACTIONS, latest, summary
 
 
 @callback
@@ -95,6 +96,11 @@ class WifiEntity(CoordinatorEntity):
         return (
             super().available and bool(self.item) and self.item.get("reachable", True)
         )
+
+    @property
+    def operation_feedback(self):
+        network = (self.coordinator.data or {}).get("networks", {}).get(self.network_id, {})
+        return summary(latest(network, self.kind, self.item_id, self.key if self.key in MONITORED_ACTIONS else None))
 
     @property
     def extra_state_attributes(self):
@@ -207,6 +213,9 @@ class WifiEntity(CoordinatorEntity):
             attributes["capabilities"] = item.get("capabilities", {})
         if self.key == "last_operation":
             attributes["operations"] = item.get("operations", [])
+        if self.key == "operation_status" or self.key in MONITORED_ACTIONS:
+            attributes["operation_feedback"] = self.operation_feedback
+            attributes["measurement"] = "Google operation state, not elapsed-time progress. Completed means Google reported DONE; a restarting point may still be reconnecting. Monitoring stops after ten minutes without claiming success."
         if self.kind == "point" and item.get("source") == "local_status":
             attributes["local_status"] = item.get("local_status", {})
             attributes["local_status_at"] = item.get("local_status_at")

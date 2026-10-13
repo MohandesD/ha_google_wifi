@@ -18,8 +18,11 @@ from .shelly_radio import ShellyRadio
 from .telemetry import timestamp
 from .actions import build_action
 from .capabilities import ADVANCED
+from .operations import MONITORED_ACTIONS
 from homeassistant.exceptions import HomeAssistantError
 from datetime import UTC, datetime
+
+OPERATION_POLL_SECONDS = 5
 
 
 class WifiCoordinator(DataUpdateCoordinator):
@@ -36,6 +39,9 @@ class WifiCoordinator(DataUpdateCoordinator):
         session = async_get_clientsession(hass)
         self.radio = ShellyRadio(session)
         self._radio_update_lock = asyncio.Lock()
+        self._operation_tasks = {}
+        self._stopping = False
+        entry.async_on_unload(self._cancel_operation_tasks)
         data = entry.data
         self.client = (
             LocalClient(session, data["points"])
@@ -54,7 +60,12 @@ class WifiCoordinator(DataUpdateCoordinator):
             snapshot = enrich_snapshot(self.hass, self.config_entry, apply_roaming(await self.client.snapshot(), self.data))
             self._merge_local_points(snapshot)
             async with self._radio_update_lock:
-                return await self.radio.enrich(snapshot)
+                snapshot = await self.radio.enrich(snapshot)
+            if isinstance(self.client, CloudClient):
+                for nid, network in snapshot["networks"].items():
+                    operations = deepcopy(self.client._operations.get(nid, []))
+                    network.update(operations=operations, last_operation=operations[-1]["state"] if operations else "NONE")
+            return snapshot
         except AuthError:
             raise ConfigEntryAuthFailed("Google authentication needs renewal") from None
         except RateLimitError as error:
@@ -115,21 +126,64 @@ class WifiCoordinator(DataUpdateCoordinator):
         method, path, payload = build_action(network, network_id, action, kind, item_id, parameters or {})
         if not isinstance(self.client, CloudClient):
             raise HomeAssistantError("Google account access is required")
+        item = network if kind == "network" else network["points" if kind == "point" else "clients"][item_id]
         try:
-            result = await self.client.action(network_id, action, path, method, payload)
+            result = await self.client.action(network_id, action, path, method, payload,
+                                             target_kind=kind, target_id=item_id, target_name=item["name"],
+                                             on_update=lambda: self._publish_operations(network_id))
         except ApiError as error:
-            operations = deepcopy(self.client._operations.get(network_id, []))
-            if operations:
-                updated = deepcopy(self.data)
-                updated["networks"][network_id].update(operations=operations, last_operation=operations[-1]["state"])
-                self.async_set_updated_data(updated)
+            self._publish_operations(network_id)
             raise HomeAssistantError(str(error)) from None
         updated = deepcopy(self.data)
         current = updated["networks"][network_id]
         current["last_operation"] = result["state"]
         current["operations"] = deepcopy(self.client._operations.get(network_id, []))
         current.get("capabilities", {}).get("actions", {}).get(action, {}).update(state="accepted")
-        self.async_set_updated_data(updated)
-        # Core state is read back after the request; no optimistic pause/LED values.
-        await self.async_request_refresh()
+        if action in MONITORED_ACTIONS:
+            self.data = updated
+            self.async_update_listeners()
+            if network_id not in self._operation_tasks:
+                self._operation_tasks[network_id] = self.config_entry.async_create_background_task(
+                    self.hass, self._watch_operations(network_id), f"{DOMAIN} operation status", eager_start=False)
+        else:
+            # Read back settings and completed test results without optimistic values.
+            self.async_set_updated_data(updated)
+            await self.async_request_refresh()
         return result
+
+    def _publish_operations(self, network_id):
+        if self._stopping or network_id not in (self.data or {}).get("networks", {}):
+            return
+        updated = deepcopy(self.data)
+        operations = deepcopy(self.client._operations.get(network_id, []))
+        updated["networks"][network_id].update(operations=operations, last_operation=operations[-1]["state"] if operations else "NONE")
+        # A successful operation lookup is not a successful network-metrics poll.
+        self.data = updated
+        self.async_update_listeners()
+
+    async def _watch_operations(self, network_id):
+        """Poll only operation status every five seconds after an explicit action."""
+        try:
+            while self.client.has_pending_operations(network_id):
+                await asyncio.sleep(OPERATION_POLL_SECONDS)
+                before = deepcopy(self.client._operations.get(network_id, []))
+                try:
+                    await self.client._poll_operations(network_id)
+                except RateLimitError:
+                    pass  # The client honours Google's retry window on the next poll.
+                except AuthError:
+                    break  # Normal coordinator refresh starts the HA reauthentication flow.
+                finally:
+                    if before != self.client._operations.get(network_id, []):
+                        self._publish_operations(network_id)
+        finally:
+            self._operation_tasks.pop(network_id, None)
+        if not self._stopping:
+            self.config_entry.async_create_background_task(
+                self.hass, self.async_request_refresh(), f"{DOMAIN} operation readback")
+
+    def _cancel_operation_tasks(self):
+        self._stopping = True
+        for task in self._operation_tasks.values():
+            task.cancel()
+        self._operation_tasks.clear()

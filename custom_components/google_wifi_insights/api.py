@@ -6,6 +6,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from urllib.parse import quote
+from uuid import uuid4
 
 import aiohttp
 import gpsoauth
@@ -16,6 +17,7 @@ from .identity import normalize_mac
 from .radio_schema import radio_schema
 from .capabilities import READS, apply_extras, safe_metadata
 from .history import WINDOWS, apply_history, normalize_history, request_window
+from .operations import MONITOR_SECONDS, TERMINAL_STATES, now_iso, pending
 
 AUTH_URL = "https://android.clients.google.com/auth"
 CLOUD_URL = "https://googlehomefoyer-pa.googleapis.com/v2/"
@@ -308,58 +310,112 @@ class CloudClient:
             if identity[0] == group_id:
                 self._optional_next.pop(identity)
 
-    async def action(self, group_id, action, path, method, payload):
+    async def action(self, group_id, action, path, method, payload, *, target_kind=None, target_id=None, target_name=None, on_update=None):
         """No automatic retry of a transport failure or ambiguous write response."""
-        from datetime import UTC, datetime
+        operations = self._operations.setdefault(group_id, [])
+        if any(pending(op) and (op.get("action"), op.get("target_kind"), op.get("target_id")) == (action, target_kind, target_id) for op in operations):
+            raise ApiError("This action is already pending for the selected target")
+        if sum(pending(op) for op in operations) >= 20:
+            raise ApiError("Too many Google operations are pending")
+        while len(operations) >= 20:
+            operations.remove(next(op for op in operations if not pending(op)))
+        record = {"request_id": uuid4().hex, "action": action, "target_kind": target_kind,
+                  "target_id": target_id, "target_name": target_name, "state": "QUEUED",
+                  "operation_id": None, "requested_at": now_iso(), "updated_at": now_iso()}
+        operations.append(record)
+        if on_update:
+            on_update()
         async with self._action_lock:
+            record.update(state="SENDING", updated_at=now_iso())
+            if on_update:
+                on_update()
             try:
                 response = await self._request(method, path + "?prettyPrint=false", payload)
-            except RateLimitError as error:
-                self._retry_until = time.monotonic() + error.retry_after
-                raise
+                if not isinstance(response, dict):
+                    raise ApiError("Google returned an unconfirmed operation")
+                op = response.get("operation") or response
+                if not isinstance(op, dict):
+                    raise ApiError("Google returned an unconfirmed operation")
+                operation_id = op.get("operationId")
+                state = op.get("operationState")
+                record.update(operation_id=operation_id if isinstance(operation_id, str) and operation_id else None,
+                              state=state if isinstance(state, str) and state else "ACCEPTED_UNCONFIRMED", updated_at=now_iso())
+                if record["state"] in TERMINAL_STATES:
+                    record["finished_at"] = now_iso()
+                if record["state"] in ("ERROR", "FAILED", "CANCELLED"):
+                    raise ApiError("Google operation failed")
             except ApiError as error:
+                if isinstance(error, RateLimitError):
+                    self._retry_until = time.monotonic() + error.retry_after
+                if record["state"] not in TERMINAL_STATES:
+                    rejected = error.status is not None and 400 <= error.status < 500 or isinstance(error, (AuthError, RateLimitError))
+                    record.update(state="REJECTED" if rejected else "DELIVERY_UNCONFIRMED", updated_at=now_iso())
+                if error.status:
+                    record["http_status"] = error.status
+                if isinstance(error, AuthError):
+                    record["status_error"] = "authentication_required"
+                if isinstance(error, RateLimitError):
+                    record["status_error"] = "rate_limited"
+                if record["state"] == "REJECTED":
+                    record["finished_at"] = now_iso()
                 self._action_status.setdefault(group_id, {})[action] = "denied" if error.status in (403, 404, 405) else "unconfirmed"
-                self._operations.setdefault(group_id, []).append({"action": action,
-                    "state": "REJECTED" if error.status else "DELIVERY_UNCONFIRMED",
-                    "http_status": error.status, "operation_id": None, "requested_at": datetime.now(UTC).isoformat()})
-                self._operations[group_id] = self._operations[group_id][-20:]
                 raise
-            op = response.get("operation") or response
-            if not isinstance(op, dict):
-                raise ApiError("Google returned an unconfirmed operation")
-            operation_id = op.get("operationId")
-            state = op.get("operationState")
-            if state in ("ERROR", "FAILED", "CANCELLED"):
-                raise ApiError("Google operation failed")
-            result = {"action": action, "state": state or "ACCEPTED_UNCONFIRMED",
-                      "requested_at": datetime.now(UTC).isoformat(),
-                      "operation_id": operation_id if isinstance(operation_id, str) else None}
-            self._operations.setdefault(group_id, []).append(result)
-            self._operations[group_id] = self._operations[group_id][-20:]
+            except asyncio.CancelledError:
+                record.update(state="DELIVERY_UNCONFIRMED", updated_at=now_iso())
+                raise
+            finally:
+                if on_update:
+                    on_update()
             self._action_status.setdefault(group_id, {})[action] = "accepted"
             self.invalidate(group_id)
-            return result.copy()
+            return record.copy()
+
+    def has_pending_operations(self, group_id):
+        return any(pending(op) for op in self._operations.get(group_id, []))
 
     async def _poll_operations(self, group_id):
         from datetime import UTC, datetime
         from .history import instant
-        for operation in self._operations.get(group_id, [])[-5:]:
-            if operation["state"] in ("DONE", "ERROR", "FAILED", "CANCELLED", "PENDING_UNCONFIRMED") or not operation["operation_id"]:
+        for operation in list(self._operations.get(group_id, [])):
+            if not pending(operation):
                 continue
-            if (datetime.now(UTC)-instant(operation["requested_at"])).total_seconds() > 600:
-                operation["state"] = "PENDING_UNCONFIRMED"
+            if (datetime.now(UTC)-instant(operation["requested_at"])).total_seconds() > MONITOR_SECONDS:
+                operation.update(state="PENDING_UNCONFIRMED", status_error="monitoring_timeout", updated_at=now_iso())
+                continue
+            if operation["state"] in ("QUEUED", "SENDING"):
+                continue
+            if time.monotonic() < self._retry_until:
                 continue
             try:
                 progress = await self._get("operations/"+quote(operation["operation_id"], safe="")+"?prettyPrint=false")
-                state = progress.get("operationState")
-                if isinstance(state, str):
-                    operation["state"] = state
+                if not pending(operation):
+                    continue  # Another status reader already received a terminal result.
+                if isinstance(progress, dict) and isinstance(progress.get("operation"), dict):
+                    progress = progress["operation"]
+                state = progress.get("operationState") if isinstance(progress, dict) else None
+                if operation["state"] in ("RUNNING", "IN_PROGRESS") and state in ("CREATED", "PENDING"):
+                    continue
+                if isinstance(state, str) and state and operation.get("status_error"):
+                    operation.pop("status_error", None)
+                    operation.pop("http_status", None)
+                    operation["updated_at"] = now_iso()
+                if isinstance(state, str) and state and state != operation["state"]:
+                    operation.update(state=state, updated_at=now_iso())
+                    operation.pop("status_error", None)
+                    if state in TERMINAL_STATES:
+                        operation["finished_at"] = now_iso()
                     if state == "DONE":
                         self.invalidate(group_id)
-            except AuthError, RateLimitError:
+            except AuthError:
+                operation.update(state="PENDING_UNCONFIRMED", status_error="authentication_required", updated_at=now_iso())
                 raise
-            except ApiError:
-                pass
+            except RateLimitError as error:
+                self._retry_until = time.monotonic() + error.retry_after
+                raise
+            except ApiError as error:
+                operation["status_error"] = "status_unavailable"
+                if error.status:
+                    operation["http_status"] = error.status
 
     async def _station_macs(self, group_id, stations):
         """Read MACs in bounded batches. Never run tests or modify router settings."""

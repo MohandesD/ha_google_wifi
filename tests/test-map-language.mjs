@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {languageOf,translate,mapModel,isLocalHaPath,overviewPath} from '../www/gwi-map-model.js';
+import {languageOf,translate,mapModel,isLocalHaPath,overviewPath,operationFeedback} from '../www/gwi-map-model.js';
 
 test('effective HA language wins over browser defaults and handles regional variants',()=>{
   assert.equal(languageOf({language:'en-GB',locale:{language:'pt'}}),'en');
@@ -37,7 +37,7 @@ function cardEnvironment(config={},timers={}) {
     }
   }
   const elements=new Map();
-  const context=vm.createContext({mapModel,translate,languageOf,isLocalHaPath,overviewPath,formatBytes:value=>value==null?'—':String(value)+' B',
+  const context=vm.createContext({mapModel,translate,languageOf,isLocalHaPath,overviewPath,operationFeedback,formatBytes:value=>value==null?'—':String(value)+' B',
     HTMLElement:Node,document:{createElement:tag=>new Node(tag),createElementNS:(_,tag)=>new Node(tag),createTextNode:text=>{const n=new Node();n.textContent=text;return n;}},
     CustomEvent:class{constructor(type,options){this.type=type;Object.assign(this,options);}},
     ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:()=>1,cancelAnimationFrame(){},
@@ -114,4 +114,27 @@ test('automatic return paths stay within the current HA panel',()=>{
   assert.equal(overviewPath({overview_path:'/custom-dashboard/status'},'/my-wifi/mapa'),'/custom-dashboard/status');
   assert.equal(overviewPath({},'/my-wifi/unrelated'),null);
   assert.equal(overviewPath({overview_path:'//example.invalid'}),null);
+});
+
+test('rendered restart feedback follows Google states and belongs to its own control',()=>{
+  const {card}=cardEnvironment();
+  const states={
+    'sensor.point':{state:'0',attributes:{gwi_scope:'test',gwi_kind:'point',gwi_metric:'clients',gwi_item_id:'p',device_name:'Test point',online:true,data_source:'google_cloud'}},
+    'button.restart':{state:'2026-10-13T12:00:00Z',attributes:{gwi_scope:'test',gwi_kind:'point',gwi_metric:'restart_point',gwi_item_id:'p',friendly_name:'Restart point'}},
+    'sensor.status':{state:'accepted',attributes:{gwi_scope:'test',gwi_kind:'network',gwi_metric:'operation_status'}},
+  };
+  const feedback={request_id:'request',action:'restart_point',target_kind:'point',target_id:'p',target_name:'Test point',phase:'accepted',state:'CREATED',updated_at:'2026-10-13T12:00:00Z'};
+  states['button.restart'].attributes.operation_feedback=feedback;
+  states['sensor.status'].attributes.operation_feedback=feedback;
+  card.hass={language:'en',states};
+  assert.match(card.shadowRoot.textContent,/Request accepted/);
+  assert.doesNotMatch(card.shadowRoot.textContent,/Running|Completed/);
+  feedback.phase='running';feedback.state='RUNNING';card.hass={language:'pt',states};
+  assert.match(card.shadowRoot.textContent,/Em execução/);
+  feedback.phase='completed';feedback.state='DONE';card.hass={language:'pt',states};
+  assert.match(card.shadowRoot.textContent,/Concluído/);
+  assert.equal(operationFeedback(feedback,'pt').busy,false);
+  feedback.phase='unconfirmed';feedback.status_error='monitoring_timeout';card.hass={language:'en',states};
+  assert.match(card.shadowRoot.textContent,/No completion was confirmed within ten minutes/);
+  assert.doesNotMatch(card.shadowRoot.textContent,/Completed/);
 });

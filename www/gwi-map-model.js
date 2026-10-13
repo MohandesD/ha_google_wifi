@@ -1,6 +1,9 @@
 // Read only observed HA entities. Never infer a point or mesh link from a name/IP.
 const TEXT = {
   en: {
+    action_queued:"Queued",action_sending:"Sending request",action_accepted:"Request accepted",action_running:"Running",action_completed:"Completed",action_failed:"Failed",action_cancelled:"Cancelled",action_unconfirmed:"Status not confirmed",
+    action_restart_network:"Restart network",action_restart_point:"Restart point",action_test_internet:"Internet speed test",action_test_mesh:"Mesh speed test",action_test_local:"Local speed test",action_test_clients:"Client WiFi speed test",
+    action_google_note:"Status reported by Google. A restarting point may still be reconnecting; test results can take longer to appear.",action_unconfirmed_note:"Google has not confirmed completion. Check the point before sending the request again.",action_timeout_note:"No completion was confirmed within ten minutes. Monitoring stopped without repeating the request.",action_failed_note:"Google rejected or failed the operation. Check the action status for details.",action_auth_note:"Renew Google authentication to check the operation status.",action_rate_note:"Google requested a pause. The write is not retried automatically.",action_status_missing_note:"Google's status lookup is unavailable; the last confirmed state is shown.",
     back_overview:"Back to overview",navigation_config_error:"overview_path must be a local Home Assistant path.",
     wifi_test:"Stored WiFi test · {speed} Mbit/s · {point} · {time}",usage_24h:"Usage 24h · ↓ {download} · ↑ {upload}",controls:"Google controls",history:"Usage history",backhaul:"Backhaul · {type}",mesh_test:"Stored mesh test · {speed} Mbit/s · {time}",capabilities:"Google capabilities",operation:"Last operation · {state}",
     title:"WiFi network map",subtitle:"Devices by point and connection quality",
@@ -31,6 +34,9 @@ const TEXT = {
     card_description:"Points, associated clients and observed connection quality",
   },
   pt: {
+    action_queued:"Em fila",action_sending:"A enviar pedido",action_accepted:"Pedido aceite",action_running:"Em execução",action_completed:"Concluído",action_failed:"Falhou",action_cancelled:"Cancelado",action_unconfirmed:"Estado não confirmado",
+    action_restart_network:"Reiniciar rede",action_restart_point:"Reiniciar point",action_test_internet:"Teste de velocidade da Internet",action_test_mesh:"Teste de velocidade mesh",action_test_local:"Teste de velocidade local",action_test_clients:"Teste de velocidade WiFi dos dispositivos",
+    action_google_note:"Estado comunicado pela Google. Um point a reiniciar pode ainda estar a restabelecer a ligação; os resultados dos testes podem demorar a aparecer.",action_unconfirmed_note:"A Google ainda não confirmou a conclusão. Verifica o point antes de voltar a enviar o pedido.",action_timeout_note:"A conclusão não foi confirmada em dez minutos. A monitorização terminou sem repetir o pedido.",action_failed_note:"A Google rejeitou o pedido ou a operação falhou. Consulta o estado da ação para mais detalhes.",action_auth_note:"Renova a autenticação Google para consultar o estado da operação.",action_rate_note:"A Google pediu uma pausa. O comando não é repetido automaticamente.",action_status_missing_note:"A consulta do estado à Google está indisponível; é mostrado o último estado confirmado.",
     back_overview:"Voltar à visão geral",navigation_config_error:"overview_path deve ser um caminho local do Home Assistant.",
     wifi_test:"Teste WiFi guardado · {speed} Mbit/s · {point} · {time}",usage_24h:"Utilização 24h · ↓ {download} · ↑ {upload}",controls:"Controlos Google",history:"Histórico de utilização",backhaul:"Backhaul · {type}",mesh_test:"Teste mesh guardado · {speed} Mbit/s · {time}",capabilities:"Capacidades Google",operation:"Última operação · {state}",
     title:"Mapa da rede WiFi",subtitle:"Dispositivos por ponto e qualidade das ligações",
@@ -76,6 +82,14 @@ export function overviewPath(config = {}, pathname = "") {
   if (config.overview_path != null) return isLocalHaPath(config.overview_path) ? config.overview_path : null;
   if (!isLocalHaPath(pathname) || !/\/(?:mapa|map|diagnostics)\/?$/.test(pathname)) return null;
   return pathname.replace(/\/(?:mapa|map|diagnostics)\/?$/, "/overview");
+}
+
+export function operationFeedback(operation, language="en") {
+  if (!operation || !operation.phase || operation.phase === "none") return null;
+  const t=translate(language),phase=["queued","sending","accepted","running","completed","failed","cancelled","unconfirmed"].includes(operation.phase)?operation.phase:"unconfirmed";
+  const note={monitoring_timeout:"action_timeout_note",authentication_required:"action_auth_note",rate_limited:"action_rate_note",status_unavailable:"action_status_missing_note"}[operation.status_error] || (phase==="unconfirmed"?"action_unconfirmed_note":phase==="failed"?"action_failed_note":"action_google_note");
+  return {phase,label:t("action_"+phase),actionLabel:t("action_"+operation.action),busy:["queued","sending","accepted","running"].includes(phase),
+    symbol:{completed:"✓",failed:"!",cancelled:"−",unconfirmed:"?"}[phase]||"◌",note:t(note),at:operation.finished_at||operation.updated_at||operation.requested_at};
 }
 
 export function translate(language="en") {
@@ -199,9 +213,13 @@ export function mapModel(states, config = {}, language="en") {
     if(a.gwi_kind==="point" && a.gwi_metric==="google_telemetry_at") {
       const p=n.points.find(p=>p.id===a.gwi_item_id);if(p){p.metricsEntityId=entityId;p.meshTest=a.mesh_test_mbps;p.meshTestAt=a.mesh_test_at;p.backhaul=a.backhaul_type;}
     }
+    if(a.gwi_metric==="operation_status") {
+      const target=a.gwi_kind==="network"?n:n.points.find(p=>p.id===a.gwi_item_id);
+      if(target){target.operation=a.operation_feedback;target.operationStatusEntityId=entityId;}
+    }
     if(/^(button|switch|number)\./.test(entityId) && !["roam_rssi_threshold","roam_interval","roaming_enabled"].includes(a.gwi_metric)) {
       const target=a.gwi_kind==="network"?n:a.gwi_kind==="point"?n.points.find(p=>p.id===a.gwi_item_id):n.clients.find(c=>c.id===a.gwi_item_id);
-      if(target)(target.controls ||= []).push({entityId,key:a.gwi_metric,name:a.friendly_name || a.gwi_metric,state:state.state});
+      if(target)(target.controls ||= []).push({entityId,key:a.gwi_metric,name:a.friendly_name || a.gwi_metric,state:state.state,feedback:a.operation_feedback});
     }
   }
   return [...networks.values()].map(n => {
