@@ -41,10 +41,9 @@ schemas and metrics not supplied by the observed API are listed in
 [CAPABILITIES.md](CAPABILITIES.md). No claim covers every Google Home feature.
 
 The manual archive contains runtime, generic docs and dashboard examples.
-Archives/test caches are ignored by Git. Publication still requires real
-repository metadata and a selected license: see [PUBLISHING.md](PUBLISHING.md).
+Archives/test caches are ignored by Git. Publication metadata and the owner-approved MIT licence are set: see [PUBLISHING.md](PUBLISHING.md).
 The 0.7.0 panel's shared setup/reload, preservation of other panels and bundled
 asset imports were tested in isolated real HA, alongside browser-side tab, locale
 and update-coalescing tests. The running household HA has not been upgraded to
 0.7.0. Uploading this clean copy does not publish private captures. Repository
-visibility/licence remain an owner decision; no release has been published.
+visibility is public and the owner approved MIT; a first release is being prepared.

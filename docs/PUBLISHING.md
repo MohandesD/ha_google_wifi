@@ -1,17 +1,16 @@
 # Publication checklist
 
-The prepared repository is `spkon/ha_google_wifi`, version 0.7.0. Ownership links
-and maintainer metadata are set. Code upload to the existing private repository
-is authorized; changing visibility and adopting a licence await the owner's
-decision. A proposed MIT text is available in [LICENSE-MIT.md](LICENSE-MIT.md).
+The repository is `spkon/ha_google_wifi`, version 0.7.0. Ownership links and
+maintainer metadata are set. The owner approved public visibility and the MIT
+licence. The full notice is included at the repository root and inside the
+integration so that HACS installations also receive it.
 
-Before making the project publicly installable:
+For future releases:
 
-1. Confirm the project licence and add its full text as `LICENSE`.
-2. Make this reviewed repository public. HACS only supports public repositories.
-3. Set a description such as “Google WiFi/Nest WiFi insights, usage history and
-   controls for Home Assistant”, and topics `home-assistant`, `hacs`, `google-wifi`.
-4. Review GitHub Actions results and publish a release matching manifest 0.7.0.
+1. Preserve the MIT notices and third-party attribution.
+2. Keep the repository public for HACS custom-repository installation.
+3. Keep the description and topics relevant to Home Assistant and Google WiFi.
+4. Review GitHub Actions results and publish a release matching the manifest.
    Releases are optional for HACS: the default branch works without a release.
 5. Optionally submit the integration to Home Assistant Brands and the default
    HACS catalogue. Those are separate processes, not completed by uploading code.

@@ -4,8 +4,6 @@ Esta é uma integração personalizada, não uma aplicação/add-on do Superviso
 
 ## Pelo HACS
 
-Quando o repositório estiver público:
-
 1. Abrir **HACS → menu → Repositórios personalizados**.
 2. Adicionar `https://github.com/spkon/ha_google_wifi`, tipo **Integração**.
 3. Descarregar **Google WiFi Insights** e reiniciar o HA.

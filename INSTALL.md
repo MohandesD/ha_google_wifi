@@ -1,11 +1,10 @@
 # Installation
 
-This is an experimental community integration. Public installation awaits
-the owner's licence and repository-visibility decision.
+This is an experimental community integration, published under the MIT licence.
 
 ## HACS installation
 
-When the repository is public, add `https://github.com/spkon/ha_google_wifi` in
+Add `https://github.com/spkon/ha_google_wifi` in
 **HACS → menu → Custom repositories**, type **Integration**. Download **Google
 WiFi Insights**, restart HA and add the integration in **Settings → Devices &
 services**. The bundled overview/map registers automatically after configuration.

@@ -4,13 +4,10 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.7.0.** This repository is `spkon/ha_google_wifi`. Public availability and
-the project licence are awaiting the owner's publication decision. It is an
+**Beta 0.7.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 ## Install with HACS
-
-Once the repository is public:
 
 1. Open **HACS → menu → Custom repositories**.
 2. Add `https://github.com/spkon/ha_google_wifi` as **Integration**.
