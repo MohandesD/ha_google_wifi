@@ -39,6 +39,14 @@ def add_dynamic_entities(coordinator, entry, async_add_entities, factory):
 
 class WifiEntity(CoordinatorEntity):
     _attr_has_entity_name = True
+    # Full diagnostics remain available live and through get_google_metrics. Recording
+    # these payloads on every sample duplicates cached history and may exceed
+    # Recorder's attribute size limit.
+    _unrecorded_attributes = frozenset({
+        "google_telemetry", "usage_windows", "usage_hourly", "usage_window",
+        "firmware_information", "lan_information", "network_information",
+        "local_status", "devices", "operations", "capabilities",
+    })
 
     def __init__(self, coordinator, entry, network_id, kind, item_id, item, key):
         super().__init__(coordinator)
@@ -115,43 +123,33 @@ class WifiEntity(CoordinatorEntity):
             "gwi_item_id": self.item_id,
         }
         if self.kind == "client":
+            # The Connected point sensor is the map's canonical client carrier.
+            # Do not duplicate changing traffic/radio fields on every identity
+            # or control entity: a traffic sample would otherwise rewrite all
+            # client entities, including unchanged IP and MAC sensors.
+            client_keys = (
+                "point", "ap_id", "ip_address", "ip_addresses", "mac_address",
+                "google_name", "ha_device_id", "ha_device_name", "identity_match",
+                "name_source", "connection_type", "roams_since_start", "last_roam",
+                "connected", "rssi", "signal_quality", "quality_source",
+                "google_rating", "google_rating_index", "wireless_band",
+                "download_mbps", "upload_mbps", "traffic_source", "rssi_source",
+                "rssi_observed_at", "wifi_bssid", "wifi_channel", "roaming_supported",
+                "radio_available", "roam_rssi_threshold", "roam_interval", "gwi_device_id",
+            ) if self.key in {"point", "tracker", "connected"} else (
+                "ip_address", "ip_addresses", "mac_address", "google_name",
+                "ha_device_id", "ha_device_name", "identity_match", "name_source",
+                "point", "ap_id", "connected", "connection_type", "wireless_band",
+            )
+            if self.key == "rssi":
+                client_keys += (
+                    "rssi_source", "rssi_observed_at", "quality_source",
+                    "signal_quality", "connection_type", "wireless_band",
+                )
             attributes.update(
                 {
                     key: item.get(key)
-                    for key in (
-                        "point",
-                        "ap_id",
-                        "ip_address",
-                        "ip_addresses",
-                        "mac_address",
-                        "google_name",
-                        "ha_device_id",
-                        "ha_device_name",
-                        "identity_match",
-                        "name_source",
-                        "connection_type",
-                        "roams_since_start",
-                        "last_roam",
-                        "connected",
-                        "rssi",
-                        "signal_quality",
-                        "quality_source",
-                        "google_rating",
-                        "google_rating_index",
-                        "wireless_band",
-                        "download_mbps",
-                        "upload_mbps",
-                        "traffic_source",
-                        "rssi_source",
-                        "rssi_observed_at",
-                        "wifi_bssid",
-                        "wifi_channel",
-                        "roaming_supported",
-                        "radio_available",
-                        "roam_rssi_threshold",
-                        "roam_interval",
-                        "gwi_device_id",
-                    )
+                    for key in client_keys
                 }
             )
             own = device_registry.async_get(self.hass).async_get_device_by_identifier(

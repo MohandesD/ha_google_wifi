@@ -115,7 +115,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class WifiSensor(WifiEntity, SensorEntity):
-    _unrecorded_attributes = frozenset({"firmware_information", "lan_information", "network_information"})
+    _unrecorded_attributes = WifiEntity._unrecorded_attributes
     def __init__(self, coordinator, entry, network_id, kind, item_id, item, key, name):
         super().__init__(coordinator, entry, network_id, kind, item_id, item, key)
         self._attr_translation_key = key

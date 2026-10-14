@@ -136,6 +136,64 @@ async def real_hass(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_static_client_states_do_not_follow_traffic_and_large_diagnostics_are_unrecorded(real_hass, monkeypatch):
+    """Preserve map carriers and raw API data while eliminating redundant writes."""
+    from types import MappingProxyType
+    from custom_components.google_wifi_insights.api import CloudClient
+    from custom_components.google_wifi_insights.model import cloud_network
+    from custom_components.google_wifi_insights.sensor import WifiSensor
+
+    station = {"id": "client", "friendlyName": "Test client", "connected": True,
+               "apId": "point", "ipAddress": "192.168.50.2", "connectionType": "WIRELESS"}
+    snapshot = {"networks": {"home": cloud_network(
+        {"accessPoints": [{"id": "point"}]},
+        {"apStatuses": [{"apId": "point", "apState": "AP_ONLINE"}]},
+        [station], {"stationMetrics": [{"station": station, "traffic": {}}]},
+        {"client": "aa:bb:cc:dd:ee:ff"},
+    )}}
+    raw = {str(i): "diagnostic value " * 20 for i in range(100)}
+    snapshot["networks"]["home"]["google_telemetry"]["large_info"] = raw
+    monkeypatch.setattr(CloudClient, "snapshot", AsyncMock(side_effect=lambda: copy.deepcopy(snapshot)))
+    entry = config_entries.ConfigEntry(
+        data={"mode": "cloud", "email": "test@example.invalid", "master_token": "dummy", "android_id": "0"*16},
+        domain=DOMAIN, discovery_keys=MappingProxyType({}), options={}, source="user",
+        title="Test network", unique_id="efficient-state-test", version=1, minor_version=1, subentries_data=None,
+    )
+    await real_hass.config_entries.async_add(entry)
+    await real_hass.async_block_till_done()
+    assert entry.state == config_entries.ConfigEntryState.LOADED
+    client = {s.attributes["gwi_metric"]: s for s in real_hass.states.async_all()
+              if s.attributes.get("gwi_kind") == "client"}
+    original_ids = {s.entity_id for s in real_hass.states.async_all()}
+    ip_before = client["ip_address"]
+    assert "download_mbps" not in ip_before.attributes
+    assert client["point"].attributes["download_mbps"] == 0.0
+    assert client["point"].attributes["connected"] is True
+    snapshot["networks"]["home"]["clients"]["client"].update(
+        download_mbps=12.5, upload_mbps=2.0, rssi=-53, rssi_source="shelly_local",
+        rssi_observed_at="2026-01-01T12:00:00Z",
+    )
+    await entry.runtime_data.async_refresh()
+    await real_hass.async_block_till_done()
+    ip_after = real_hass.states.get(ip_before.entity_id)
+    assert ip_after.attributes == ip_before.attributes
+    assert ip_after.last_updated == ip_before.last_updated
+    carrier = real_hass.states.get(client["point"].entity_id)
+    assert carrier.attributes["download_mbps"] == 12.5
+    assert carrier.attributes["rssi"] == -53
+    assert real_hass.states.get(client["rssi"].entity_id).attributes["rssi_source"] == "shelly_local"
+    assert real_hass.states.get(client["download_mbps"].entity_id).state == "12.5"
+    telemetry = next(s for s in real_hass.states.async_all() if s.attributes.get("gwi_kind") == "network"
+                     and s.attributes.get("gwi_metric") == "google_telemetry_at")
+    assert telemetry.attributes["google_telemetry"]["large_info"] == raw
+    assert "google_telemetry" in WifiSensor._unrecorded_attributes
+    assert "usage_windows" in WifiSensor._unrecorded_attributes
+    assert "google_telemetry" in telemetry.state_info["unrecorded_attributes"]
+    assert {s.entity_id for s in real_hass.states.async_all()} == original_ids
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.asyncio
 async def test_local_setup_real_entities_and_unload(real_hass, monkeypatch):
     from custom_components.google_wifi_insights.api import LocalClient
     from custom_components.google_wifi_insights.model import local_point
