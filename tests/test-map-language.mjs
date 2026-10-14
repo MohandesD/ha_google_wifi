@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import {informationCss} from '../www/gwi-information.js';
 import {languageOf,translate,mapModel,isLocalHaPath,overviewPath,operationFeedback} from '../www/gwi-map-model.js';
 
 test('effective HA language wins over browser defaults and handles regional variants',()=>{
@@ -37,7 +38,7 @@ function cardEnvironment(config={},timers={}) {
     }
   }
   const elements=new Map();
-  const context=vm.createContext({mapModel,translate,languageOf,isLocalHaPath,overviewPath,operationFeedback,formatBytes:value=>value==null?'—':String(value)+' B',
+  const context=vm.createContext({mapModel,translate,languageOf,isLocalHaPath,overviewPath,operationFeedback,informationCss,formatBytes:value=>value==null?'—':String(value)+' B',
     HTMLElement:Node,document:{createElement:tag=>new Node(tag),createElementNS:(_,tag)=>new Node(tag),createTextNode:text=>{const n=new Node();n.textContent=text;return n;}},
     CustomEvent:class{constructor(type,options){this.type=type;Object.assign(this,options);}},
     ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:()=>1,cancelAnimationFrame(){},

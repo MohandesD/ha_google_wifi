@@ -23,7 +23,9 @@ jobs:
         with:
           node-version: '24'
       - name: Install isolated test dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: |
+          python -m pip install -r requirements-dev.txt
+          npm ci --ignore-scripts --no-audit --no-fund
       - name: Validate bundled HACS assets
         run: python tools/sync_frontend.py --check
       - name: Test integration and HA framework behaviour

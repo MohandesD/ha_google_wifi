@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.0";
-import {formatBytes} from "./gwi-usage-history.js?v=0.9.0";
-import {pointInformation,networkInformation} from "./gwi-information.js?v=0.9.0";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.1";
+import {formatBytes} from "./gwi-usage-history.js?v=0.9.1";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.9.1";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -191,7 +191,14 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(client.usageWindows?.hour){const details=element("details");details.append(element("summary",null,t("history")));details.addEventListener("toggle",()=>{if(details.open && details.children.length===1)details.append(this._history(client,client.entityId));});row.append(details);}
     return row;
   }
-  _pointNode(p) {
+  _informationPanel(key,label,markup) {
+    this._informationPanels ||= new Map();
+    const host=this._informationPanels.get(key)||element('div','gwi-information');
+    this._informationPanels.set(key,host);this._usedInformation.add(key);
+    renderInformation(host,`<details data-gwi-disclosure="${key.replace(/[&<>"']/g,'_')}">${informationSummary(label,this._language)}${markup}</details>`,key);
+    return host;
+  }
+  _pointNode(p,scope) {
     const t=translate(this._language);
     const point=element("button","point"+(p.isRoot?" primary":"")); point.type="button"; point.dataset.entity=p.entityId; point.dataset.pointId=p.id;
     point.append(element("span","circle","AP"),element("span","name",p.name));
@@ -205,7 +212,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(p.meshTest!=null && p.meshTestAt)point.append(element("span","meta",t("mesh_test",{speed:p.meshTest,time:new Date(p.meshTestAt).toLocaleString(this._language)})));
     point.addEventListener("click",()=>this._moreInfo(p.entityId));
     const wrapper=element("div");wrapper.append(point,this._controls(p.controls));
-    if(p.firmwareInfo||p.lanInfo){const info=element("details"),summary=element("summary",null,this._language==="pt"?"Firmware e informação LAN/WAN":"Firmware and LAN/WAN information"),body=element("div");body.innerHTML=pointInformation(p,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}));info.append(summary,body);wrapper.append(info);}
+    if(p.firmwareInfo||p.lanInfo)wrapper.append(this._informationPanel(scope+":"+p.id,this._language==="pt"?"Firmware e informação LAN/WAN":"Firmware and LAN/WAN information",pointInformation(p,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}))));
     return wrapper;
   }
   _meshOverview(n) {
@@ -236,7 +243,9 @@ class GoogleWifiInsightsMap extends HTMLElement {
   _render() {
     if(!this._config) return;
     const t=translate(this._language); this.lang=this._language;
-    this.shadowRoot.replaceChildren(element("style",null,CSS));
+    const active=this.shadowRoot.activeElement;
+    this._usedInformation=new Set();
+    this.shadowRoot.replaceChildren(element("style",null,CSS+informationCss));
     const card = element("ha-card"), content = element("div","content");
     const returnPath=overviewPath(this._config,window.location?.pathname || "");
     if(returnPath) {
@@ -269,11 +278,11 @@ class GoogleWifiInsightsMap extends HTMLElement {
         if(n.clients.some(c=>c.roaming))section.append(element("p",null,t("roaming_hint")));
       }
       section.append(element("h3",null,t("client_groups")));
-      if(n.networkInfo){const details=element("details"),summary=element("summary",null,this._language==="pt"?"Configuração LAN/WAN":"LAN/WAN configuration"),body=element("div");body.innerHTML=networkInformation(n,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}));details.append(summary,body);section.append(details);}
+      if(n.networkInfo)section.append(this._informationPanel(n.scope+":network",this._language==="pt"?"Configuração LAN/WAN":"LAN/WAN configuration",networkInformation(n,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}))));
       for(const p of n.points) {
         const cluster = element("div","cluster");
         const svg = document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.classList.add("edges"); svg.setAttribute("aria-hidden","true"); cluster.append(svg);
-        cluster.append(this._pointNode(p));
+        cluster.append(this._pointNode(p,n.scope));
         const clients = element("div","clients"), expanded = this._expanded.has(n.scope+":"+p.id);
         for(const client of p.clients.slice(0,expanded ? undefined : this._config.max_clients)) clients.append(this._clientNode(client));
         if(p.clients.length > this._config.max_clients) {
@@ -293,6 +302,8 @@ class GoogleWifiInsightsMap extends HTMLElement {
     const metadata=window.customCards?.find(card=>card.type==="google-wifi-insights-map");
     if(metadata)metadata.description=t("card_description");
     card.append(content); this.shadowRoot.append(card);
+    for(const key of this._informationPanels?.keys()||[])if(!this._usedInformation.has(key))this._informationPanels.delete(key);
+    if(active?.isConnected)active.focus({preventScroll:true});
     cancelAnimationFrame(this._frame); this._frame=requestAnimationFrame(()=>this._drawEdges());
   }
   _drawEdges() {

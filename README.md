@@ -83,6 +83,7 @@ python -m venv .venv
 # Activate it, then:
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
+npm ci --ignore-scripts
 npm test
 python tools/sync_frontend.py --check
 python tools/build_package.py
@@ -109,6 +110,8 @@ providing the required server query parameter. See the
 additional information and firmware-dependent limitations. Version 0.9.0
 collects the successful supplemental reads with caching and adds the firmware
 and LAN/WAN information views described in [INFORMATION.md](docs/INFORMATION.md).
+Version 0.9.1 adds clear expand/collapse controls and preserves JSON scroll and
+keyboard focus while live readings update.
 
 ## Support the project
 

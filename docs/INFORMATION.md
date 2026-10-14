@@ -6,6 +6,11 @@ The overview/map also include an expandable **Network configuration** section.
 **All supplied information** shows the complete collected, sanitized metadata,
 including hardware/account/group context and settings without dedicated sensors.
 
+Expandable sections show a chevron and an **Expand** / **Collapse** action. Click
+the same header again to close the section; keyboard users can use Enter or
+Space. JSON regions can receive keyboard focus and scroll independently. Live
+readings update in place, preserving the section state, focus and scroll position.
+
 The public integration bundles these views automatically. Manually maintained
 Lovelace installations must copy all five `www/*.js` modules and refresh their
 resource versions; see [INSTALL.md](../INSTALL.md).
