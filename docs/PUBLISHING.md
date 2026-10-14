@@ -1,6 +1,6 @@
 # Publication checklist
 
-The repository is `spkon/ha_google_wifi`, version 0.8.0. Ownership links and
+The repository is `spkon/ha_google_wifi`, version 0.9.2. Ownership links and
 maintainer metadata are set. The owner approved public visibility and the MIT
 licence. The full notice is included at the repository root and inside the
 integration so that HACS installations also receive it.
