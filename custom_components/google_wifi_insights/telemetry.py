@@ -1,7 +1,8 @@
 """Explicit allowlists for observed Google telemetry; never export account secrets."""
 from __future__ import annotations
-from datetime import UTC, datetime
+
 import math
+from datetime import UTC, datetime
 
 
 def selected(source, keys):

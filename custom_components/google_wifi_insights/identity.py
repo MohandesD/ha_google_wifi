@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import ipaddress
 import base64
 import binascii
+import ipaddress
 import re
 from collections import defaultdict
 from urllib.parse import urlsplit
@@ -156,7 +156,9 @@ def resolve_client(client, index, duplicate_ips=()):
 
 def ha_records(hass):
     """Read registries, entity attributes and explicit configured LAN addresses."""
-    from homeassistant.helpers import device_registry as dr, entity_registry as er
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+
     from .const import DOMAIN
 
     registry = dr.async_get(hass)
@@ -219,6 +221,7 @@ def ha_records(hass):
 
 def enrich_snapshot(hass, entry, snapshot):
     from homeassistant.helpers import device_registry as dr
+
     from .const import DOMAIN
 
     index = identity_index(ha_records(hass))

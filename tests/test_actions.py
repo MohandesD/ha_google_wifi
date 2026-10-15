@@ -1,8 +1,9 @@
 from unittest.mock import AsyncMock
+
 import pytest
-from homeassistant.exceptions import HomeAssistantError
-from gwi_test.actions import build_action
 from gwi_test import api
+from gwi_test.actions import build_action
+from homeassistant.exceptions import HomeAssistantError
 
 
 def network():
@@ -89,3 +90,51 @@ async def test_denied_optional_endpoint_preserves_cached_history_and_backs_off()
     await client._optional("group", "insightCards", "path", 300)
     assert client._get.call_count == 1
     assert client._read_status["group"]["insightCards"]["state"] == "denied"
+
+
+@pytest.mark.parametrize("action", ["pause_group", "resume_group"])
+def test_group_pause_uses_only_a_known_group_and_bounded_duration(action):
+    n = network()
+    method, path, payload = build_action(n, "group", action, "network", "group", {"group_id": "set", "duration_minutes": 30})
+    assert (method, path) == ("PUT", "groups/group/stationBlocking")
+    assert payload["stationSetId"] == ["set"]
+    assert payload["blocked"] is action.startswith("pause")
+    assert payload["expiryTimestamp"]
+    with pytest.raises(HomeAssistantError, match="device group"):
+        build_action(n, "group", action, "network", "group", {"group_id": "foreign"})
+
+
+@pytest.mark.parametrize("action", ["create_device_group", "update_device_group", "delete_device_group"])
+def test_group_edits_are_scoped_typed_requests(action):
+    n = network()
+    params = {"confirmation": n["name"], "group_id": "set", "name": "Example group", "station_ids": ["client", "client"]}
+    method, path, payload = build_action(n, "group", action, "network", "group", params)
+    assert method == ("DELETE" if action == "delete_device_group" else "POST")
+    assert path == "groups/group/stationSets" + ("" if action == "create_device_group" else "/set")
+    if action != "delete_device_group":
+        assert payload["members"] == [{"stationId": "client"}]
+        if action == "update_device_group":
+            assert payload["updateMask"] == "name,members"
+    if action != "create_device_group":
+        with pytest.raises(HomeAssistantError, match="belong"):
+            build_action(n, "group", action, "network", "group", {**params, "group_id": "foreign"})
+
+
+def test_insight_actions_require_a_real_server_action_and_known_card():
+    n = network()
+    params = {"confirmation": n["name"], "card_id": "card"}
+    assert build_action(n, "group", "dismiss_insight", "network", "group", params) == ("DELETE", "groups/group/insightCards/card", {})
+    n["google_telemetry"]["insightCards"]["insightsCards"][0]["actions"] = [{"actionType": "RUN_ACTION"}]
+    assert build_action(n, "group", "run_insight_action", "network", "group", params) == ("POST", "groups/group/insightCards/card/action", {})
+    with pytest.raises(HomeAssistantError, match="belong"):
+        build_action(n, "group", "dismiss_insight", "network", "group", {**params, "card_id": "foreign"})
+
+
+def test_network_removal_request_keeps_both_name_confirmations_and_encodes_target():
+    n = network()
+    assert build_action(n, "group/slash", "remove_network", "network", "group/slash",
+                        {"confirmation": n["name"], "confirm_removal": n["name"]}) == ("DELETE", "groups/group%2Fslash", {})
+    with pytest.raises(HomeAssistantError, match="Automatic lighting"):
+        build_action(n, "group", "set_point_light", "point", "point", {"automatic": "yes", "brightness": 10})
+    with pytest.raises(HomeAssistantError, match="current Google"):
+        build_action({**n, "source": "local_status"}, "group", "restart_network", "network", "group", {})

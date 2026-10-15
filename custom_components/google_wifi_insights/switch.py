@@ -1,8 +1,11 @@
 """Enable or disable Shelly roaming without touching WiFi credentials."""
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
+
 from .entity import WifiEntity, add_dynamic_entities
 
+# Shared coordinator and per-target locks bound all network work.
+PARALLEL_UPDATES = 0
 
 async def async_setup_entry(hass, entry, async_add_entities):
     def factory(network_id, kind, item_id, item):

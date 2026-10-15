@@ -1,8 +1,11 @@
 """Confirmed Shelly roaming threshold and scan interval controls."""
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import EntityCategory, UnitOfTime
+
 from .entity import WifiEntity, add_dynamic_entities
 
+# Shared coordinator and per-target locks bound all network work.
+PARALLEL_UPDATES = 0
 
 async def async_setup_entry(hass, entry, async_add_entities):
     def factory(network_id, kind, item_id, item):

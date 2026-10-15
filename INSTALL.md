@@ -76,8 +76,8 @@ User language follows HA, with English/Portuguese UI.
 ### Optional cards in another dashboard
 
 Copy all five `www/*.js` files to `/config/www` and register
-`/local/google-wifi-insights-map.js?v=0.9.2` and
-`/local/google-wifi-dashboard-ui.js?v=0.9.2` as JavaScript modules.
+`/local/google-wifi-insights-map.js?v=0.9.3` and
+`/local/google-wifi-dashboard-ui.js?v=0.9.3` as JavaScript modules.
 Create a manual dashboard with `dashboard-overview.yaml` or `dashboard-map.yaml`.
 Shared model/history modules are imported automatically. This is optional and
 does not replace the bundled sidebar panel. Native tables use `dashboard.yaml`.
@@ -115,3 +115,65 @@ Usage graphs show rolling 1-hour, 24-hour, 7-day and 30-day windows. Missing
 buckets stay unknown; charts show partial coverage, and complete-total sensors
 remain unknown until all expected records exist. Saved WiFi tests show their
 original date and tested point separately from current point and traffic.
+
+## Updating to 0.9.3
+
+Keep the existing config entries, integration domain, dashboards and registry
+records. Make a protected backup and choose a maintenance window: replacing the
+Python files needs a Home Assistant restart. This release does not remotely
+install or restart anything.
+
+HACS users select the published 0.9.3 release. Manual users replace the complete
+integration directory, including `frontend/`, `brand/` and the license. Restart
+HA once, reload the browser and verify the entry, map, device IDs and action
+feedback. The new source/package/frontend versions are synchronized by release
+checks; copying only the Python files is incomplete.
+
+New optional client diagnostics (raw telemetry timestamp, WiFi capability and
+spatial streams) and selected point diagnostics default to disabled. Existing
+enabled entities stay enabled. Enable individual diagnostics on the device's
+entity page when needed. Network/point map carriers remain active, and full
+collected metrics remain available through `get_google_metrics`.
+
+Under **Configure → Experimental and destructive controls**, both switches
+default to off. Advanced group/insight services need experimental opt-in.
+Point/network removal needs that opt-in plus removal opt-in, an interactive
+administrator and the existing exact-name confirmations. Existing advanced
+workflows must deliberately enable these options; ordinary controls are unchanged.
+
+If one cloud network fails, other networks continue updating. A previously known
+failed network keeps its layout/IDs as unavailable; cached traffic and RSSI are
+not shown as fresh readings and new writes are rejected. If authentication or
+throttling affects the account, HA reports that account failure normally.
+
+## Rolling back
+
+Download the previous release through HACS **Redownload → version**, or restore
+the previous complete integration directory in a manual install. Keep config
+entries and device/entity registry records. Restart HA during a maintenance
+window and reload the browser. The 0.9.3 update introduces no config-entry schema
+migration, so its data remains compatible with 0.9.2. Earlier releases do not
+enforce the new experimental/removal switches; restoring 0.9.2 restores its old
+control policy. A rollback has not been performed on the household HA as part of
+this release.
+
+Restore a full HA backup only when necessary, with its emergency recovery key
+stored separately. Do not edit `.storage`, purge Recorder history or delete
+device records as an update/rollback shortcut.
+
+## Removing the integration or obsolete devices
+
+1. Delete each Google WiFi Insights entry in **Settings → Devices & services**.
+   HA removes its integration entities/devices and its bundled panel after the
+   last entry. Other integrations' device records and user dashboards are retained.
+2. Remove the downloaded integration through HACS, or remove only its own
+   `custom_components/google_wifi_insights` directory in a manual installation.
+3. Remove optional manually registered Lovelace resources/cards only if you added
+   them yourself. A restart may be needed to unload Python modules from memory.
+4. Follow [the credential-retirement guidance](SECURITY.md#removing-or-replacing-access).
+   Removing an HA entry does not revoke Google-side access or old backup copies.
+
+An obsolete integration device can be deleted manually after a complete,
+successful discovery no longer reports it. The integration refuses removal of a
+currently known device or while discovery is incomplete. Sleeping or disconnected
+clients are not automatically deleted; Google can retain them in its client list.

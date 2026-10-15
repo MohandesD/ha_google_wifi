@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible integration or panel problem with redacted evidence.
+body:
+  - type: markdown
+    attributes:
+      value: Never include tokens, cookies, passwords, real device inventories, raw telemetry or backups. Use SECURITY.md for vulnerabilities.
+  - type: input
+    id: versions
+    attributes:
+      label: Integration and HA Core versions
+      placeholder: Integration 0.9.3, HA Core 2026.10.1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Installation type, Google/Nest model and entry mode
+      placeholder: HA Container; Google WiFi; Google account mode
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result and actual result
+      description: Use fictional point/device names. State whether this is a fresh install or an upgrade.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reviewed diagnostics and error text
+      description: Review HA diagnostics before sharing. Do not attach raw information views or config entries.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I reviewed the report and removed credentials and private network/device details.
+          required: true

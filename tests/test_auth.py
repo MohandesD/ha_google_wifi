@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-
 from gwi_test import api
 from gwi_test.auth import CredentialInputError, normalize_email, normalize_google_token
 

@@ -6,6 +6,7 @@ import ipaddress
 import math
 from datetime import UTC, datetime
 from typing import Any
+
 from .identity import ip_values, normalize_ip, normalize_mac
 from .telemetry import extend_network, selected
 
@@ -69,6 +70,7 @@ def parse_points(text: str) -> list[dict[str, str]]:
             or ip.is_multicast
             or ip.is_unspecified
             or ip.is_reserved
+            or ip.is_link_local
         ):
             raise ValueError("Use private LAN IPv4 addresses")
         if str(ip) in seen:

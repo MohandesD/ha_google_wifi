@@ -78,7 +78,8 @@
         "title": "Opções da integração",
         "menu_options": {
           "polling": "Consultas e pontos locais",
-          "renew_auth": "Renovar autenticação Google"
+          "renew_auth": "Renovar autenticação Google",
+          "controls": "Controlos experimentais e destrutivos"
         }
       },
       "polling": {
@@ -94,6 +95,14 @@
       },
       "renew_auth": {
         "title": "Renovar autenticação Google"
+      },
+      "controls": {
+        "title": "Controlos experimentais e destrutivos",
+        "description": "Os reinícios, testes, pausa/prioridade de clientes e luzes dos points continuam disponíveis. As ações avançadas de grupos/avisos são experimentais. A remoção de points/redes exige ambas as opções, um administrador interativo e a confirmação exata dos nomes. Mantém ambas desativadas salvo necessidade deliberada destes serviços.",
+        "data": {
+          "allow_advanced_actions": "Ativar ações experimentais de grupos e avisos",
+          "allow_destructive_actions": "Permitir também remover points/redes (pode apagar a configuração)"
+        }
       }
     },
     "error": {
@@ -102,7 +111,8 @@
       "invalid_auth": "A Google rejeitou o token. Obtenha um novo oauth_token.",
       "invalid_input": "Introduza o email e um identificador Android hexadecimal de 16 caracteres.",
       "invalid_token": "Use um token oauth2_4/ ou um master token aas_et/ ou oauth2rt_1/ existente.",
-      "account_mismatch": "Use a conta já configurada nesta integração."
+      "account_mismatch": "Use a conta já configurada nesta integração.",
+      "advanced_required": "Ativa também as ações experimentais para permitir a remoção."
     },
     "abort": {
       "not_cloud": "A autenticação Google só está disponível numa entrada de conta Google."

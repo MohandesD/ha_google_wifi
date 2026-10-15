@@ -1,10 +1,15 @@
 """Exercise real collection boundaries, failure freshness and safe information."""
-from unittest.mock import AsyncMock
 import copy
+from unittest.mock import AsyncMock
 
 import pytest
 from gwi_test.api import ApiError, CloudClient
-from gwi_test.information import apply_point_information, apply_network_information, clean, firmware_notes
+from gwi_test.information import (
+    apply_network_information,
+    apply_point_information,
+    clean,
+    firmware_notes,
+)
 from gwi_test.lan import LanDiagnostics, private_host
 
 

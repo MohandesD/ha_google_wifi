@@ -31,7 +31,9 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.mark.asyncio
 async def test_real_ha_restart_feedback_targets_progress_and_unload(real_hass, monkeypatch):
     from types import MappingProxyType
+
     from homeassistant.core import callback
+
     from custom_components.google_wifi_insights.api import CloudClient
     from custom_components.google_wifi_insights.model import cloud_network
 
@@ -139,6 +141,7 @@ async def real_hass(tmp_path, monkeypatch):
 async def test_static_client_states_do_not_follow_traffic_and_large_diagnostics_are_unrecorded(real_hass, monkeypatch):
     """Preserve map carriers and raw API data while eliminating redundant writes."""
     from types import MappingProxyType
+
     from custom_components.google_wifi_insights.api import CloudClient
     from custom_components.google_wifi_insights.model import cloud_network
     from custom_components.google_wifi_insights.sensor import WifiSensor
@@ -266,14 +269,20 @@ async def test_local_setup_real_entities_and_unload(real_hass, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_google_controls_history_permissions_and_readback_in_real_ha(real_hass, monkeypatch):
-    from types import MappingProxyType, SimpleNamespace
     from datetime import UTC, datetime, timedelta
+    from types import MappingProxyType, SimpleNamespace
+
     from homeassistant.core import Context
     from homeassistant.exceptions import HomeAssistantError
+
     from custom_components.google_wifi_insights.api import CloudClient
-    from custom_components.google_wifi_insights.model import cloud_network
     from custom_components.google_wifi_insights.capabilities import apply_extras
-    from custom_components.google_wifi_insights.history import request_window, normalize_history, apply_history
+    from custom_components.google_wifi_insights.history import (
+        apply_history,
+        normalize_history,
+        request_window,
+    )
+    from custom_components.google_wifi_insights.model import cloud_network
     group = {"name": "Test WiFi", "accessPoints": [{"id": "p", "accessPointSettings": {"lightingSettings": {"intensity": 40}}}],
              "groupSettings": {"familyHubSettings": {"stationPolicies": []}, "lanSettings": {"prioritizedStation": {}}}}
     station = {"id": "s", "friendlyName": "Client", "connected": True, "apId": "p"}
@@ -339,10 +348,12 @@ async def test_google_controls_history_permissions_and_readback_in_real_ha(real_
 @pytest.mark.asyncio
 async def test_real_ha_roaming_services_and_radio_discovery(real_hass, monkeypatch):
     from types import MappingProxyType
+
+    from homeassistant.exceptions import HomeAssistantError
+
     from custom_components.google_wifi_insights.api import CloudClient
     from custom_components.google_wifi_insights.model import cloud_network
     from custom_components.google_wifi_insights.shelly_radio import ShellyRadio
-    from homeassistant.exceptions import HomeAssistantError
 
     foreign_entry = config_entries.ConfigEntry(data={}, domain="shelly", discovery_keys=MappingProxyType({}), options={}, source="user", title="Shelly", unique_id="shelly", version=1, minor_version=1, subentries_data=None)
     real_hass.config_entries._entries[foreign_entry.entry_id] = foreign_entry
@@ -395,12 +406,15 @@ async def test_real_ha_roaming_services_and_radio_discovery(real_hass, monkeypat
 
 @pytest.mark.asyncio
 async def test_device_identity_sensors_names_links_and_ids_remain_stable(real_hass, monkeypatch):
-    from types import MappingProxyType
-    from custom_components.google_wifi_insights.api import CloudClient
-    from custom_components.google_wifi_insights.model import cloud_network
-    from custom_components.google_wifi_insights.diagnostics import async_get_config_entry_diagnostics
-    from custom_components.google_wifi_insights.const import DOMAIN
     import json
+    from types import MappingProxyType
+
+    from custom_components.google_wifi_insights.api import CloudClient
+    from custom_components.google_wifi_insights.const import DOMAIN
+    from custom_components.google_wifi_insights.diagnostics import (
+        async_get_config_entry_diagnostics,
+    )
+    from custom_components.google_wifi_insights.model import cloud_network
 
     foreign_entry = config_entries.ConfigEntry(
         data={"host":"192.168.50.2"}, domain="shelly", discovery_keys=MappingProxyType({}),

@@ -1,6 +1,8 @@
 """Radio evidence must not export credentials or identity values."""
 import json
+
 from gwi_test.radio_schema import radio_schema
+
 
 def test_radio_evidence_is_bounded_and_contains_no_private_values():
     payload={'mesh':{'signal':-67,'quality':'GOOD','ssid':'private-network','password':'private-password','token':'private-token','deviceName':'private-device'},'stations':[{'rssi':-72,'macAddress':'aa:bb:cc:dd:ee:ff','ipAddress':'192.168.50.10','signalQuality':'GREAT'}]}

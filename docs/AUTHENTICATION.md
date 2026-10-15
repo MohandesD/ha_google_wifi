@@ -129,3 +129,20 @@ Keep tokens out of source control, issues and screenshots.
 
 Implementation references: [gpsoauth alternative flow](https://github.com/simon-weber/gpsoauth#alternative-flow)
 and [HA reauthentication](https://developers.home-assistant.io/docs/core/integration/config_flow/#reauthentication).
+
+## First-time onboarding and retiring access
+
+For community testing, follow this guide from a clean HA setup without maintainer
+assistance. Record the browser, account type, HA version and the error category,
+without account identifiers or token values. Complete Google's two-step checks;
+do not weaken account security to make setup work. A managed account or embedded
+browser may be rejected by Google, and this integration does not bypass that policy.
+
+After success, verify the sidebar, network discovery and cached history before
+trying any optional network control. A revoked/expired credential should open
+HA's native renewal flow and keep existing device/entity IDs. Record independent
+results in [release readiness](RELEASE_READINESS.md).
+
+The reusable token is sensitive and is not a registered OAuth application secret.
+Deleting the HA entry does not revoke access on Google's side or remove old backup
+copies. See [credential retirement](../SECURITY.md#removing-or-replacing-access).

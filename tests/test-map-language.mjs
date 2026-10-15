@@ -20,7 +20,9 @@ function cardEnvironment(config={},timers={}) {
   const consumers=new Map(),disposed=[];
   class Node {
     children=[]; listeners=new Map();
-    constructor(tag='host'){this.tag=tag;this.dataset={};this.classList={add(){}};}
+    constructor(tag='host'){this.tag=tag;this.dataset={};this.classList={add(){}};this.ownerDocument={scrollingElement:null};}
+    querySelectorAll(){return [];}
+    getRootNode(){return {host:null};}
     set textContent(value){this.text=String(value);}
     get textContent(){return (this.text||'')+this.children.map(x=>x.textContent||'').join(' ');}
     append(...nodes){this.children.push(...nodes);}

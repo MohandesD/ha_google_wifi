@@ -12,12 +12,12 @@ import aiohttp
 import gpsoauth
 import requests
 
-from .model import cloud_network, local_point
-from .identity import normalize_mac
-from .radio_schema import radio_schema
 from .capabilities import READS, apply_extras, safe_metadata
 from .history import WINDOWS, apply_history, normalize_history, request_window
+from .identity import normalize_mac
+from .model import cloud_network, local_point
 from .operations import MONITOR_SECONDS, TERMINAL_STATES, now_iso, pending
+from .radio_schema import radio_schema
 
 AUTH_URL = "https://android.clients.google.com/auth"
 CLOUD_URL = "https://googlehomefoyer-pa.googleapis.com/v2/"
@@ -226,6 +226,7 @@ class CloudClient:
         self._token, self._expiry, self._retry_until = None, 0, 0
         self._lock = asyncio.Lock()
         self.radio_evidence = {}
+        self.network_errors = {}
         self._mac_cache = {}
         self._mac_retry = {}
         self._speed_cache = {}
@@ -435,6 +436,7 @@ class CloudClient:
 
     async def _poll_operations(self, group_id):
         from datetime import UTC, datetime
+
         from .history import instant
         for operation in list(self._operations.get(group_id, [])):
             if not pending(operation):
@@ -540,104 +542,132 @@ class CloudClient:
         return {sid: value[0] for sid, value in cache.items() if value[0]}
 
     async def snapshot(self):
+        """Keep one inaccessible network from discarding other network readings."""
         try:
             groups_payload = await self._get("groups?prettyPrint=false")
             self.radio_evidence = {"groups": radio_schema(groups_payload), "networks": []}
-            if not isinstance(groups_payload.get("groups"), list):
+            groups = groups_payload.get("groups")
+            if not isinstance(groups, list):
                 raise ApiError("Google returned no Wifi networks")
+            self.network_errors = {}
             networks = {}
-            for group in groups_payload["groups"]:
-                if not isinstance(group, dict) or not isinstance(group.get("id"), str):
+            last_error = None
+            for group in groups:
+                if not isinstance(group, dict) or not isinstance(group.get("id"), str) or not group["id"]:
                     continue
                 group_id = group["id"]
-                from datetime import UTC, datetime
-                read_status = self._read_status.setdefault(group_id, {})
-                collected_at = datetime.now(UTC).isoformat()
-                read_status["groups"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
-                prefix = f"groups/{quote(group_id, safe='')}/"
-                status = await self._get(prefix + "status?prettyPrint=false")
-                clients = await self._get(prefix + "stations?prettyPrint=false")
-                if not isinstance(clients.get("stations"), list):
-                    raise ApiError("Google returned no client list")
-                if any(
-                    not isinstance(station, dict)
-                    or not isinstance(station.get("id"), str)
-                    for station in clients["stations"]
-                ):
-                    raise ApiError("Unexpected client record format")
-                for key in ("status", "stations"):
-                    read_status[key] = {"state": "available", "retrieved_at": collected_at, "stale": False}
-                # Traffic is optional. A throttled request still triggers backoff.
                 try:
-                    metrics = await self._get(
-                        prefix + "realtimeMetrics?prettyPrint=false"
-                    )
-                    read_status["realtimeMetrics"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
-                except AuthError, RateLimitError:
+                    networks[group_id] = await self._snapshot_network(group, group_id)
+                except (AuthError, RateLimitError):
+                    # Account authentication and throttling apply to the whole session.
                     raise
                 except ApiError as error:
-                    metrics = {}
-                    read_status["realtimeMetrics"] = {"state": "error", "http_status": error.status, "stale": True}
-                self.radio_evidence["networks"].append({
-                    "status": radio_schema(status),
-                    "stations": radio_schema(clients),
-                    "metrics": radio_schema(metrics),
-                })
-                await self._poll_operations(group_id)
-                reads = [self._optional(group_id, key, prefix+key+"?prettyPrint=false", ttl) for key, ttl in READS.items()]
-                for mode, (_, _, ttl) in WINDOWS.items():
-                    period, query = request_window(mode)
-                    reads.append(self._optional(group_id, "usage_"+mode, prefix+"historicalUsage?"+query, ttl, period))
-                read_results = await asyncio.gather(*reads, return_exceptions=True)
-                for result in read_results:
-                    if isinstance(result, BaseException):
-                        raise result
-                extras = self._optional_cache.get(group_id, {})
-                await self._optional(group_id, "groupDetails", prefix.rstrip("/")+"?prettyPrint=false", 900)
-                await self._optional("_account", "userPreferences", "userPreferences?prettyPrint=false", 3600)
-                supplemental = []
-                for ap in group.get("accessPoints", [])[:30]:
-                    if not isinstance(ap, dict) or not isinstance(ap.get("id"), str):
-                        continue
-                    aid = ap["id"]
-                    supplemental.append(self._optional(group_id, "hardware:"+aid, "accesspoints/"+quote(aid, safe="")+"/hardwareBundleSetupInfo?prettyPrint=false", 86400))
-                versions = {(ap.get("accessPointProperties") or {}).get("firmwareVersion") for ap in group.get("accessPoints", []) if isinstance(ap, dict)}
-                import re
-                for version in sorted(v for v in versions if isinstance(v, str) and re.fullmatch(r"\d+(?:\.\d+){1,5}", v))[:10]:
-                    supplemental.append(self._optional("_firmware", "notes:"+version, "apSoftware/"+quote(version, safe="")+"/releaseNotes?prettyPrint=false", 21600))
-                results = await asyncio.gather(*supplemental, return_exceptions=True)
-                for result in results:
-                    if isinstance(result, BaseException):
-                        raise result
-                extras = self._optional_cache.get(group_id, {})
-                network = cloud_network(
-                    group, status, clients["stations"], metrics,
-                    await self._station_macs(group_id, clients["stations"]),
-                    extras.get("speedTestResults", {}),
-                )
-                network["google_telemetry"]["fullStatus"] = safe_metadata(status)
-                network["google_telemetry"]["fullRealtimeMetrics"] = safe_metadata(metrics)
-                for station in clients["stations"]:
-                    network["clients"][station["id"]]["_station_metadata"] = station
-                apply_history(network, self._histories.get(group_id, {}))
-                apply_extras(network, group, extras, self._read_status.get(group_id, {}), self._action_status.get(group_id, {}))
-                from .information import clean, firmware_notes
-                network["google_telemetry"]["groupDetails"] = clean(extras.get("groupDetails", {}))
-                network["google_telemetry"]["accountPreferences"] = clean(self._optional_cache.get("_account", {}).get("userPreferences", {}))
-                read_status["userPreferences"] = self._read_status.get("_account", {}).get("userPreferences", {}).copy()
-                for aid, point in network["points"].items():
-                    version = point.get("firmware")
-                    note_status = self._read_status.get("_firmware", {}).get("notes:"+str(version), {"state": "not_supplied", "stale": True})
-                    read_status["notes:"+str(version)] = note_status.copy()
-                    point["firmware_notes"] = firmware_notes(self._optional_cache.get("_firmware", {}).get("notes:"+str(version), {}), version, note_status)
-                    point["hardware_setup_information"] = clean(extras.get("hardware:"+aid, {}))
-                    point["google_telemetry"]["hardwareSetupInformation"] = point["hardware_setup_information"]
-                network["operations"] = self._operations.get(group_id, []).copy()
-                network["last_operation"] = network["operations"][-1]["state"] if network["operations"] else "NONE"
-                networks[group_id] = network
+                    last_error = error
+                    self.network_errors[group_id] = {
+                        "state": "denied" if error.status in (403, 404, 405) else "unavailable",
+                        "http_status": error.status,
+                    }
+                except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+                    # No provider values or payloads are placed in errors or diagnostics.
+                    last_error = ApiError("Unexpected Google network response")
+                    self.network_errors[group_id] = {"state": "invalid_response", "http_status": None}
             if not networks:
-                raise ApiError("No Google Wifi networks found on this account")
-            return {"networks": networks}
+                raise last_error or ApiError("No Google Wifi networks found on this account")
+            return {"networks": networks, "network_errors": self.network_errors.copy()}
         except RateLimitError as error:
             self._retry_until = time.monotonic() + error.retry_after
             raise
+
+    async def _snapshot_network(self, group, group_id):
+        """Collect one network; optional endpoints retain their independent backoff."""
+        from datetime import UTC, datetime
+        read_status = self._read_status.setdefault(group_id, {})
+        collected_at = datetime.now(UTC).isoformat()
+        read_status["groups"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+        prefix = f"groups/{quote(group_id, safe='')}/"
+        status = await self._get(prefix + "status?prettyPrint=false")
+        clients = await self._get(prefix + "stations?prettyPrint=false")
+        if not isinstance(clients.get("stations"), list):
+            raise ApiError("Google returned no client list")
+        if any(
+            not isinstance(station, dict)
+            or not isinstance(station.get("id"), str)
+            for station in clients["stations"]
+        ):
+            raise ApiError("Unexpected client record format")
+        for key in ("status", "stations"):
+            read_status[key] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+        # Traffic is optional. A throttled request still triggers backoff.
+        try:
+            metrics = await self._get(
+                prefix + "realtimeMetrics?prettyPrint=false"
+            )
+            read_status["realtimeMetrics"] = {"state": "available", "retrieved_at": collected_at, "stale": False}
+        except AuthError, RateLimitError:
+            raise
+        except ApiError as error:
+            metrics = {}
+            read_status["realtimeMetrics"] = {"state": "error", "http_status": error.status, "stale": True}
+        self.radio_evidence["networks"].append({
+            "status": radio_schema(status),
+            "stations": radio_schema(clients),
+            "metrics": radio_schema(metrics),
+        })
+        await self._poll_operations(group_id)
+        reads = [self._optional(group_id, key, prefix+key+"?prettyPrint=false", ttl) for key, ttl in READS.items()]
+        for mode, (_, _, ttl) in WINDOWS.items():
+            period, query = request_window(mode)
+            reads.append(self._optional(group_id, "usage_"+mode, prefix+"historicalUsage?"+query, ttl, period))
+        read_results = await asyncio.gather(*reads, return_exceptions=True)
+        for result in read_results:
+            if isinstance(result, BaseException):
+                raise result
+        extras = self._optional_cache.get(group_id, {})
+        await self._optional(group_id, "groupDetails", prefix.rstrip("/")+"?prettyPrint=false", 900)
+        await self._optional("_account", "userPreferences", "userPreferences?prettyPrint=false", 3600)
+        supplemental = []
+        for ap in group.get("accessPoints", [])[:30]:
+            if not isinstance(ap, dict) or not isinstance(ap.get("id"), str):
+                continue
+            aid = ap["id"]
+            supplemental.append(self._optional(group_id, "hardware:"+aid, "accesspoints/"+quote(aid, safe="")+"/hardwareBundleSetupInfo?prettyPrint=false", 86400))
+        versions = {(ap.get("accessPointProperties") or {}).get("firmwareVersion") for ap in group.get("accessPoints", []) if isinstance(ap, dict)}
+        import re
+        for version in sorted(v for v in versions if isinstance(v, str) and re.fullmatch(r"\d+(?:\.\d+){1,5}", v))[:10]:
+            supplemental.append(self._optional("_firmware", "notes:"+version, "apSoftware/"+quote(version, safe="")+"/releaseNotes?prettyPrint=false", 21600))
+        results = await asyncio.gather(*supplemental, return_exceptions=True)
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+        extras = self._optional_cache.get(group_id, {})
+        network = cloud_network(
+            group, status, clients["stations"], metrics,
+            await self._station_macs(group_id, clients["stations"]),
+            extras.get("speedTestResults", {}),
+        )
+        for records in ([network], network["points"].values(), network["clients"].values()):
+            for item in records:
+                if not isinstance(item.get("name"), str) or len(item["name"]) > 512:
+                    raise ApiError("Unexpected Google network identity format")
+                if item.get("firmware") is not None and not isinstance(item["firmware"], str):
+                    raise ApiError("Unexpected Google firmware format")
+        network["google_telemetry"]["fullStatus"] = safe_metadata(status)
+        network["google_telemetry"]["fullRealtimeMetrics"] = safe_metadata(metrics)
+        for station in clients["stations"]:
+            network["clients"][station["id"]]["_station_metadata"] = station
+        apply_history(network, self._histories.get(group_id, {}))
+        apply_extras(network, group, extras, self._read_status.get(group_id, {}), self._action_status.get(group_id, {}))
+        from .information import clean, firmware_notes
+        network["google_telemetry"]["groupDetails"] = clean(extras.get("groupDetails", {}))
+        network["google_telemetry"]["accountPreferences"] = clean(self._optional_cache.get("_account", {}).get("userPreferences", {}))
+        read_status["userPreferences"] = self._read_status.get("_account", {}).get("userPreferences", {}).copy()
+        for aid, point in network["points"].items():
+            version = point.get("firmware")
+            note_status = self._read_status.get("_firmware", {}).get("notes:"+str(version), {"state": "not_supplied", "stale": True})
+            read_status["notes:"+str(version)] = note_status.copy()
+            point["firmware_notes"] = firmware_notes(self._optional_cache.get("_firmware", {}).get("notes:"+str(version), {}), version, note_status)
+            point["hardware_setup_information"] = clean(extras.get("hardware:"+aid, {}))
+            point["google_telemetry"]["hardwareSetupInformation"] = point["hardware_setup_information"]
+        network["operations"] = self._operations.get(group_id, []).copy()
+        network["last_operation"] = network["operations"][-1]["state"] if network["operations"] else "NONE"
+        return network

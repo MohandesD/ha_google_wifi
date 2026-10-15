@@ -100,9 +100,21 @@ class WifiEntity(CoordinatorEntity):
         )
 
     @property
+    def capability_attributes(self):
+        """Keep stable map/registry routing visible even while HA drops live attributes."""
+        return {**(super().capability_attributes or {}),
+                "gwi_kind": self.kind, "gwi_metric": self.key,
+                "gwi_scope": self._scope, "gwi_network_id": self.network_id,
+                "gwi_item_id": self.item_id,
+                "data_source": self.item.get("source"),
+                "device_name": self.item.get("name", self._attr_device_info["name"])}
+
+    @property
     def available(self):
+        network = (self.coordinator.data or {}).get("networks", {}).get(self.network_id, {})
         return (
-            super().available and bool(self.item) and self.item.get("reachable", True)
+            super().available and network.get("reachable", True)
+            and bool(self.item) and self.item.get("reachable", True)
         )
 
     @property

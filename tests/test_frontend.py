@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.components import frontend
-
 from test_ha import real_hass as real_hass
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +34,10 @@ def test_hacs_download_contains_all_frontend_dependencies():
 @pytest.mark.asyncio
 async def test_shared_panel_unload_and_reload_in_real_ha(real_hass, monkeypatch):
     from custom_components.google_wifi_insights.frontend import (
-        PANEL_NAME, STATIC_URL, async_setup_frontend, async_unload_frontend,
+        PANEL_NAME,
+        STATIC_URL,
+        async_setup_frontend,
+        async_unload_frontend,
     )
 
     register_static = AsyncMock()
@@ -63,7 +65,10 @@ async def test_shared_panel_unload_and_reload_in_real_ha(real_hass, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_existing_dashboard_and_replaced_panel_are_preserved(real_hass, monkeypatch):
-    from custom_components.google_wifi_insights.frontend import async_setup_frontend, async_unload_frontend
+    from custom_components.google_wifi_insights.frontend import (
+        async_setup_frontend,
+        async_unload_frontend,
+    )
 
     # Headless HA remains usable without the optional browser frontend.
     await async_setup_frontend(real_hass, "headless")

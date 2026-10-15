@@ -35,6 +35,29 @@ test("offline/failed samples do not draw stale client links",()=>{
   const model=mapModel({"sensor.ap":p,"sensor.phone":c})[0];
   assert.equal(model.clients.length,0); assert.equal(model.points[0].online,null); assert.equal(model.points[0].count,null);
 });
+
+test("a partially unavailable account keeps the healthy map and never shows cached links as live",()=>{
+  const identity=(scope,kind,id,metric,name)=>({gwi_scope:scope,gwi_kind:kind,gwi_item_id:id,gwi_metric:metric,device_name:name,data_source:"google_cloud"});
+  const states={
+    "sensor.healthy":{state:"quality_data_available",attributes:identity("healthy","network","n1","diagnosis","Example network A")},
+    "sensor.healthy_point":point("healthy","ap1","Example point A"),
+    "sensor.healthy_client":client("healthy","phone","ap1",-55),
+    "sensor.failed":{state:"unavailable",attributes:identity("failed","network","n2","diagnosis","Example network B")},
+    "sensor.failed_point":{state:"unavailable",attributes:identity("failed","point","ap2","clients","Example point B")},
+    "sensor.failed_client":{state:"unavailable",attributes:identity("failed","client","tablet","point","Example tablet")},
+  };
+  const model=mapModel(states);
+  assert.equal(model.find(n=>n.scope==="healthy").clients.length,1);
+  const failed=model.find(n=>n.scope==="failed");
+  assert.equal(failed.unavailable,true);
+  assert.equal(failed.name,"Example network B");
+  assert.equal(failed.points.length,1);
+  assert.equal(failed.points[0].online,null);
+  assert.equal(failed.points[0].count,null);
+  assert.equal(failed.points[0].mesh.key,"unknown");
+  assert.equal(failed.clients.length,0);
+  assert.equal(mapModel(states,{network_entity:"sensor.failed"})[0].scope,"failed");
+});
 test("mesh quality stays unknown even when all client signal is good",()=>{
   const model=mapModel({"sensor.ap":point("a","ap1"),"sensor.phone":client("a","phone","ap1",-45)})[0];
   assert.equal(model.points[0].mesh.key,"unknown"); assert.equal(model.points[0].mesh.bars,0);

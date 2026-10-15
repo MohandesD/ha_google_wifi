@@ -1,0 +1,56 @@
+# Testing and release verification
+
+Tests require Python 3.14 and Node.js 24. Use an isolated development environment:
+
+```sh
+python -m venv .venv
+# Activate the environment, then:
+python -m pip install -r requirements-dev.txt
+npm ci --ignore-scripts
+python -m ruff check --select F,E9,I custom_components tests tools
+python -m pytest -q --cov --cov-report=term-missing --cov-report=json --cov-fail-under=90
+npm test
+python tools/sync_frontend.py --check
+python tools/build_package.py
+python tools/validate_release.py
+```
+
+The Python suite blocks non-loopback HTTP in both aiohttp and requests. Real
+transport tests use ephemeral loopback servers. HA fixtures use temporary config
+directories, fictional accounts and mocked Google discovery; no household config,
+tokens, browser storage or LAN capture is needed. The 100/300-client tests write
+only aggregate `scale-metrics.json` files into their temporary directories.
+
+With `--basetemp=test-runtime-ci`, CI retains those scale files together with
+coverage reports. Peak Python allocations exclude the rest of the HA process;
+the tests do not start Recorder or estimate actual database growth. Timings depend
+on the host and coverage instrumentation and are observations, not service SLAs.
+
+CI runs a pinned minimum HA/frontend environment and another job upgrading to the
+latest release. It also runs HACS/hassfest, Python runtime dependency auditing and
+`npm audit`. No failed check is marked successful by ignoring its outcome. Local
+brand assets satisfy the HACS branding check; default-catalogue submission is separate.
+
+The archive uses fixed timestamps, stable permissions, sorted members and LF text.
+The verifier checks versions, translations, mirrored UI, archive/source identity,
+unexpected members and common credential patterns. A release still requires a
+human review of the diff and public-file selection. Pattern checks cannot establish
+that arbitrary personal data is absent.
+
+Run any remaining live onboarding, compatibility or destructive-action validation
+only in a separate explicitly authorized lab. Record those results in the
+[readiness matrix](RELEASE_READINESS.md), distinguishing observation from inference.
+
+## Browser demo
+
+Run `python tools/demo_server.py` and open
+`http://127.0.0.1:8876/tools/demo.html`. It serves only the public UI and fictional
+fixtures on loopback. Its content policy blocks provider/API connections and its
+service interface returns local fixture data. No real HA instance or Google
+account is connected, and network actions are disabled.
+
+Use the language/scenario selectors, overview/map tabs, information disclosures
+and history controls to check desktop/mobile layout, missing signal and partial
+network failure. Fixture updates arrive every three seconds for scroll/focus
+regression checks. Stop the server with Ctrl+C. README screenshots are taken from
+this demo, never from a private installation.

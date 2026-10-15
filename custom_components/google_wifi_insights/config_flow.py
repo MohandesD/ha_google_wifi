@@ -21,7 +21,13 @@ from .api import (
     google_auth,
 )
 from .auth import CredentialInputError, normalize_email, normalize_google_token
-from .const import DEFAULT_INTERVAL, DOMAIN, MIN_INTERVAL
+from .const import (
+    CONF_ADVANCED,
+    CONF_DESTRUCTIVE,
+    DEFAULT_INTERVAL,
+    DOMAIN,
+    MIN_INTERVAL,
+)
 from .model import parse_points
 
 
@@ -226,8 +232,25 @@ class OptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         return self.async_show_menu(
             step_id="init",
-            menu_options=["polling", "renew_auth"]
+            menu_options=["polling", "controls", "renew_auth"]
             if self.config_entry.data["mode"] == "cloud" else ["polling"],
+        )
+
+    async def async_step_controls(self, user_input=None):
+        if self.config_entry.data["mode"] != "cloud":
+            return self.async_abort(reason="not_cloud")
+        errors = {}
+        if user_input is not None:
+            if user_input[CONF_DESTRUCTIVE] and not user_input[CONF_ADVANCED]:
+                errors["base"] = "advanced_required"
+            else:
+                return self.async_create_entry(title="", data={**self.config_entry.options, **user_input})
+        return self.async_show_form(
+            step_id="controls", errors=errors,
+            data_schema=vol.Schema({
+                vol.Required(key, default=(user_input or self.config_entry.options).get(key, False)): bool
+                for key in (CONF_ADVANCED, CONF_DESTRUCTIVE)
+            }),
         )
 
     async def async_step_renew_auth(self, user_input=None):

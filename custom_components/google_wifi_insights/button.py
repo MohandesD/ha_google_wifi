@@ -1,12 +1,16 @@
 """Explicit tests/restarts. No test or restart runs during polling."""
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory
+
 from .entity import WifiEntity, add_dynamic_entities
 
 BUTTONS = {"network": ("restart_network", "test_internet", "clear_priority", "refresh_metrics"),
            "point": ("restart_point", "test_mesh", "test_local", "test_clients"),
            "client": ("prioritize_client",)}
 
+
+# Shared coordinator and per-target locks bound all network work.
+PARALLEL_UPDATES = 0
 
 async def async_setup_entry(hass, entry, async_add_entities):
     def factory(nid, kind, sid, item):

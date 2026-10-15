@@ -1,4 +1,4 @@
-# Google WiFi Insights 0.9.0
+# Google WiFi Insights 0.9.3
 
 This custom integration collects the network, points and clients returned by the Google account, without household-specific names, addresses or IDs in the runtime.
 
@@ -80,3 +80,21 @@ The public endpoint inventories also mention guest WiFi, SSID/password, DNS, DHC
 - [Home Assistant frontend context API](https://github.com/home-assistant/frontend/blob/dev/src/data/context/index.ts)
 
 Live validation must distinguish safe reads/settings from disruptive tests/reboots and destructive operations. The latter are available for deliberate use, not automatically executed during installation.
+
+## Stabilization policy in 0.9.3
+
+One failed cloud network no longer discards other networks. Previous identities
+are retained as unavailable and new controls reject stale snapshots. Account
+authentication and throttling remain account-wide failures.
+
+`Configure → Experimental and destructive controls` has two default-off options:
+`allow_advanced_actions` enables the `ADVANCED` group/insight operations;
+`allow_destructive_actions` additionally enables removal services. Both must be
+true for removal. The existing interactive administrator, network-name and
+target-name confirmations still apply. Native ordinary controls do not require
+these options. Schema/permission tests are not physical validation of those
+experimental actions; keep their unverified status visible.
+
+Optional diagnostic entities may be disabled initially, without discarding the
+collected metrics or changing existing registry preferences. See
+[state efficiency](STATE_EFFICIENCY.md) and [1.0 readiness](RELEASE_READINESS.md).

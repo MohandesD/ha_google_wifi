@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant import config_entries
-
-from test_ha import DOMAIN, real_hass as real_hass
+from test_ha import DOMAIN
+from test_ha import real_hass as real_hass
 
 EMAIL = "account@example.invalid"
 COOKIE = "oauth2_4/fictional-browser-value"
@@ -92,7 +92,11 @@ async def test_retry_reuses_the_exchange_and_never_returns_credentials_in_the_fo
 ])
 async def test_exchange_failure_has_specific_errors_and_no_password_default(real_hass, fake_google, monkeypatch, provider_error, expected):
     from custom_components.google_wifi_insights import config_flow
-    from custom_components.google_wifi_insights.api import AuthError, AuthServiceError, RateLimitError
+    from custom_components.google_wifi_insights.api import (
+        AuthError,
+        AuthServiceError,
+        RateLimitError,
+    )
 
     errors = {"challenge": AuthError(reason="google_challenge"), "rejected": AuthError(), "outage": AuthServiceError("Outage"), "limit": RateLimitError()}
     def exchange(*args):
@@ -169,10 +173,12 @@ async def test_duplicate_account_is_detected_before_consuming_another_cookie(rea
 
 @pytest.mark.asyncio
 async def test_options_open_native_reauth_preserving_entry_devices_and_options(real_hass, fake_google):
+    from unittest.mock import patch
+
+    from homeassistant.helpers import device_registry
+
     from custom_components.google_wifi_insights.api import CloudClient
     from custom_components.google_wifi_insights.model import cloud_network
-    from homeassistant.helpers import device_registry
-    from unittest.mock import patch
 
     snapshot = {"networks": {"network": cloud_network(
         {"accessPoints": [{"id": "point"}]},
@@ -198,7 +204,7 @@ async def _check_renewal_preserves_registry(real_hass, fake_google, device_regis
     original_devices = {device.id for device in device_registry.async_entries_for_config_entry(registry, entry.entry_id)}
     assert len(original_devices) == 3
     options = await real_hass.config_entries.options.async_init(entry.entry_id)
-    assert options["menu_options"] == ["polling", "renew_auth"]
+    assert options["menu_options"] == ["polling", "controls", "renew_auth"]
     result = await real_hass.config_entries.options.async_configure(options["flow_id"], {"next_step_id": "renew_auth"})
     assert result["data"] is None and result["next_flow"][0] == config_entries.FlowType.CONFIG_FLOW
     assert entry.options == {"scan_interval": 300}
@@ -254,3 +260,52 @@ def test_authentication_ui_has_equivalent_english_and_portuguese_keys():
     for section in ("step", "error", "abort"):
         assert source["config"][section].keys() == portuguese["config"][section].keys()
     assert "android_id" not in source["config"]["step"]["cloud_cookie"]["data"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error_name,expected", [
+    ("AuthError", "invalid_auth"), ("RateLimitError", "rate_limited"),
+    ("AuthServiceError", "auth_unavailable"), ("ApiError", "cannot_connect"),
+])
+async def test_browser_exchange_failures_do_not_store_or_echo_credentials(real_hass, fake_google, monkeypatch, error_name, expected):
+    from unittest.mock import Mock
+
+    from custom_components.google_wifi_insights import api, config_flow
+
+    monkeypatch.setattr(config_flow, "google_auth", Mock(side_effect=getattr(api, error_name)("fixture error")
+                        if error_name != "RateLimitError" else api.RateLimitError(120)))
+    form = await start_credentials(real_hass)
+    result = await real_hass.config_entries.flow.async_configure(form["flow_id"], {"email": EMAIL, "oauth_token": COOKIE})
+    assert result["errors"] == {"base": expected}
+    assert not real_hass.config_entries.async_entries(DOMAIN)
+    assert COOKIE not in str(result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error_name,expected", [("AuthServiceError", "auth_unavailable"), ("NoNetworksError", "no_networks")])
+async def test_temporary_discovery_failure_reuses_pending_exchange(real_hass, fake_google, error_name, expected):
+    from custom_components.google_wifi_insights import api
+
+    fake_google.side_effect = getattr(api, error_name)("fixture")
+    form = await start_credentials(real_hass)
+    result = await real_hass.config_entries.flow.async_configure(form["flow_id"], {"email": EMAIL, "oauth_token": COOKIE})
+    assert result["step_id"] == "cloud_retry" and result["errors"] == {"base": expected}
+    fake_google.side_effect = None
+    result = await real_hass.config_entries.flow.async_configure(form["flow_id"], {})
+    assert result["type"] == "create_entry"
+    await real_hass.async_block_till_done()
+    assert await real_hass.config_entries.async_unload(result["result"].entry_id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("points", ["Point=8.8.8.8", "Point=169.254.1.2", "Point=192.168.50.1\nOther=192.168.50.1"])
+async def test_invalid_local_addresses_never_reach_the_transport(real_hass, monkeypatch, points):
+    from custom_components.google_wifi_insights.api import LocalClient
+
+    poll = AsyncMock()
+    monkeypatch.setattr(LocalClient, "snapshot", poll)
+    flow = await real_hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    form = await real_hass.config_entries.flow.async_configure(flow["flow_id"], {"next_step_id": "local"})
+    result = await real_hass.config_entries.flow.async_configure(form["flow_id"], {"points": points})
+    assert result["errors"] == {"base": "invalid_points"}
+    poll.assert_not_awaited()

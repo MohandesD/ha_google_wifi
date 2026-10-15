@@ -1,6 +1,12 @@
 """Avoid incorrect aliases from stale, ambiguous, conflicting or truncated addresses."""
 import pytest
-from gwi_test.identity import normalize_mac, normalize_ip, identity_index, resolve_client, matter_interface_addresses
+from gwi_test.identity import (
+    identity_index,
+    matter_interface_addresses,
+    normalize_ip,
+    normalize_mac,
+    resolve_client,
+)
 
 
 def record(id, name="Lamp", macs=(), ips=(), user=False):

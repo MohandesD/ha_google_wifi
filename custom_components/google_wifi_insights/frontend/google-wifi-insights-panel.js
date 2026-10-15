@@ -1,6 +1,6 @@
-import './google-wifi-dashboard-ui.js?v=0.9.2';
-import './google-wifi-insights-map.js?v=0.9.2';
-import {languageOf,overviewPath} from './gwi-map-model.js?v=0.9.2';
+import './google-wifi-dashboard-ui.js?v=0.9.3';
+import './google-wifi-insights-map.js?v=0.9.3';
+import {languageOf,overviewPath} from './gwi-map-model.js?v=0.9.3';
 
 class GoogleWifiInsightsPanel extends HTMLElement {
   constructor() {

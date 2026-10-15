@@ -3,8 +3,9 @@ import voluptuous as vol
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry
-from .const import DOMAIN
+
 from .capabilities import ACTION_KINDS, safe_metadata
+from .const import DOMAIN
 
 
 def register_services(hass):
@@ -26,6 +27,8 @@ def register_services(hass):
             raise HomeAssistantError("Entity target could not be verified")
         network = (coordinator.data or {}).get("networks", {}).get(nid, {})
         item = network if kind == "network" and sid == nid else network.get("points" if kind == "point" else "clients", {}).get(sid)
+        if network.get("reachable") is False:
+            raise HomeAssistantError("Google WiFi network is unavailable; wait for a successful update")
         if not item or network.get("source") != "google_cloud":
             raise HomeAssistantError("Select a current Google account entity")
         return coordinator, nid, kind, sid

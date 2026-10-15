@@ -1,8 +1,10 @@
 """Typed requests from independently documented Google Wifi clients."""
+import math
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
-import math
+
 from homeassistant.exceptions import HomeAssistantError
+
 from .capabilities import ACTION_KINDS, ADVANCED, DESTRUCTIVE
 
 

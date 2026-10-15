@@ -21,7 +21,7 @@ python tools/sync_frontend.py --check
 python tools/build_package.py
 ```
 
-Edit the four shared frontend modules in `www/` and run
+Edit the five shared frontend modules in `www/` and run
 `python tools/sync_frontend.py` to update their bundled copies. The sidebar panel
 wrapper is maintained in `custom_components/google_wifi_insights/frontend/`.
 
@@ -33,3 +33,5 @@ isolated tests from actions verified on a real network.
 Preserve the MIT license notices and third-party attribution. See
 [INSTALL.md](INSTALL.md), [capabilities](docs/CAPABILITIES.md) and the
 [publication checklist](docs/PUBLISHING.md) for the supported scope.
+
+See [TESTING.md](docs/TESTING.md) for coverage, network isolation, scale evidence and release verification. Read [SECURITY.md](SECURITY.md) before reporting vulnerabilities.

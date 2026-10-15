@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.2";
-import {formatBytes} from "./gwi-usage-history.js?v=0.9.2";
-import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.9.2";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.3";
+import {formatBytes} from "./gwi-usage-history.js?v=0.9.3";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.9.3";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -244,6 +244,13 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(!this._config) return;
     const t=translate(this._language); this.lang=this._language;
     const active=this.shadowRoot.activeElement;
+    // Browsers clamp scroll offsets while reused panels are detached from layout.
+    const scroll=[...this.shadowRoot.querySelectorAll('[data-gwi-scroll]')].map(node=>({node,top:node.scrollTop,left:node.scrollLeft}));
+    for(let node=this;node;node=node.parentElement||node.getRootNode()?.host){
+      if(node.scrollTop||node.scrollLeft)scroll.push({node,top:node.scrollTop,left:node.scrollLeft});
+    }
+    const page=this.ownerDocument.scrollingElement;
+    if(page&&(page.scrollTop||page.scrollLeft))scroll.push({node:page,top:page.scrollTop,left:page.scrollLeft});
     this._usedInformation=new Set();
     this.shadowRoot.replaceChildren(element("style",null,CSS+informationCss));
     const card = element("ha-card"), content = element("div","content");
@@ -304,6 +311,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     card.append(content); this.shadowRoot.append(card);
     for(const key of this._informationPanels?.keys()||[])if(!this._usedInformation.has(key))this._informationPanels.delete(key);
     if(active?.isConnected)active.focus({preventScroll:true});
+    for(const {node,top,left} of scroll)if(node.isConnected){node.scrollTop=top;node.scrollLeft=left;}
     cancelAnimationFrame(this._frame); this._frame=requestAnimationFrame(()=>this._drawEdges());
   }
   _drawEdges() {

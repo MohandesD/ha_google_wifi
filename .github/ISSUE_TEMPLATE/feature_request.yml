@@ -1,0 +1,15 @@
+name: Feature request
+description: Describe a concrete use case and distinguish known endpoint support from a hypothesis.
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case and expected behavior
+      description: Do not include account details, tokens or a real network inventory.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Public protocol evidence or model information
+      description: Optional public documentation or synthetic examples; an endpoint name alone does not prove support.

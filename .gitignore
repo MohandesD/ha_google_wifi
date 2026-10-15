@@ -19,6 +19,10 @@ __pycache__/
 test-runtime-*/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.json
+coverage.xml
+runtime-requirements.txt
 htmlcov/
 node_modules/
 dist/

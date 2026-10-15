@@ -1,6 +1,6 @@
 """Finite, inspectable inventory. Path discovery is not proof a write works."""
-import re
 import math
+import re
 from datetime import date, datetime
 
 READS = {
@@ -63,7 +63,8 @@ def safe_metadata(value, depth=0):
 
 def apply_extras(network, group, extras, read_status, action_status):
     from datetime import UTC, datetime
-    from .telemetry import timestamp, mbps
+
+    from .telemetry import mbps, timestamp
     now = datetime.now(UTC)
     telemetry = network["google_telemetry"]
     telemetry["groupProperties"] = safe_metadata(group.get("groupProperties", {}))

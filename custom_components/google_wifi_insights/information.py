@@ -1,8 +1,8 @@
 """Firmware notes and complete non-credential LAN/WAN information."""
-from html import unescape
-from html.parser import HTMLParser
 import math
 import re
+from html import unescape
+from html.parser import HTMLParser
 
 from .capabilities import safe_metadata
 

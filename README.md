@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.9.2.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.9.3.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -21,9 +21,15 @@ unofficial community integration, not maintained by Google or Home Assistant.
    are included: no separate JavaScript copy, Lovelace resource or YAML is required.
 
 HACS custom-repository installation is separate from inclusion in its default
-catalogue. The project has not been submitted to Home Assistant Brands or the
-default HACS catalogue. See [INSTALL.md](INSTALL.md) for Google authentication,
+catalogue. Original brand assets are bundled for modern HA/HACS. Default-catalogue
+inclusion remains a separate submission. See [INSTALL.md](INSTALL.md) for Google authentication,
 manual installation, upgrades and troubleshooting.
+
+## Preview
+
+![Map with fictional example devices](docs/images/map-demo.png)
+
+The preview uses fictional devices and addresses. [Run the local demo](docs/TESTING.md#browser-demo).
 
 ## What you get
 
@@ -116,6 +122,16 @@ Version 0.9.2 reduces duplicated client telemetry and excludes large diagnostic
 payloads from Recorder attributes. Numeric metric history, cached usage history,
 the map and existing device/entity IDs are preserved. See
 [state and history efficiency](docs/STATE_EFFICIENCY.md) for details.
+
+## Stabilization and support
+
+Version 0.9.3 isolates failures between networks, rejects controls using stale
+data, reduces optional diagnostics on new entities and protects experimental
+actions with explicit options. Existing device/entity IDs and enabled entity
+preferences are preserved. See [the changelog](CHANGELOG.md),
+[1.0 readiness](docs/RELEASE_READINESS.md), [security](SECURITY.md) and
+[support](SUPPORT.md). Independent onboarding, hardware compatibility and a
+long-running community trial are still pending; this release remains beta.
 
 ## Support the project
 

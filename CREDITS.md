@@ -16,3 +16,5 @@ Google WiFi Insights is an independent Home Assistant custom integration.
 Dependency licenses remain applicable to their respective projects. This
 repository's own code is licensed under [MIT](LICENSE).
 See [publication steps](docs/PUBLISHING.md).
+
+The `brand/` SVG and PNG mark is original project artwork under MIT. It uses generic WiFi/network geometry and is not a Google, Nest or Home Assistant logo. Pillow is a development-only renderer; it is not bundled into the integration.

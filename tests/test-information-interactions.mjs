@@ -107,6 +107,9 @@ test('map updates retain both outer and nested firmware disclosures and JSON pos
  const outer=card.shadowRoot.querySelector('[data-gwi-disclosure="home:point"]');
  outer.querySelector('summary').click();
  const raw=outer.querySelector('[data-gwi-disclosure="point-all"]'),pre=raw.querySelector('pre');
+ // JSDOM has no layout: model the browser clamping a detached scroll container.
+ let top=0;
+ Object.defineProperty(pre,'scrollTop',{get(){return this.isConnected?top:0;},set(value){top=this.isConnected?value:0;}});
  raw.querySelector('summary').click();pre.scrollTop=190;pre.focus();
  const next=structuredClone(states);next['sensor.firmware'].attributes.firmware_information.installed_version='updated';
  card.hass={states:next,language:'en'};

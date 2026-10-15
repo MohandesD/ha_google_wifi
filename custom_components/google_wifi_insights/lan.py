@@ -1,9 +1,9 @@
 """Cached, bounded read-only diagnostics for explicitly selected LAN networks."""
 import asyncio
-from collections import Counter
-from copy import deepcopy
 import ipaddress
 import time
+from collections import Counter
+from copy import deepcopy
 
 from .api import ApiError, json_get
 from .information import clean

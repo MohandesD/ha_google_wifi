@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google WiFi Insights — fictional demo</title>
+<style>
+  :root{font:15px system-ui,sans-serif;color:#182c43;background:#f1f5f9;--primary-background-color:#f1f5f9;--card-background-color:#fff;--primary-text-color:#182c43;--secondary-text-color:#52657c;--divider-color:#dce4ee;--primary-color:#2468d8;--text-primary-color:#fff;--success-color:#18866a;--warning-color:#a26d10;--error-color:#b64444}
+  body{margin:0}header{padding:20px 28px;background:#142b45;color:white;display:flex;align-items:center;gap:18px;flex-wrap:wrap}header img{width:50px;height:50px}h1{font-size:21px;margin:0 0 4px}header p{font-size:13px;margin:0;color:#cfdfef}.settings{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap}label{font-size:12px;display:grid;gap:4px}select{padding:7px;border-radius:6px;border:1px solid #7795b4;background:#fff;color:#182c43;font:inherit}dialog{max-width:620px;border:1px solid #dce4ee;border-radius:14px;color:#182c43}dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}dialog button{padding:9px 18px}dialog::backdrop{background:#142b4570}
+</style>
+<header>
+  <img src="../custom_components/google_wifi_insights/brand/icon.png" alt="">
+  <div><h1>Google WiFi Insights</h1><p>Fictional demo · no Google account, HA instance or network controls connected</p></div>
+  <div class="settings">
+    <label>Language<select id="language" aria-label="Language"><option value="en">English</option><option value="pt">Português</option></select></label>
+    <label>Scenario<select id="scenario" aria-label="Scenario"><option value="healthy">Example network</option><option value="partial">Second network unavailable</option><option value="missing">Signal measurements missing</option></select></label>
+  </div>
+</header>
+<google-wifi-insights-panel id="panel"></google-wifi-insights-panel>
+<dialog id="details"><h2>Fictional entity details</h2><pre id="detail-text"></pre><form method="dialog"><button>Close</button></form></dialog>
+<script type="module" src="./demo.js"></script>
+</html>

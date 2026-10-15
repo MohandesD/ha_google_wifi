@@ -78,7 +78,8 @@
         "title": "Integration options",
         "menu_options": {
           "polling": "Polling and local points",
-          "renew_auth": "Renew Google authentication"
+          "renew_auth": "Renew Google authentication",
+          "controls": "Experimental and destructive controls"
         }
       },
       "polling": {
@@ -94,6 +95,14 @@
       },
       "renew_auth": {
         "title": "Renew Google authentication"
+      },
+      "controls": {
+        "title": "Experimental and destructive controls",
+        "description": "Ordinary restarts, tests, client pause/priority and point lights remain available. Advanced group/insight actions are experimental. Point/network removal needs both switches below, an interactive administrator and exact name confirmations. Keep both disabled unless you deliberately need these services.",
+        "data": {
+          "allow_advanced_actions": "Enable experimental group and insight actions",
+          "allow_destructive_actions": "Also allow point/network removal (may erase configuration)"
+        }
       }
     },
     "error": {
@@ -102,7 +111,8 @@
       "invalid_auth": "Google rejected the token. Obtain a new oauth_token.",
       "invalid_input": "Enter an email and a 16-digit hexadecimal Android ID.",
       "invalid_token": "Use an oauth2_4/ token or an existing aas_et/ or oauth2rt_1/ master token.",
-      "account_mismatch": "Use the account already configured for this integration."
+      "account_mismatch": "Use the account already configured for this integration.",
+      "advanced_required": "Enable experimental actions as well before allowing removal."
     },
     "abort": {
       "not_cloud": "Google authentication is available only for a Google account entry."

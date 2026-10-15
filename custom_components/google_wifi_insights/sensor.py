@@ -5,7 +5,12 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfDataRate, UnitOfInformation, UnitOfTime, EntityCategory
+from homeassistant.const import (
+    EntityCategory,
+    UnitOfDataRate,
+    UnitOfInformation,
+    UnitOfTime,
+)
 
 from .entity import WifiEntity, add_dynamic_entities
 from .operations import OPERATION_PHASES
@@ -83,6 +88,21 @@ INFORMATION_SENSORS = {
               ("dns_mode", "DNS mode"), ("api_environment", "API environment")],
 }
 
+# Preserve the carriers used by the panel. Optional, noisy diagnostics remain
+# available through get_google_metrics and can be enabled in the entity registry.
+OPTIONAL_DIAGNOSTICS = {
+    ("client", "google_telemetry_at"),
+    ("client", "wireless_standard"),
+    ("client", "rx_spatial_streams"),
+    ("point", "api_environment"),
+    ("point", "wan_prefix_length"),
+    ("point", "wan_lease_seconds"),
+    ("point", "update_progress_raw"),
+}
+
+
+# Shared coordinator and per-target locks bound all network work.
+PARALLEL_UPDATES = 0
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = entry.runtime_data
@@ -119,6 +139,7 @@ class WifiSensor(WifiEntity, SensorEntity):
     def __init__(self, coordinator, entry, network_id, kind, item_id, item, key, name):
         super().__init__(coordinator, entry, network_id, kind, item_id, item, key)
         self._attr_translation_key = key
+        self._attr_entity_registry_enabled_default = (kind, key) not in OPTIONAL_DIAGNOSTICS
         self._attr_icon = "mdi:wifi"
         if key in {key for group in INFORMATION_SENSORS.values() for key, _ in group}:
             self._attr_entity_category = EntityCategory.DIAGNOSTIC

@@ -1,9 +1,10 @@
 """Radio controls must preserve network settings and verify physical identity."""
 import copy
 from unittest.mock import AsyncMock
+
 import pytest
-from homeassistant.exceptions import HomeAssistantError
 from gwi_test.shelly_radio import ShellyRadio, target
+from homeassistant.exceptions import HomeAssistantError
 
 ITEM = {"connected": True, "identity_match": "mac", "mac_address": "aa:bb:cc:dd:ee:ff",
         "ip_address": "192.168.50.2", "ha_manufacturer": "Shelly", "roaming_supported": True}

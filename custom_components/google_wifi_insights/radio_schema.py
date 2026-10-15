@@ -15,7 +15,7 @@ def radio_schema(payload):
         if depth > 14 or visited > 15000 or len(schema)>600: return
         if isinstance(value, dict):
             for key,item in value.items():
-                key = key if isinstance(key,str) and re.fullmatch(r'[a-zA-Z_][a-zA-Z_0-9]{0,55}',key) else '*'
+                key = key if isinstance(key,str) and re.fullmatch(r'[a-zA-Z_][a-zA-Z_0-9]{0,55}',key) and not re.fullmatch(r'[a-fA-F0-9]{12,}', key) else '*'
                 walk(item, path+'.'+key if path else key, depth+1)
         elif isinstance(value, list):
             for item in value[:1000]: walk(item,path+'[]',depth+1)

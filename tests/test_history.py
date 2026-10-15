@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 from urllib.parse import parse_qs
-from gwi_test.history import request_window, normalize_history, summarize, apply_history
+
 from gwi_test.capabilities import apply_extras, safe_metadata
+from gwi_test.history import apply_history, normalize_history, request_window, summarize
 from gwi_test.model import cloud_network
 
 

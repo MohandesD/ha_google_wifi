@@ -1,28 +1,33 @@
 """One bounded poll shared by all Google WiFi entities."""
 
-import logging
 import asyncio
+import logging
 from collections import Counter
 from copy import deepcopy
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .actions import build_action
 from .api import ApiError, AuthError, CloudClient, LocalClient, RateLimitError
-from .const import CONF_INTERVAL, DEFAULT_INTERVAL, DOMAIN
-from .model import apply_roaming
+from .capabilities import ADVANCED, DESTRUCTIVE
+from .const import (
+    CONF_ADVANCED,
+    CONF_DESTRUCTIVE,
+    CONF_INTERVAL,
+    DEFAULT_INTERVAL,
+    DOMAIN,
+)
 from .identity import enrich_snapshot
+from .information import apply_network_information, apply_point_information
+from .lan import LanDiagnostics
+from .model import apply_roaming
+from .operations import MONITORED_ACTIONS
 from .shelly_radio import ShellyRadio
 from .telemetry import timestamp
-from .actions import build_action
-from .capabilities import ADVANCED
-from .operations import MONITORED_ACTIONS
-from .lan import LanDiagnostics
-from .information import apply_point_information, apply_network_information
-from homeassistant.exceptions import HomeAssistantError
-from datetime import UTC, datetime
 
 OPERATION_POLL_SECONDS = 5
 
@@ -43,6 +48,7 @@ class WifiCoordinator(DataUpdateCoordinator):
         self.radio = ShellyRadio(session)
         self._radio_update_lock = asyncio.Lock()
         self._operation_tasks = {}
+        self._failed_networks = set()
         self._stopping = False
         entry.async_on_unload(self._cancel_operation_tasks)
         data = entry.data
@@ -72,10 +78,25 @@ class WifiCoordinator(DataUpdateCoordinator):
                 apply_network_information(network)
             async with self._radio_update_lock:
                 snapshot = await self.radio.enrich(snapshot)
+            self._update_device_metadata(snapshot)
             if isinstance(self.client, CloudClient):
                 for nid, network in snapshot["networks"].items():
                     operations = deepcopy(self.client._operations.get(nid, []))
                     network.update(operations=operations, last_operation=operations[-1]["state"] if operations else "NONE")
+                failures = snapshot.get("network_errors", {})
+                # Reuse only identities/layout from a failed network. All its entities
+                # become unavailable; no stale RSSI, traffic or controls look current.
+                for nid in failures:
+                    previous = (self.data or {}).get("networks", {}).get(nid)
+                    if previous:
+                        snapshot["networks"][nid] = {**deepcopy(previous), "reachable": False}
+                if set(failures) != self._failed_networks:
+                    logger = logging.getLogger(__name__)
+                    if failures:
+                        logger.warning("%d Google WiFi network(s) unavailable; other networks continue updating", len(failures))
+                    else:
+                        logger.info("All Google WiFi networks are available again")
+                    self._failed_networks = set(failures)
             return snapshot
         except AuthError:
             raise ConfigEntryAuthFailed("Google authentication needs renewal") from None
@@ -85,6 +106,25 @@ class WifiCoordinator(DataUpdateCoordinator):
             ) from None
         except ApiError as error:
             raise UpdateFailed(str(error)) from None
+
+    def _update_device_metadata(self, snapshot):
+        """Refresh only our network/point records, retaining user names and IDs."""
+        registry = device_registry.async_get(self.hass)
+        for nid, network in snapshot["networks"].items():
+            rows = [(f"{self.config_entry.entry_id}:{nid}", network)]
+            rows.extend((f"{self.config_entry.entry_id}:{nid}:point:{pid}", point)
+                        for pid, point in network["points"].items())
+            for identifier, item in rows:
+                own = registry.async_get_device_by_identifier((DOMAIN, identifier), self.config_entry.entry_id)
+                if not own:
+                    continue
+                changes = {}
+                if item.get("name") and own.name != item["name"]:
+                    changes["name"] = item["name"]
+                if item.get("firmware") and own.sw_version != item["firmware"]:
+                    changes["sw_version"] = item["firmware"]
+                if changes:
+                    registry.async_update_device(own.id, **changes)
 
     def _merge_local_points(self, snapshot):
         """Reuse recent LAN status already collected by our local-mode entry."""
@@ -119,11 +159,19 @@ class WifiCoordinator(DataUpdateCoordinator):
 
     async def async_set_roaming(self, network_id, client_id, key, value):
         async with self._radio_update_lock:
-            item = (self.data or {}).get("networks", {}).get(network_id, {}).get("clients", {}).get(client_id, {})
+            network = self._current_network(network_id)
+            item = network.get("clients", {}).get(client_id, {})
             measured = await self.radio.set_roaming(item, key, value)
             updated = deepcopy(self.data)
             updated["networks"][network_id]["clients"][client_id].update(measured)
             self.async_set_updated_data(updated)
+
+    def _current_network(self, network_id):
+        """Reject writes using an unsuccessful poll or a stale network snapshot."""
+        network = (self.data or {}).get("networks", {}).get(network_id, {})
+        if not self.last_update_success or not network or network.get("reachable") is False:
+            raise HomeAssistantError("Google WiFi network is unavailable; wait for a successful update")
+        return network
 
     async def async_google_action(self, network_id, kind, item_id, action, parameters=None, context=None):
         """Write only explicit cloud targets; report acknowledgement truthfully."""
@@ -133,7 +181,11 @@ class WifiCoordinator(DataUpdateCoordinator):
                 raise HomeAssistantError("Google network controls require a Home Assistant administrator")
         elif action in ADVANCED:
             raise HomeAssistantError("Advanced Google actions require an interactive administrator")
-        network = (self.data or {}).get("networks", {}).get(network_id, {})
+        network = self._current_network(network_id)
+        if action in ADVANCED and not self.config_entry.options.get(CONF_ADVANCED, False):
+            raise HomeAssistantError("Experimental Google actions are disabled in the integration options")
+        if action in DESTRUCTIVE and not self.config_entry.options.get(CONF_DESTRUCTIVE, False):
+            raise HomeAssistantError("Destructive Google actions are disabled in the integration options")
         method, path, payload = build_action(network, network_id, action, kind, item_id, parameters or {})
         if not isinstance(self.client, CloudClient):
             raise HomeAssistantError("Google account access is required")

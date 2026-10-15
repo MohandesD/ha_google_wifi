@@ -23,6 +23,7 @@ def test_stale_association_does_not_export_current_quality_or_traffic():
 
 def test_local_status_does_not_leak_to_old_network_or_ambiguous_points():
     from types import SimpleNamespace
+
     from gwi_test.coordinator import WifiCoordinator
     from gwi_test.model import local_point
     local = object.__new__(WifiCoordinator)

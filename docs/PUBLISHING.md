@@ -1,6 +1,6 @@
 # Publication checklist
 
-The repository is `spkon/ha_google_wifi`, version 0.9.2. Ownership links and
+The repository is `spkon/ha_google_wifi`, version 0.9.3. Ownership links and
 maintainer metadata are set. The owner approved public visibility and the MIT
 licence. The full notice is included at the repository root and inside the
 integration so that HACS installations also receive it.
@@ -28,3 +28,17 @@ license.
 
 Sources: [HACS general requirements](https://www.hacs.dev/docs/publish/start/) and
 [integration layout/release requirements](https://www.hacs.dev/docs/publish/integration/).
+
+## 0.9.3 release gates
+
+Run all commands in [TESTING.md](TESTING.md), review minimum/latest HA jobs and
+HACS/hassfest results, and inspect dependency audits before publishing. Use a
+release/tag matching the manifest and attach the allowlisted manual archive with
+its SHA-256. The archive has deterministic timestamps/permissions and LF text.
+Do not publish private local audit evidence or the surrounding Smart Home folder.
+
+Local `brand/` assets are provided for HA 2026.3+ and current HACS. A central
+Brands submission is not needed for those assets. Default HACS catalogue inclusion
+remains separate. Check the [readiness matrix](RELEASE_READINESS.md) before using
+the word stable or announcing a 1.0 release. New independent/hardware observations
+must be recorded as such; green mocked tests do not establish them.
