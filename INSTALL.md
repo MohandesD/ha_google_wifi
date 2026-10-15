@@ -118,6 +118,12 @@ original date and tested point separately from current point and traffic.
 
 ## Updating to 0.9.3
 
+The `wireless_band` and `connection_type` sensor states now use valid lowercase
+translation keys. Update automations/templates comparing states such as
+`BAND_5000_MHZ` or `WIRELESS` to `band_5000_mhz` or `wireless` (`WIRED` becomes
+`wired`, and the other band names also become lowercase). Entity IDs and raw
+provider values in the client map attributes are preserved.
+
 Keep the existing config entries, integration domain, dashboards and registry
 records. Make a protected backup and choose a maintenance window: replacing the
 Python files needs a Home Assistant restart. This release does not remotely

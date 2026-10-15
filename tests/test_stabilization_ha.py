@@ -44,6 +44,19 @@ async def setup_fixture(hass, monkeypatch, snapshot, options=None):
     return entry
 
 
+async def test_enum_states_use_valid_translation_keys_and_preserve_raw_map_attributes(real_hass, monkeypatch):
+    network = network_fixture()
+    network["clients"]["client0"]["wireless_band"] = "BAND_5000_MHZ"
+    entry = await setup_fixture(real_hass, monkeypatch, {"networks": {"home": network}})
+    states = {s.attributes.get("gwi_metric"): s for s in real_hass.states.async_all()
+              if s.attributes.get("gwi_kind") == "client"}
+    assert states["wireless_band"].state == "band_5000_mhz"
+    assert states["connection_type"].state == "wireless"
+    assert states["point"].attributes["wireless_band"] == "BAND_5000_MHZ"
+    assert states["point"].attributes["connection_type"] == "WIRELESS"
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+
+
 async def test_partial_failure_marks_only_failed_network_unavailable_and_recovers_ids(real_hass, monkeypatch):
     snapshot = {"networks": {"first": network_fixture(), "second": network_fixture()}, "network_errors": {}}
     entry = await setup_fixture(real_hass, monkeypatch, snapshot)

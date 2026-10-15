@@ -18,7 +18,7 @@
       },
       "cloud": {
         "title": "Ligar a conta Google",
-        "description": "Use a conta Google que gere esta rede WiFi no Google Home. Escolha o método pelo navegador, exceto se já tiver um master token Google reutilizável e o respetivo identificador Android original. Esta integração usa acesso Google não oficial. [Ajuda de autenticação, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "Use a conta Google que gere esta rede WiFi no Google Home. Escolha o método pelo navegador, exceto se já tiver um master token Google reutilizável e o respetivo identificador Android original. Esta integração usa acesso Google não oficial. [Ajuda de autenticação, em inglês]({auth_help_url}).",
         "menu_options": {
           "cloud_cookie": "Obter token no navegador (recomendado)",
           "cloud_master": "Usar master token existente (avançado)"
@@ -26,7 +26,7 @@
       },
       "cloud_cookie": {
         "title": "Obter um token Google no navegador",
-        "description": "1. [Abrir o login Google](https://accounts.google.com/EmbeddedSetup) no Chrome ou Edge de computador, fora do navegador da aplicação Home Assistant.\n2. Inicie sessão e conclua as verificações Google. Leia os termos e clique em **I agree** se os aceitar. A página pode continuar a carregar depois; procure o cookie antes de repetir o login.\n3. Prima **F12**, abra **Application → Storage → Cookies → https://accounts.google.com**, procure **oauth_token** e copie o respetivo **Value**.\n4. Introduza o mesmo email Google e cole abaixo o valor do cookie.\n\nO identificador Android é tratado automaticamente. Este é um token Google, diferente do token do Home Assistant e da palavra-passe Google. [Ajuda sobre Agree, cookies e tokens, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "1. [Abrir o login Google]({google_signin_url}) no Chrome ou Edge de computador, fora do navegador da aplicação Home Assistant.\n2. Inicie sessão e conclua as verificações Google. Leia os termos e clique em **I agree** se os aceitar. A página pode continuar a carregar depois; procure o cookie antes de repetir o login.\n3. Prima **F12**, abra **Application → Storage → Cookies → {google_cookie_origin}**, procure **oauth_token** e copie o respetivo **Value**.\n4. Introduza o mesmo email Google e cole abaixo o valor do cookie.\n\nO identificador Android é tratado automaticamente. Este é um token Google, diferente do token do Home Assistant e da palavra-passe Google. [Ajuda sobre Agree, cookies e tokens, em inglês]({auth_help_url}).",
         "data": {
           "email": "Email da conta Google",
           "oauth_token": "Valor do cookie oauth_token"
@@ -34,7 +34,7 @@
       },
       "cloud_master": {
         "title": "Usar um token Google reutilizável",
-        "description": "Apenas para master tokens **aas_et/** ou **oauth2rt_1/** existentes. Introduza o identificador Android originalmente usado com esse token. Se não tiver ambos, cancele e escolha o método recomendado pelo navegador. A palavra-passe Google e o token do Home Assistant não são aceites. [Ajuda de autenticação, em inglês](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "Apenas para master tokens **aas_et/** ou **oauth2rt_1/** existentes. Introduza o identificador Android originalmente usado com esse token. Se não tiver ambos, cancele e escolha o método recomendado pelo navegador. A palavra-passe Google e o token do Home Assistant não são aceites. [Ajuda de autenticação, em inglês]({auth_help_url}).",
         "data": {
           "email": "Email da conta Google",
           "oauth_token": "Master token Google",
@@ -129,17 +129,17 @@
       "wireless_band": {
         "name": "Banda WiFi",
         "state": {
-          "BAND_2400_MHZ": "2,4 GHz",
-          "BAND_5000_MHZ": "5 GHz",
-          "BAND_6000_MHZ": "6 GHz",
-          "NOT_APPLICABLE": "Não se aplica"
+          "band_2400_mhz": "2,4 GHz",
+          "band_5000_mhz": "5 GHz",
+          "band_6000_mhz": "6 GHz",
+          "not_applicable": "Não se aplica"
         }
       },
       "connection_type": {
         "name": "Tipo de ligação",
         "state": {
-          "WIRED": "Cabo",
-          "WIRELESS": "WiFi"
+          "wired": "Cabo",
+          "wireless": "WiFi"
         }
       },
       "connected_clients": {

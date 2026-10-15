@@ -50,6 +50,8 @@ async def test_cookie_setup_hides_android_id_and_stores_only_the_exchanged_token
     monkeypatch.setattr(config_flow, "google_auth", exchange)
     form = await start_credentials(real_hass)
     assert {str(key) for key in form["data_schema"].schema} == {"email", "oauth_token"}
+    assert form["description_placeholders"]["google_signin_url"] == "https://accounts.google.com/EmbeddedSetup"
+    assert form["description_placeholders"]["auth_help_url"].endswith("/docs/AUTHENTICATION.md")
     result = await real_hass.config_entries.flow.async_configure(
         form["flow_id"], {"email": " Account@Example.invalid ", "oauth_token": f'"{COOKIE}"'}
     )

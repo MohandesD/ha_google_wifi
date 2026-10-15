@@ -8,6 +8,8 @@
 - Preserve failed networks' known layout/IDs as unavailable and reject new writes
   using stale snapshots. Recovery reuses the existing entities and devices.
 - Keep stable map routing metadata when HA removes unavailable live attributes.
+- Use valid lowercase HA enum states for band/connection sensors, declare optional
+  framework dependencies and pass authentication links as translation placeholders.
 - Preserve JSON and page scroll while the map rebuilds its layout, including
   browsers that clamp scroll positions when reused information panels detach.
 - Refresh provider network/point names and point firmware in our device registry
@@ -32,6 +34,11 @@
 The 0.9.3 release is still beta. It does not install itself on an existing HA
 instance. Physical compatibility, independent onboarding and a prolonged community
 trial remain required before 1.0. See [release readiness](docs/RELEASE_READINESS.md).
+
+Upgrade note: automations comparing the `wireless_band` or `connection_type`
+sensor state must now use lowercase values (`band_5000_mhz`, `wireless`, `wired`,
+etc.). Entity IDs and the original provider values in client map attributes stay
+unchanged. Display labels remain localized.
 
 ## 0.9.2
 

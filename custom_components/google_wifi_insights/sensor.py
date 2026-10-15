@@ -197,16 +197,17 @@ class WifiSensor(WifiEntity, SensorEntity):
             )
         elif key == "wireless_band":
             self._attr_device_class = SensorDeviceClass.ENUM
-            self._attr_options = ["BAND_2400_MHZ", "BAND_5000_MHZ", "BAND_6000_MHZ", "NOT_APPLICABLE"]
+            self._attr_options = ["band_2400_mhz", "band_5000_mhz", "band_6000_mhz", "not_applicable"]
         elif key == "connection_type":
             self._attr_device_class = SensorDeviceClass.ENUM
-            self._attr_options = ["WIRED", "WIRELESS"]
+            self._attr_options = ["wired", "wireless"]
 
     @property
     def native_value(self):
         if self.key == "operation_status":
             return (self.operation_feedback or {}).get("phase", "none")
         value = self.item.get("host") if self.kind == "point" and self.key == "ip_address" else self.item.get(self.key)
-        if self.key in ("wireless_band", "connection_type") and value not in self._attr_options:
-            return None
+        if self.key in ("wireless_band", "connection_type"):
+            value = value.lower() if isinstance(value, str) else None
+            return value if value in self._attr_options else None
         return value

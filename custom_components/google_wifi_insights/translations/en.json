@@ -18,7 +18,7 @@
       },
       "cloud": {
         "title": "Connect your Google account",
-        "description": "Use the Google account that manages this WiFi network in Google Home. Choose the browser method unless you already have a reusable Google master token and its original Android ID. This integration uses unofficial Google access. [Authentication help](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "Use the Google account that manages this WiFi network in Google Home. Choose the browser method unless you already have a reusable Google master token and its original Android ID. This integration uses unofficial Google access. [Authentication help]({auth_help_url}).",
         "menu_options": {
           "cloud_cookie": "Get a token in the browser (recommended)",
           "cloud_master": "Use an existing master token (advanced)"
@@ -26,7 +26,7 @@
       },
       "cloud_cookie": {
         "title": "Get a Google browser token",
-        "description": "1. [Open Google sign-in](https://accounts.google.com/EmbeddedSetup) in a full desktop Chrome or Edge browser, outside the Home Assistant app browser.\n2. Sign in and complete Google's checks. Read the terms and click **I agree** if you accept them. The page may keep loading afterwards; check for the cookie before repeating sign-in.\n3. Press **F12**, open **Application → Storage → Cookies → https://accounts.google.com**, find **oauth_token** and copy its **Value**.\n4. Enter the same Google email and paste the cookie value below.\n\nThe Android ID is handled automatically. This is a Google token, not a Home Assistant token or your Google password. [Help with Agree, cookies and tokens](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "1. [Open Google sign-in]({google_signin_url}) in a full desktop Chrome or Edge browser, outside the Home Assistant app browser.\n2. Sign in and complete Google's checks. Read the terms and click **I agree** if you accept them. The page may keep loading afterwards; check for the cookie before repeating sign-in.\n3. Press **F12**, open **Application → Storage → Cookies → {google_cookie_origin}**, find **oauth_token** and copy its **Value**.\n4. Enter the same Google email and paste the cookie value below.\n\nThe Android ID is handled automatically. This is a Google token, not a Home Assistant token or your Google password. [Help with Agree, cookies and tokens]({auth_help_url}).",
         "data": {
           "email": "Google account email",
           "oauth_token": "oauth_token cookie value"
@@ -34,7 +34,7 @@
       },
       "cloud_master": {
         "title": "Use a reusable Google token",
-        "description": "For an existing **aas_et/** or **oauth2rt_1/** master token only. Enter the Android ID originally used with that token. If you do not have both, cancel and choose the recommended browser method. Your Google password and Home Assistant access token are not accepted. [Authentication help](https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md).",
+        "description": "For an existing **aas_et/** or **oauth2rt_1/** master token only. Enter the Android ID originally used with that token. If you do not have both, cancel and choose the recommended browser method. Your Google password and Home Assistant access token are not accepted. [Authentication help]({auth_help_url}).",
         "data": {
           "email": "Google account email",
           "oauth_token": "Google master token",
@@ -129,17 +129,17 @@
       "wireless_band": {
         "name": "WiFi band",
         "state": {
-          "BAND_2400_MHZ": "2.4 GHz",
-          "BAND_5000_MHZ": "5 GHz",
-          "BAND_6000_MHZ": "6 GHz",
-          "NOT_APPLICABLE": "Not applicable"
+          "band_2400_mhz": "2.4 GHz",
+          "band_5000_mhz": "5 GHz",
+          "band_6000_mhz": "6 GHz",
+          "not_applicable": "Not applicable"
         }
       },
       "connection_type": {
         "name": "Connection type",
         "state": {
-          "WIRED": "Wired",
-          "WIRELESS": "WiFi"
+          "wired": "Wired",
+          "wireless": "WiFi"
         }
       },
       "connected_clients": {

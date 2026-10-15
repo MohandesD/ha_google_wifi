@@ -30,6 +30,12 @@ from .const import (
 )
 from .model import parse_points
 
+AUTH_LINKS = {
+    "auth_help_url": "https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md",
+    "google_signin_url": "https://accounts.google.com/EmbeddedSetup",
+    "google_cookie_origin": "https://accounts.google.com",
+}
+
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -93,7 +99,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_cloud(self, user_input=None):
         self._clear_pending()
         return self.async_show_menu(
-            step_id="cloud", menu_options=["cloud_cookie", "cloud_master"]
+            step_id="cloud", menu_options=["cloud_cookie", "cloud_master"],
+            description_placeholders=AUTH_LINKS,
         )
 
     async def async_step_cloud_cookie(self, user_input=None):
@@ -126,6 +133,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id=self._credential_step,
             errors=errors,
             data_schema=vol.Schema(fields),
+            description_placeholders=AUTH_LINKS,
         )
 
     async def _async_credentials(self, step_id, user_input):

@@ -1,9 +1,13 @@
 """Google WiFi Insights custom integration."""
 
-from .const import PLATFORMS
+from homeassistant.helpers import config_validation as cv
+
+from .const import DOMAIN, PLATFORMS
 from .coordinator import WifiCoordinator
 from .frontend import async_setup_frontend, async_unload_frontend
 from .services import register_services
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass, config):

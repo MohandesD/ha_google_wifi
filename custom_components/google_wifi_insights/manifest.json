@@ -3,6 +3,8 @@
   "name": "Google WiFi Insights",
   "after_dependencies": [
     "frontend",
+    "http",
+    "matter",
     "panel_custom"
   ],
   "codeowners": [
