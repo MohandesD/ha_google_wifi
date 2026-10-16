@@ -27,6 +27,7 @@ from .information import apply_network_information, apply_point_information
 from .lan import LanDiagnostics
 from .management import WifiManagement
 from .model import apply_roaming
+from .naming import NameSync
 from .operations import MONITORED_ACTIONS
 from .shelly_radio import ShellyRadio
 from .telemetry import timestamp
@@ -53,6 +54,9 @@ class WifiCoordinator(DataUpdateCoordinator):
         self._failed_networks = set()
         self._stopping = False
         self.management = WifiManagement(hass, entry)
+        self.names = NameSync(self)
+        self._name_task = None
+        entry.async_on_unload(self._cancel_name_task)
         entry.async_on_unload(hass.bus.async_listen(area_registry.EVENT_AREA_REGISTRY_UPDATED, self._areas_changed))
         entry.async_on_unload(self._cancel_operation_tasks)
         data = entry.data
@@ -71,6 +75,7 @@ class WifiCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             await self.management.async_load()
+            await self.names.async_load()
             snapshot = enrich_snapshot(self.hass, self.config_entry, apply_roaming(await self.client.snapshot(), self.data))
             self._merge_local_points(snapshot)
             if isinstance(self.client, CloudClient):
@@ -102,6 +107,8 @@ class WifiCoordinator(DataUpdateCoordinator):
                     else:
                         logger.info("All Google WiFi networks are available again")
                     self._failed_networks = set(failures)
+            for nid, network in snapshot["networks"].items():
+                network["name_sync"] = self.names.summary(nid)
             return self.management.apply(snapshot)
         except AuthError:
             raise ConfigEntryAuthFailed("Google authentication needs renewal") from None
@@ -111,6 +118,42 @@ class WifiCoordinator(DataUpdateCoordinator):
             ) from None
         except ApiError as error:
             raise UpdateFailed(str(error)) from None
+
+    @callback
+    def async_start_name_sync(self):
+        self.config_entry.async_on_unload(self.async_add_listener(self._schedule_name_sync))
+        self._schedule_name_sync()
+
+    @callback
+    def _schedule_name_sync(self):
+        if (not self._stopping and self.last_update_success and self.data
+                and isinstance(self.client, CloudClient) and not self.names._write_lock.locked()
+                and (self._name_task is None or self._name_task.done()) and self.names.automatic_due()):
+            self._name_task = self.config_entry.async_create_background_task(
+                self.hass, self.names.async_automatic(), f"{DOMAIN} automatic names", eager_start=False)
+
+    @callback
+    def _cancel_name_task(self):
+        if self._name_task and not self._name_task.done():
+            self._name_task.cancel()
+
+    @callback
+    def _publish_name_status(self, nid):
+        if nid in (self.data or {}).get("networks", {}):
+            updated = deepcopy(self.data)
+            updated["networks"][nid]["name_sync"] = self.names.summary(nid)
+            self.data = updated
+            self.async_update_listeners()
+
+    @callback
+    def _publish_verified_name(self, nid, sid, name):
+        if self._stopping or sid not in (self.data or {}).get("networks", {}).get(nid, {}).get("clients", {}):
+            return
+        updated = deepcopy(self.data)
+        updated["networks"][nid]["clients"][sid]["google_name"] = name
+        self.data = enrich_snapshot(self.hass, self.config_entry, updated)
+        # A name read-back is not a successful full network-metrics poll.
+        self.async_update_listeners()
 
     @callback
     def _areas_changed(self, event):

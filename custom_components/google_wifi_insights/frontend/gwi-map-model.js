@@ -154,7 +154,7 @@ export function mapModel(states, config = {}, language="en") {
     const a = state.attributes || {};
     if (a.gwi_kind === "network" && a.gwi_metric === "diagnosis") {
       const n = network(a);
-      if (n) { n.entityId=entityId;n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
+      if (n) { n.entityId=entityId;n.nameSync=a.name_sync;n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
     }
   }
   for (const [entityId, state] of entries) {

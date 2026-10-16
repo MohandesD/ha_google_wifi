@@ -23,6 +23,7 @@ async def async_setup_entry(hass, entry):
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await async_setup_frontend(hass, entry.entry_id)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    coordinator.async_start_name_sync()
     return True
 
 
@@ -38,8 +39,9 @@ async def async_unload_entry(hass, entry):
 
 
 async def async_remove_entry(hass, entry):
-    """Remove only this entry's private local area mappings when it is deleted."""
+    """Remove only this entry's private area mappings and naming history."""
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.areas").async_remove()
+    await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.names").async_remove()
 
 
 async def async_remove_config_entry_device(hass, entry, device):

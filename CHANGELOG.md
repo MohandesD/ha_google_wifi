@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.11.0 — Verified name remediation (beta)
+
+- Add explicit, per-network opt-in automatic correction of generic Google Wi-Fi
+  client names using unambiguous exact HA MAC matches. Personalized Google names,
+  IP-only matches and conflicting identities remain unchanged.
+- Verify the historical Android request schema: `PUT stationName` uses `name`;
+  `DELETE stationName` restores automatic naming. Record the sources and limits in
+  [automatic naming](docs/NAME_SYNC.md). No live Google-account trial is claimed.
+- Recheck fresh Google identity and the HA proposal before each write. Persist
+  intent first, require fresh read-back for completion and never replay an
+  uncertain write. Rejected/unconfirmed results pause automatic work.
+- Limit automatic batches to three candidates per config entry every five
+  minutes, driven by normal successful polls. Disable remains available during
+  outages. Reloads preserve settings and pause unfinished requests.
+- Add administrator controls for individual application, automatic naming,
+  read-only verification and guarded undo, with private local history. Undo
+  excludes a client from subsequent automatic batches.
+- Keep the map and HA label in agreement after verified naming, without repeating
+  an identical HA name in parentheses. Keep detailed naming history out of
+  shareable diagnostics and Recorder attributes.
+- Extend isolated API, real HA service/lifecycle and frontend tests, plus the
+  fictional management demo, for naming and recovery behavior.
+
+Installing the release does not enable automatic naming. This release does not
+install or restart a household HA. The unofficial API remains beta and backend
+acceptance must be confirmed by runtime read-back.
+
 ## 0.10.0 — Point areas and management (beta)
 
 - Add a Management page to the bundled panel, with English/Portuguese labels

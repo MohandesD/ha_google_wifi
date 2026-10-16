@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.10.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.11.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -69,14 +69,17 @@ and survive integration reloads. The map shows the mapped point areas and client
 area estimates. A point association estimates coverage, not physical room presence.
 
 The same page groups confirmed-target restarts and speed tests with request
-confirmation and operation status. It also proposes names for unnamed Google
-clients with an exact, unambiguous HA MAC match. **Automatic Google renaming is
-not implemented:** the historical `stationName` endpoint's request format remains
-unverified. Names can be copied and applied in Google Home. No guessed write is
-sent and no existing Google name is changed by this feature.
+confirmation and operation status. It also proposes names for generic Google
+clients using exact, unambiguous HA MAC matches. Version 0.11.0 can apply a
+selected proposal, verify its result, undo it and enable automatic naming per
+network. Automatic naming starts disabled. Personalized Google names are
+preserved; uncertain results pause automatic writes and are never retried.
 
-See [management and associated areas](docs/MANAGEMENT.md) for behavior, services,
-automation examples and the remaining rename validation work.
+The request schema was established by static inspection of Google's Android
+client. This release has no new live Google-account trial: provider acceptance
+is established only by a successful runtime read-back. See
+[automatic naming](docs/NAME_SYNC.md) for provenance, limits and privacy, and
+[management and associated areas](docs/MANAGEMENT.md) for point/area behavior.
 
 ## Requirements and limits
 

@@ -29,7 +29,7 @@ UNVERIFIED = {
     "dhcp_static_ip_configuration": "request_schema_unverified",
     "upnp_ipv6_port_forwarding": "request_schema_unverified",
     "blocking_schedules_content_filtering": "request_schema_unverified",
-    "rename_client": "request_schema_unverified",
+    "rename_client": "android_schema_verified_use_name_services",
     "pin_bssid": "not_exposed_by_google",
     "radio_airtime_noise_retries": "not_supplied",
     "physical_mesh_routes": "not_supplied",

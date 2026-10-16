@@ -71,7 +71,7 @@ get_google_metrics:
           integration: google_wifi_insights
 get_management:
   name: Get network management
-  description: Return cached point/area mappings, available HA areas and read-only name suggestions from exact, unambiguous MAC matches. No Google requests are made.
+  description: Return cached point/area mappings, HA areas, exact MAC name suggestions, naming settings and private name-change history. No Google requests are made. Cached management is readable during outages so automatic naming can be disabled.
   fields:
     entity_id:
       required: true
@@ -91,3 +91,63 @@ set_point_area:
       required: true
       selector:
         area:
+set_name_sync:
+  name: Set automatic Google naming
+  description: Enable or disable automatic remediation of generic Google names for one network. Enabling requires an interactive administrator. Disabled by default; errors pause writes and uncertain requests are never retried automatically.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    enabled:
+      required: true
+      selector:
+        boolean:
+rename_client:
+  name: Apply a proposed Google name
+  description: Apply the current exact-MAC HA name to a generic Google client name. Requires an interactive administrator, the preview values and fresh identity validation. Saves intent before sending and verifies the resulting Google name.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    expected_google_name:
+      required: true
+      selector:
+        text:
+    expected_mac:
+      required: true
+      selector:
+        text:
+    expected_ha_name:
+      required: true
+      selector:
+        text:
+verify_name:
+  name: Verify a name change
+  description: Read Google again to verify a recorded name change. Does not send a rename or automatically repeat the original request.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    request_id:
+      required: true
+      selector:
+        text:
+undo_name:
+  name: Undo a verified name change
+  description: Restore a recorded name only if the current Google name and MAC still match the verified change. Requires an interactive administrator. The client is excluded from future automatic naming after an undo request.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    request_id:
+      required: true
+      selector:
+        text:

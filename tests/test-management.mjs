@@ -75,17 +75,18 @@ test('late responses from a previous network cannot change the selected network'
  click(root,'Restart point');click(root,'Confirm request');await settle();assert.equal(calls.at(-1).service_data.entity_id,'sensor.entry_two_point');
 });
 
-test('non-administrators and unavailable networks cannot issue management requests',async()=>{
+test('non-administrators cannot load management and unavailable networks cannot write',async()=>{
  const {root,card,hass,calls}=environment();await settle();const count=calls.length;
  card.hass={...hass,user:{is_admin:false}};assert.match(root.textContent,/administrator is required/);assert.equal(root.querySelectorAll('button[data-write]').length,0);
  assert.equal(calls.length,count);
  card.hass={...hass,states:Object.fromEntries(Object.entries(hass.states).map(([id,state])=>[id,{...state,state:'unavailable'}]))};
- assert.match(root.textContent,/network is unavailable/);assert.equal(calls.length,count);
+ await settle();assert.match(root.textContent,/network is unavailable/);assert.equal(calls.length,count+1);
+ assert.equal(calls.at(-1).service,'get_management');assert.ok([...root.querySelectorAll('button[data-write]')].every(b=>b.disabled));
 });
 
 test('name suggestions remain read-only, escape provider text and copy only the selected name',async()=>{
  const {root,calls,copied}=environment(()=>{const d=data();d.name_candidates[0].proposed_name='<img src=x onerror=bad>';return d;});await settle();
- assert.equal(root.querySelector('img'),null);assert.match(root.textContent,/Automatic renaming in Google is not available/);
+ assert.equal(root.querySelector('img'),null);assert.match(root.textContent,/Automatic naming starts disabled/);
  click(root,'Copy suggested name');await settle();assert.deepEqual(copied,['<img src=x onerror=bad>']);assert.equal(calls.length,1);
  assert.ok(root.querySelector('.candidate input').readOnly);
 });
@@ -104,4 +105,47 @@ test('operation status follows HA without replacing open controls',async()=>{
  card.hass={...hass,states:{...hass.states,'sensor.operation':status}};
  assert.equal(root.querySelector('select[data-point]'),select);assert.match(root.querySelector('.action-target:last-child .feedback').textContent,/Running/);
  assert.equal(root.querySelector('[data-action=test_mesh]').disabled,true);
+});
+
+test('automatic naming starts only after confirmation of the selected network',async()=>{
+ const {root,calls}=environment(request=>{const d=data();d.rename={writable:true,enabled:request.service==='set_name_sync'?request.service_data.enabled:false,history:[]};return d;});await settle();
+ click(root,'Enable automatic naming');assert.equal(calls.length,1);assert.match(root.querySelector('.confirmation').textContent,/entry:one/);
+ click(root,'Confirm request');await settle();assert.equal(calls[1].service,'set_name_sync');assert.equal(calls[1].service_data.enabled,true);
+ click(root,'Disable automatic naming');await settle();assert.equal(calls[2].service_data.enabled,false);
+});
+
+test('a selected suggestion sends only the frozen preview and no arbitrary replacement name',async()=>{
+ const {root,calls,hass,card}=environment(request=>{const d=data();d.name_candidates[0].entity_id='sensor.client';d.rename={writable:true,enabled:false,history:[]};if(request.service==='rename_client'){d.name_candidates=[];d.name_result={state:'verified'};}return d;});
+ hass.states['sensor.client']={state:'Example point',attributes:{google_name:'Unnamed device'}};await settle();card.hass={...hass};
+ click(root,'Apply name in Google');assert.equal(calls.length,1);click(root,'Confirm request');await settle();
+ assert.equal(calls[1].service,'rename_client');assert.deepEqual({...calls[1].service_data},{entity_id:'sensor.client',expected_google_name:'Unnamed device',expected_mac:'02:00:00:00:00:01',expected_ha_name:'Example phone'});
+ assert.match(root.querySelector('[role=status]').textContent,/verified in Google/);
+});
+
+test('an unconfirmed name change offers read-only verification and is never resent',async()=>{
+ const {root,calls,hass,card}=environment(request=>{const d=data();d.rename={writable:true,enabled:true,paused_reason:'delivery_or_readback_unconfirmed',history:[{request_id:'request',old_name:'Unnamed Device',new_name:'Example phone',state:'unconfirmed',kind:'rename'}]};if(request.service==='verify_name')d.name_result={state:'unconfirmed'};return d;});await settle();
+ click(root,'Verify result');await settle();assert.equal(calls[1].service,'verify_name');assert.match(root.querySelector('[role=status]').textContent,/not be repeated automatically/);
+ for(let i=0;i<50;i++)card.hass=hass;
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,0);
+});
+
+test('a verified name change needs a separate confirmation to undo',async()=>{
+ const {root,calls}=environment(()=>{const d=data();d.rename={writable:true,enabled:false,history:[{request_id:'request',old_name:'Unnamed Device',new_name:'Example phone',state:'verified',kind:'rename'}]};d.name_result={state:'verified'};return d;});await settle();
+ click(root,'Undo name change');assert.equal(calls.length,1);assert.match(root.querySelector('.confirmation').textContent,/Example phone → Unnamed Device/);
+ click(root,'Confirm request');await settle();assert.equal(calls[1].service,'undo_name');assert.equal(calls[1].service_data.request_id,'request');
+});
+
+test('automatic naming can be disabled while paused and the network is unavailable',async()=>{
+ const {root,card,hass,calls}=environment(request=>{const d=data();d.rename={writable:true,enabled:request.service!=='set_name_sync',paused_reason:'delivery_or_readback_unconfirmed',history:[]};return d;});await settle();
+ card.hass={...hass,states:Object.fromEntries(Object.entries(hass.states).map(([id,state])=>[id,{...state,state:'unavailable'}]))};
+ const disable=[...root.querySelectorAll('button')].find(b=>b.textContent==='Disable automatic naming');assert.equal(disable.disabled,false);disable.click();await settle();
+ assert.equal(calls.at(-1).service,'set_name_sync');assert.equal(calls.at(-1).service_data.enabled,false);
+});
+
+test('an undone client explains its automatic exclusion and does not offer the obsolete undo',async()=>{
+ const {root,calls}=environment(()=>{const d=data();d.rename={writable:true,enabled:true,excluded_station_ids:['client'],history:[{request_id:'rename',station_id:'client',old_name:'Unnamed Device',new_name:'Example phone',state:'verified',kind:'rename'},{request_id:'undo',station_id:'client',old_name:'Example phone',new_name:'Unnamed Device',state:'verified',kind:'undo'}]};return d;});await settle();
+ assert.match(root.textContent,/Excluded from automatic naming after undo/);
+ assert.equal([...root.querySelectorAll('button')].some(b=>b.textContent==='Undo name change'),false);
+ assert.ok([...root.querySelectorAll('button')].some(b=>b.textContent==='Apply name in Google'));
+ assert.equal(calls.length,1);
 });

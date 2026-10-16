@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.10.0";
-import {formatBytes} from "./gwi-usage-history.js?v=0.10.0";
-import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.10.0";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.11.0";
+import {formatBytes} from "./gwi-usage-history.js?v=0.11.0";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.11.0";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }

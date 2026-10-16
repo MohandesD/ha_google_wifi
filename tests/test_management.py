@@ -137,7 +137,8 @@ async def test_management_services_are_cached_admin_scoped_and_validate_targets(
     point, network = carrier(real_hass, "point", "clients"), carrier(real_hass, "network", "diagnosis")
     initial_reads = snapshot.call_count
     data = await call(real_hass, "get_management", {"entity_id": network.entity_id})
-    assert data["rename"] == {"state": "request_schema_unverified", "writable": False}
+    assert data["rename"]["state"] == "schema_verified_android_client"
+    assert data["rename"]["enabled"] is False
     assert data["points"][0]["entity_id"] == point.entity_id
     assert snapshot.call_count == initial_reads
     with pytest.raises(HomeAssistantError, match="existing Home Assistant area"):

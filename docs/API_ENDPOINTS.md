@@ -125,11 +125,19 @@ unverified endpoints remain excluded from routine polling. See
 
 ### Client display names
 
-The historical Android inventory lists `PUT`/`DELETE`
-`groups/{groupId}/stations/{stationId}/stationName`. Its request body has not been
-verified. Version 0.10.0 adds exact-MAC name proposals and manual copy assistance,
-not Google rename writes. See [management](MANAGEMENT.md) for the validation gates
-before enabling this endpoint. No extra Google endpoint is polled by Management.
+The Android endpoint inventory lists `PUT`/`DELETE`
+`groups/{groupId}/stations/{stationId}/stationName`. Static inspection of Google's
+archived Android client establishes `UpdateStationNameRequest.name`, giving the
+JSON body `{"name": "Example phone"}`. Delete has no request body and restores
+the automatic display name. Version 0.11.0 implements these requests through
+separate, MAC-validated naming services, not the generic action dispatcher.
+
+Every mutation requires fresh station/MAC verification, a durable local journal
+and read-back. Automatic remediation is opt-in and bounded. Protocol fixtures
+are not evidence of current account acceptance: this release performs no new
+live household trial. See [NAME_SYNC.md](NAME_SYNC.md) for artifact fingerprints,
+request provenance and the runtime verification boundary. Regular polling does
+not send name writes unless automatic naming was explicitly enabled.
 
 ### Sources
 

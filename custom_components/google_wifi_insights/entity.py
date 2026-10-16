@@ -195,6 +195,7 @@ class WifiEntity(CoordinatorEntity):
             )})
             attributes["measurement"] = "Google mesh connection rating relative to the primary point; intermediate hops and measurement timestamp are not supplied"
         if self.key in ("diagnosis", "saturation"):
+            attributes["name_sync"] = item.get("name_sync", {})
             attributes["assessment_limit"] = (
                 "Connection and mesh ratings do not establish radio saturation. Channel utilization and retry rates are not supplied."
             )

@@ -1,12 +1,12 @@
 # Point areas and network management
 
-Version 0.10.0 adds **Management** alongside **Overview** and **Map** in the
+Version 0.11.0 provides **Management** alongside **Overview** and **Map** in the
 integration's sidebar panel. It requires a Home Assistant administrator and a
 currently available Google account network. Local-only mode has no cloud client
 association inventory. Existing dashboard cards keep working; the Management
 page is part of the bundled sidebar panel.
 
-![Management with fictional devices and areas](images/management-demo.png)
+![Management with fictional devices and areas](images/naming-demo.png)
 
 ## Map points to existing areas
 
@@ -74,35 +74,23 @@ the selected network. IP-only matches and conflicting device names are skipped.
 Personalized Google names and non-placeholder hostnames are preserved. Opening
 the page does not modify any name.
 
-**Google rename writes are not implemented in this release.** An Android API
-inventory lists `PUT` and `DELETE` on
-`groups/{groupId}/stations/{stationId}/stationName`, but supplies no request body
-schema. The inspected public clients do not establish a working rename payload.
-Path discovery alone is insufficient to send guessed writes to a household
-network. `get_management` explicitly returns
-`rename: {state: request_schema_unverified, writable: false}`.
+Use **Apply name in Google** to review and confirm an individual suggestion.
+To continue correcting new generic names automatically, use **Enable automatic
+naming** and confirm the selected network. The setting starts disabled and is
+saved separately for each account entry and network. **Disable automatic naming**
+stops subsequent requests, including during outages. An in-flight request cannot
+be recalled.
 
-For now, use **Copy suggested name**, find the client by its MAC in Google Home,
-and apply the name there. On insecure HTTP origins, the browser clipboard API
-may be unavailable; the read-only suggested-name field can be selected and
-copied manually. The name appears through ordinary Google discovery after its
-next refresh. This changes Google's display label, not the actual hostname.
+**Recent name changes** records the original name, requested name and verification
+state. **Verify result** reads Google without repeating an uncertain write.
+**Undo name change** requires a verified, latest rename and the same current
+Google name/MAC. Undo excludes that client from future automatic batches.
 
-Before enabling automatic writes, obtain a redacted, reproducible request schema
-from a disposable test network, then validate all of the following:
-
-- Recheck both the station MAC and HA name immediately before applying a selected
-  preview. Reject changed names, lost matches and ambiguous targets.
-- Persist the original name and explicit user intent before the single write.
-- Verify the resulting name with a fresh Google read; acknowledge uncertainty if
-  the read fails. Never repeat an uncertain write automatically.
-- Provide undo that checks the current name and original identity, and avoids
-  overwriting a subsequent change by another Google Home manager.
-- Keep rename history private to HA; exclude it from public diagnostics.
-
-References: [Google's device naming instructions](https://support.google.com/googlehome/answer/6346150?hl=en),
-[original Android endpoint inventory](https://github.com/olssonm/google-wifi-api/issues/6),
-[Node client endpoint checklist](https://github.com/JamesHawkinss/google-wifi-api-node/blob/master/ENDPOINTS.md).
+The request schema is established from the Google Android client, while live
+acceptance depends on the account and backend. No new household Google-account
+trial was performed for this release. Read [automatic naming](NAME_SYNC.md) for
+request provenance, fresh identity checks, bounded batches, recovery and privacy.
+The copy/manual Google Home workflow remains available when desired.
 
 ## Quick actions and feedback
 
@@ -126,8 +114,11 @@ forces a Google poll.
 | `google_wifi_insights.get_management` | Any verified current entity in the selected cloud network. Returns available HA areas, point mappings and name proposals. Requires a response. No extra Google request. |
 | `google_wifi_insights.set_point_area` | A verified point entity and required `area_id`, using an existing area ID or `null` to clear. Saves locally and updates sensors immediately. Optional response returns the updated management view. |
 
+The naming services are documented in [NAME_SYNC.md](NAME_SYNC.md).
+
 Services use the same registry/config-entry/network verification as existing
-controls and reject non-administrator user contexts and stale network targets.
+controls and reject non-administrator user contexts and stale write targets. Cached management
+remains readable during an outage, and automatic naming can still be disabled.
 HA automations without a user context may call the mapping service, as with other
 ordinary integration services. No arbitrary HTTP paths or arbitrary HA service
 names are accepted by this page. Each network selector is scoped to its config

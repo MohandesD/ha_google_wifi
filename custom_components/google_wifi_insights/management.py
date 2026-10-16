@@ -131,5 +131,6 @@ class WifiManagement:
                         "online": point.get("online"), "is_root": point.get("is_root")}
                        for pid, point in network["points"].items()],
             "name_candidates": candidates, "names_skipped": skipped,
-            "rename": {"state": "request_schema_unverified", "writable": False},
+            "rename": self.entry.runtime_data.names.response(nid),
+            "available": self.entry.runtime_data.last_update_success and network.get("reachable") is not False,
         }

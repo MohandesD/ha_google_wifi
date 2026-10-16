@@ -246,7 +246,7 @@ def enrich_snapshot(hass, entry, snapshot):
             own = registry.async_get_device_by_identifier((DOMAIN, f"{entry.entry_id}:{network_id}:client:{client_id}"), entry.entry_id)
             client["gwi_device_id"] = own.id if own else None
             client["name_source"] = "home_assistant" if match else "google"
-            client["name"] = f"{client['google_name']} ({match['name']})" if match else client["google_name"]
+            client["name"] = f"{client['google_name']} ({match['name']})" if match and client["google_name"] != match["name"] else client["google_name"]
             identifier = (DOMAIN, f"{entry.entry_id}:{network_id}:client:{client_id}")
             own = registry.async_get_device_by_identifier(identifier, entry.entry_id)
             if own:

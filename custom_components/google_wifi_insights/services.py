@@ -12,14 +12,14 @@ def register_services(hass):
     if hass.services.has_service(DOMAIN, "google_action"):
         return
 
-    def resolve(entity_id):
+    def resolve(entity_id, *, allow_unavailable=False):
         entity = entity_registry.async_get(hass).async_get(entity_id)
         state = hass.states.get(entity_id)
         if not entity or entity.platform != DOMAIN or not state:
             raise HomeAssistantError("Select an entity from Google WiFi Insights")
         entry = hass.config_entries.async_get_entry(entity.config_entry_id)
         coordinator = getattr(entry, "runtime_data", None)
-        if not entry or entry.domain != DOMAIN or not coordinator or not coordinator.last_update_success:
+        if not entry or entry.domain != DOMAIN or not coordinator or (not allow_unavailable and not coordinator.last_update_success):
             raise HomeAssistantError("Google WiFi entry is unavailable")
         attrs = state.attributes
         nid, kind, sid = (attrs.get(k) for k in ("gwi_network_id", "gwi_kind", "gwi_item_id"))
@@ -27,7 +27,7 @@ def register_services(hass):
             raise HomeAssistantError("Entity target could not be verified")
         network = (coordinator.data or {}).get("networks", {}).get(nid, {})
         item = network if kind == "network" and sid == nid else network.get("points" if kind == "point" else "clients", {}).get(sid)
-        if network.get("reachable") is False:
+        if not allow_unavailable and network.get("reachable") is False:
             raise HomeAssistantError("Google WiFi network is unavailable; wait for a successful update")
         if not item or network.get("source") != "google_cloud":
             raise HomeAssistantError("Select a current Google account entity")
@@ -76,8 +76,31 @@ def register_services(hass):
 
     async def management(call):
         await authorized(call)
-        coordinator, nid, _, _ = resolve(call.data["entity_id"])
+        coordinator, nid, _, _ = resolve(call.data["entity_id"], allow_unavailable=True)
         return coordinator.management.response(nid, coordinator.data["networks"][nid])
+
+    async def naming(call):
+        await authorized(call)
+        service = call.service
+        interactive = service in ("rename_client", "undo_name") or service == "set_name_sync" and call.data["enabled"]
+        if interactive and not call.context.user_id:
+            raise HomeAssistantError("Name changes require an interactive Home Assistant administrator")
+        coordinator, nid, kind, sid = resolve(call.data["entity_id"], allow_unavailable=service == "set_name_sync" and not call.data["enabled"])
+        result = None
+        if service == "set_name_sync":
+            await coordinator.names.async_set_enabled(nid, call.data["enabled"])
+            coordinator._schedule_name_sync()
+        elif service == "rename_client":
+            if kind != "client":
+                raise HomeAssistantError("Select a Google WiFi client entity")
+            result = await coordinator.names.async_rename(nid, sid, call.data["expected_google_name"], call.data["expected_mac"], call.data["expected_ha_name"])
+        elif service == "undo_name":
+            result = await coordinator.names.async_undo(nid, call.data["request_id"])
+        else:
+            result = await coordinator.names.async_verify(nid, call.data["request_id"])
+        if coordinator._stopping:
+            raise HomeAssistantError("The integration unloaded; review the saved name-change history after reload")
+        return {**coordinator.management.response(nid, coordinator.data["networks"][nid]), "name_result": result}
 
     async def point_area(call):
         await authorized(call)
@@ -94,3 +117,7 @@ def register_services(hass):
     hass.services.async_register(DOMAIN, "get_google_metrics", telemetry, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "get_management", management, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_point_area", point_area, schema=vol.Schema({**base, vol.Required("area_id"): vol.Any(None, str)}), supports_response=SupportsResponse.OPTIONAL)
+    hass.services.async_register(DOMAIN, "set_name_sync", naming, schema=vol.Schema({**base, vol.Required("enabled"): bool}), supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "rename_client", naming, schema=vol.Schema({**base, vol.Required("expected_google_name"): str, vol.Required("expected_ha_name"): str, vol.Required("expected_mac"): str}), supports_response=SupportsResponse.ONLY)
+    for service in ("undo_name", "verify_name"):
+        hass.services.async_register(DOMAIN, service, naming, schema=vol.Schema({**base, vol.Required("request_id"): str}), supports_response=SupportsResponse.ONLY)

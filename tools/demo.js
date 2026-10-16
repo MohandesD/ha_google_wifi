@@ -7,10 +7,14 @@ const entities={};
 const now=()=>new Date().toISOString();
 const demoAreas=[{id:'office',name:'Example office'},{id:'studio',name:'Example studio'},{id:'hall',name:'Example hall'}];
 const areaMappings={point0:'hall',point1:'office',point2:'studio'};
+const demoNaming={enabled:false,paused_reason:null,history:[],excluded_station_ids:[]};
+let demoGoogleName='Unnamed device';
+const namingSummary=()=>({enabled:demoNaming.enabled,paused_reason:null,last_state:demoNaming.history.at(-1)?.state||'idle',verified_count:demoNaming.history.filter(r=>r.state==='verified').length,unconfirmed_count:0});
+function demoRename(){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',old_name:demoGoogleName,new_name:'Example tablet',state:'verified',kind:'rename',automatic:demoNaming.enabled};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
 function management(){
  return {scope:'example',network_id:'example',name:'Example WiFi',entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
   points:['Main point','Office point','Studio point'].map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
-  name_candidates:[{station_id:'client5',google_name:'Unnamed device',proposed_name:'Example tablet',mac_address:'02:00:00:00:00:06'}],rename:{state:'request_schema_unverified',writable:false}};
+  name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:'Example tablet',mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
 }
 function state(scope,kind,id,key,value,name,extra={}){
   const entityId=`sensor.demo_${scope}_${kind}_${id}_${key}`;
@@ -28,7 +32,7 @@ function build(){
   const rows=[['Example laptop',0,-52,'excellent'],['Example television',0,null,'fair'],['Example phone',0,-64,'fair'],['Example workstation',1,-48,'excellent'],['Example speaker',1,-77,'weak'],['Example tablet',1,null,null],['Example thermostat',2,-62,'fair'],['Example console',2,-58,'excellent']];
   const summary=history(),usage={period:summary.period,retrieved_at:summary.retrieved_at};
   const networkInfo={cloud:{lan_settings:{ipAddress:'192.0.2.1',netmask:'255.255.255.0',dhcpPoolBegin:'192.0.2.10',dhcpPoolEnd:'192.0.2.200',upnpEnabled:false},wan_properties:{wanMode:'DHCP',ipAddress:'198.51.100.10',gateway:'198.51.100.1'},wan_settings:{dnsConfig:{dnsMode:'AUTOMATIC'},ipv6Enabled:true},guest_wifi:{enabled:false}},retrieved_at:now(),demo_fields:Object.fromEntries(Array.from({length:40},(_,i)=>[`example_field_${i}`,`Fictional value ${i}; refresh ${tick}`]))};
-  state(scope,'network','network','diagnosis','quality_data_available','Example WiFi');
+  state(scope,'network','network','diagnosis','quality_data_available','Example WiFi',{name_sync:namingSummary()});
   state(scope,'network','network','connected_clients',rows.length,'Example WiFi');
   state(scope,'network','network','download_mbps',(12.4+tick/100).toFixed(2),'Example WiFi');
   state(scope,'network','network','upload_mbps','1.8','Example WiFi');
@@ -49,6 +53,7 @@ function build(){
     state(scope,'client',`client${i}`,'point',names[point],name,{connected:true,ap_id:`point${point}`,point:names[point],rssi,rssi_source:rssi==null?null:'shelly_wifi_status',rssi_observed_at:rssi==null?null:now(),signal_quality:quality,quality_source:'google_connection_rating',wireless_band:'BAND_5000_MHZ',connection_type:'WIRELESS',ip_address:`192.0.2.${i+10}`,mac_address:`02:00:00:00:00:${String(i+1).padStart(2,'0')}`,download_mbps:i===0?3.5+tick/100:Math.max(0,1-i/10),upload_mbps:.1,google_name:name,ha_device_name:i===0?'Example computer':null,wifi_test_mbps:120+i*20,wifi_test_at:now(),wifi_test_point:names[point],usage_windows:{hour:usage},usage_hourly:summary.series});
     const area=demoAreas.find(a=>a.id===areaMappings[`point${point}`]);
     Object.assign(entities[`sensor.demo_example_client_client${i}_point`].attributes,{associated_area:area?.name,associated_area_id:area?.id,area_source:area?'wifi_point':null});
+    if(i===5)Object.assign(entities[`sensor.demo_example_client_client${i}_point`].attributes,{google_name:demoGoogleName,ha_device_name:'Example tablet',device_name:demoGoogleName==='Unnamed device'?'Unnamed device (Example tablet)':demoGoogleName});
   });
   if(document.querySelector('#scenario').value==='partial'){
     state('unavailable-example','network','network','diagnosis','unavailable','Second example network');
@@ -57,6 +62,14 @@ function build(){
   return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},states:entities,callWS:async request=>{
    if(request.service==='get_management')return {response:management()};
    if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
+   if(['set_name_sync','rename_client','undo_name','verify_name'].includes(request.service)){
+    let result=null;
+    if(request.service==='set_name_sync'){demoNaming.enabled=request.service_data.enabled;if(demoNaming.enabled&&demoGoogleName==='Unnamed device'&&!demoNaming.excluded_station_ids.includes('client5'))result=demoRename();}
+    if(request.service==='rename_client'){if(demoGoogleName!==request.service_data.expected_google_name||request.service_data.expected_mac!=='02:00:00:00:00:06'||request.service_data.expected_ha_name!=='Example tablet')throw Error('Demo preview changed');result=demoRename();}
+    if(request.service==='undo_name'){const original=demoNaming.history.find(r=>r.request_id===request.service_data.request_id);if(!original||demoGoogleName!==original.new_name)throw Error('Demo name changed');result={...original,request_id:'demo-undo',old_name:original.new_name,new_name:original.old_name,kind:'undo',automatic:false};demoGoogleName=original.old_name;demoNaming.history.push(result);demoNaming.excluded_station_ids.push('client5');}
+    if(request.service==='verify_name')result=demoNaming.history.find(r=>r.request_id===request.service_data.request_id);
+    panel.hass=build();return {response:{...management(),name_result:result}};
+   }
    if(request.service==='google_action')throw Error('Demo mode: network actions are disabled');
    return {response:history(request.service_data?.resolution)};
   },callService:async()=>{throw new Error('Demo mode: network actions are disabled');}};

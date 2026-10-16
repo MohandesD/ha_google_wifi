@@ -265,7 +265,7 @@ class CloudClient:
     async def _get(self, path):
         return await self._request("GET", path)
 
-    async def _request(self, method, path, payload=None):
+    async def _request(self, method, path, payload=None, *, retry_auth=True):
         if time.monotonic() < self._retry_until:
             raise RateLimitError(int(self._retry_until - time.monotonic()) + 1)
         await self._authenticate()
@@ -277,6 +277,8 @@ class CloudClient:
                 payload,
             )
         except AuthError:
+            if not retry_auth:
+                raise
             await self._authenticate(force=True)
             return await json_request(
                 self.session, method,
@@ -284,6 +286,51 @@ class CloudClient:
                 {"Authorization": f"Bearer {self._token}"},
                 payload,
             )
+
+    async def station_identity(self, group_id, station_id):
+        """Read a current station and its MAC without trusting the six-hour cache."""
+        async with asyncio.timeout(35):
+            group = quote(group_id, safe="")
+            payload = await self._get(f"groups/{group}/stations?prettyPrint=false")
+            stations = payload.get("stations")
+            if not isinstance(stations, list):
+                raise ApiError("Current Google stations are unavailable")
+            rows = [s for s in stations if isinstance(s, dict) and s.get("id") == station_id]
+            if len(rows) != 1 or rows[0].get("connected") is not True:
+                raise ApiError("The selected Google client is not currently connected")
+            station = rows[0]
+            mac = normalize_mac(station.get("macAddress"))
+            if not mac:
+                created = await self._request("POST", f"groups/{group}/stations/operations/sensitiveInfo?prettyPrint=false", {"stationIds": [station_id]})
+                metadata = created.get("operation")
+                operation = metadata.get("operationId") if isinstance(metadata, dict) else None
+                if not isinstance(operation, str) or not operation:
+                    raise ApiError("Fresh MAC lookup is unavailable")
+                path = "operations/" + quote(operation, safe="")
+                for _ in range(8):
+                    progress = await self._get(path + "?prettyPrint=false")
+                    if progress.get("operationState") == "DONE":
+                        break
+                    if progress.get("operationState") in ("ERROR", "FAILED", "CANCELLED"):
+                        raise ApiError("Fresh MAC lookup failed")
+                    await asyncio.sleep(1)
+                else:
+                    raise ApiError("Fresh MAC lookup is still pending")
+                result = await self._get(path + "/sensitiveInfo?prettyPrint=false")
+                rows = result.get("stationSensitiveInfos")
+                matches = [r for r in rows if isinstance(r, dict) and r.get("stationId") == station_id] if isinstance(rows, list) else []
+                if len(matches) == 1:
+                    mac = normalize_mac(matches[0].get("macAddress"))
+            if not mac:
+                raise ApiError("A fresh MAC could not be verified")
+            return {"name": station.get("friendlyName") or station_id, "raw_name": station.get("friendlyName"),
+                    "automatic_name": station.get("automaticFriendlyName"), "mac": mac}
+
+    async def set_station_name(self, group_id, station_id, name):
+        """Use the Android UpdateStationNameRequest schema; never replay a write."""
+        path = f"groups/{quote(group_id, safe='')}/stations/{quote(station_id, safe='')}/stationName?prettyPrint=false"
+        return await self._request("DELETE" if name is None else "PUT", path,
+                                   None if name is None else {"name": name}, retry_auth=False)
 
     async def _optional(self, group_id, key, path, ttl, period=None):
         """Denied/empty optional measurements never remove core network entities."""

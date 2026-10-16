@@ -73,5 +73,7 @@ claimed. Freeze new endpoints during stabilization unless a fix requires them.
 The subsequent 0.10.0 beta adds local point/area mappings, associated-area sensors,
 management UI and read-only name proposals. It introduces no new Google writes
 and does not convert the 0.9.3 hardware evidence into a 1.0 compatibility claim.
-The automatic rename request schema/read-back/undo gates in
-[MANAGEMENT.md](MANAGEMENT.md) remain pending.
+Version 0.11.0 establishes the Android rename request schema and implements
+read-back/undo and opt-in automatic remediation. Independent live Google-account
+validation remains pending; static protocol evidence and isolated fixtures do not
+establish current provider acceptance. See [NAME_SYNC.md](NAME_SYNC.md).
