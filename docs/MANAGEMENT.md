@@ -6,7 +6,7 @@ currently available Google account network. Local-only mode has no cloud client
 association inventory. Existing dashboard cards keep working; the Management
 page is part of the bundled sidebar panel.
 
-![Management with fictional devices and areas](images/naming-demo.png)
+![Point and area management with fictional data](images/management-demo.png)
 
 ## Map points to existing areas
 
@@ -66,6 +66,8 @@ example creates a local HA notification; it does not switch lights or change the
 network.
 
 ## Name review
+
+![Name review with a fictional exact-MAC match](images/naming-demo.png)
 
 The page offers HA name suggestions for blank, station-ID, MAC-like and known
 generic Google labels such as **Unnamed Device**. A suggestion requires a valid

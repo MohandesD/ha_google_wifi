@@ -15,7 +15,9 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def allowed_path(self):
         """Reject traversal, private files and symlinks outside the public tree."""
         path = PurePosixPath(unquote(urlsplit(self.path).path))
-        allowed = path.as_posix() in {"/tools/demo.html", "/tools/demo.js"} or (
+        allowed = path.as_posix() in {"/tools/demo.html", "/tools/demo.js", "/tools/demo-icons.js"} or (
+            path.as_posix().startswith("/tools/demo-assets/") and path.suffix == ".woff2"
+        ) or (
             path.as_posix().startswith(("/www/", "/custom_components/google_wifi_insights/frontend/", "/custom_components/google_wifi_insights/brand/"))
             and path.suffix in {".js", ".png", ".svg"}
         )

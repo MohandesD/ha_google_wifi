@@ -27,9 +27,39 @@ manual installation, upgrades and troubleshooting.
 
 ## Preview
 
-![Map with fictional example devices](docs/images/map-demo.png)
+![Dashboard overview with four fictional WiFi points](docs/images/overview-demo.png)
 
-The preview uses fictional devices and addresses. [Run the local demo](docs/TESTING.md#browser-demo).
+These are browser captures of the released dashboard components in a simulated
+Home Assistant frame. All devices, areas, addresses and readings are fictional;
+no household inventory or live-network capture is included.
+[Run the local demo](docs/TESTING.md#browser-demo).
+
+<details>
+<summary>Device list, measured signal and device details</summary>
+
+![Device list with separate Google quality and measured Shelly RSSI](docs/images/devices-demo.png)
+
+![Fictional device details with IP, MAC, RSSI, speed test and usage](docs/images/device-demo.png)
+
+</details>
+
+<details>
+<summary>Map, client associations and Google mesh assessments</summary>
+
+![Google mesh assessments for the fictional network](docs/images/mesh-demo.png)
+
+![A scrolled map view showing a point and its fictional connected devices](docs/images/map-demo.png)
+
+</details>
+
+<details>
+<summary>Point areas and Google name suggestions</summary>
+
+![Map fictional WiFi points to Home Assistant areas](docs/images/management-demo.png)
+
+![Review a fictional exact-MAC name suggestion before applying it](docs/images/naming-demo.png)
+
+</details>
 
 ## What you get
 

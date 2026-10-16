@@ -4,18 +4,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Google WiFi Insights — fictional demo</title>
 <style>
-  :root{font:15px system-ui,sans-serif;color:#182c43;background:#f1f5f9;--primary-background-color:#f1f5f9;--card-background-color:#fff;--primary-text-color:#182c43;--secondary-text-color:#52657c;--divider-color:#dce4ee;--primary-color:#2468d8;--text-primary-color:#fff;--success-color:#18866a;--warning-color:#a26d10;--error-color:#b64444}
-  body{margin:0}header{padding:20px 28px;background:#142b45;color:white;display:flex;align-items:center;gap:18px;flex-wrap:wrap}header img{width:50px;height:50px}h1{font-size:21px;margin:0 0 4px}header p{font-size:13px;margin:0;color:#cfdfef}.settings{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap}label{font-size:12px;display:grid;gap:4px}select{padding:7px;border-radius:6px;border:1px solid #7795b4;background:#fff;color:#182c43;font:inherit}dialog{max-width:620px;border:1px solid #dce4ee;border-radius:14px;color:#182c43}dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}dialog button{padding:9px 18px}dialog::backdrop{background:#142b4570}
+  @font-face{font-family:Roboto;font-style:normal;font-weight:400;src:url('./demo-assets/Roboto-Regular.woff2') format('woff2');font-display:swap}
+  @font-face{font-family:Roboto;font-style:normal;font-weight:500 600;src:url('./demo-assets/Roboto-Medium.woff2') format('woff2');font-display:swap}
+  @font-face{font-family:Roboto;font-style:normal;font-weight:650 900;src:url('./demo-assets/Roboto-Bold.woff2') format('woff2');font-display:swap}
+  :root{font:14px Roboto,system-ui,sans-serif;color:#212121;background:#fafafa;--primary-background-color:#fafafa;--secondary-background-color:#e5e5e5;--card-background-color:#fff;--ha-card-background:#fff;--primary-text-color:#212121;--secondary-text-color:#727272;--divider-color:#e0e0e0;--primary-color:#03a9f4;--text-primary-color:#fff;--success-color:#43a047;--warning-color:#ffa600;--error-color:#db4437;--paper-font-body1_-_font-family:Roboto,system-ui,sans-serif}
+  *{box-sizing:border-box}body{margin:0}.sidebar{position:fixed;inset:0 auto 0 0;width:232px;border-right:1px solid var(--divider-color);background:#fff;display:flex;flex-direction:column;z-index:3}.sidebar-title{height:64px;padding:0 20px;display:flex;align-items:center;gap:16px;font-size:20px;white-space:nowrap}.sidebar-title ha-icon{color:var(--secondary-text-color)}.sidebar-nav{padding:12px 8px;display:grid;gap:5px}.sidebar-item{display:flex;align-items:center;gap:22px;padding:12px;border-radius:4px;font-size:14px;font-weight:500;color:#555;min-height:48px}.sidebar-item ha-icon{color:#727272}.sidebar-item.selected{background:#e1f5fe;color:#0288d1}.sidebar-item.selected ha-icon{color:#0288d1}.sidebar-footer{margin-top:auto;border-top:1px solid var(--divider-color);padding:8px}.demo-user{display:flex;gap:18px;align-items:center;padding:12px}.avatar{background:#b3e5fc;border-radius:50%;width:34px;height:34px;display:grid;place-items:center;color:#0277bd}.app{margin-left:232px;min-height:100vh}.app-header{height:64px;background:#fff;border-bottom:1px solid var(--divider-color);display:flex;align-items:center;padding:0 24px;gap:16px;position:relative;z-index:2}.app-title{font-size:20px;font-weight:400}.demo-badge{margin-left:auto;color:var(--secondary-text-color);font-size:12px;border:1px solid var(--divider-color);border-radius:16px;padding:5px 10px;white-space:nowrap}.demo-controls{padding:20px 24px;border-top:1px solid var(--divider-color);display:flex;align-items:center;gap:18px;flex-wrap:wrap;color:var(--secondary-text-color);font-size:12px}.demo-controls label{display:grid;gap:5px}.demo-controls select{font:inherit;padding:8px;border:1px solid var(--divider-color);background:#fff;color:var(--primary-text-color);border-radius:6px}.demo-controls p{max-width:65ch;line-height:1.5}.capture .demo-controls{display:none}dialog{max-width:620px;border:1px solid var(--divider-color);border-radius:14px;color:var(--primary-text-color)}dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}dialog button{padding:9px 18px}dialog::backdrop{background:#0006}
+  @media(max-width:900px){.sidebar{width:64px}.sidebar-title{padding:20px}.sidebar-title span,.sidebar-item span,.demo-user span{display:none}.sidebar-item{padding:12px}.sidebar-nav,.sidebar-footer{padding:8px}.demo-user{padding:6px}.app{margin-left:64px}}
+  @media(max-width:600px){.sidebar{display:none}.app{margin-left:0}.app-header{height:56px;padding:0 16px}.app-title{font-size:17px}.demo-badge{font-size:10px;padding:4px 7px}}
 </style>
-<header>
-  <img src="../custom_components/google_wifi_insights/brand/icon.png" alt="">
-  <div><h1>Google WiFi Insights</h1><p>Fictional demo · no Google account, HA instance or network controls connected</p></div>
-  <div class="settings">
+<!-- Only this surrounding frame is a demo shell. The panel below is the released UI. -->
+<aside class="sidebar" aria-label="Demo Home Assistant frame">
+  <div class="sidebar-title"><ha-icon icon="mdi:menu"></ha-icon><span>Home Assistant</span></div>
+  <div class="sidebar-nav">
+    <div class="sidebar-item"><ha-icon icon="mdi:view-dashboard"></ha-icon><span>Overview</span></div>
+    <div class="sidebar-item selected"><ha-icon icon="mdi:access-point-network"></ha-icon><span>Google WiFi</span></div>
+    <div class="sidebar-item"><ha-icon icon="mdi:history"></ha-icon><span>History</span></div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-item"><ha-icon icon="mdi:cog"></ha-icon><span>Settings</span></div>
+    <div class="demo-user"><div class="avatar">D</div><span>Demo user</span></div>
+  </div>
+</aside>
+<div class="app">
+  <header class="app-header"><span class="app-title">Google WiFi</span><span class="demo-badge">Fictional demo data</span></header>
+  <google-wifi-insights-panel id="panel"></google-wifi-insights-panel>
+  <footer class="demo-controls">
     <label>Language<select id="language" aria-label="Language"><option value="en">English</option><option value="pt">Português</option></select></label>
     <label>Scenario<select id="scenario" aria-label="Scenario"><option value="healthy">Example network</option><option value="partial">Second network unavailable</option><option value="missing">Signal measurements missing</option></select></label>
-  </div>
-</header>
-<google-wifi-insights-panel id="panel"></google-wifi-insights-panel>
+    <p>Released dashboard components in a simulated Home Assistant frame. All devices, addresses, areas and readings are fictional. No Google account, HA instance or network controls are connected.</p>
+  </footer>
+</div>
 <dialog id="details"><h2>Fictional entity details</h2><pre id="detail-text"></pre><form method="dialog"><button>Close</button></form></dialog>
 <script type="module" src="./demo.js"></script>
 </html>

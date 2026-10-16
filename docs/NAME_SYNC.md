@@ -5,6 +5,8 @@ Home Assistant device name. Enable it explicitly for each network in
 **Google WiFi → Management**. It starts disabled. Opening Management, configuring
 point areas or installing the integration does not enable naming.
 
+![Fictional Google name suggestion in the released Management page](images/naming-demo.png)
+
 This changes the Wi-Fi client label shared with other managers of that Google
 network. It does not change a hostname, a Google Home smart-device name, a room,
 a fixed HA device area or Wi-Fi association. The separate WiFi associated area
