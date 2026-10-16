@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.1 — One-time name batches (beta)
+
+- Add per-device checkboxes, select-all, **Rename selected** and **Rename all
+  eligible** controls to Management. Every batch requires review of its exact
+  network and Google-to-HA name proposals before confirmation.
+- Keep one-time batches independent of automatic naming. They use the existing
+  interactive administrator service and do not enable or schedule automatic work.
+- Send one request at a time, require a matching verified read-back and stop on
+  rejection, uncertain delivery, cancellation, lost permissions or network loss.
+  Changed previews are skipped before dispatch. Unconfirmed journal entries are
+  excluded from a new selection; uncertain writes are never replayed.
+- Show progress and individual results. **Stop after current device** stops the
+  remaining queue while allowing an in-flight request to finish. Leaving the
+  Management view also prevents further requests from that batch.
+- Preserve selection and focus during ordinary HA updates, scope selections to
+  their network, and localize the new controls in English and Portuguese.
+- Prefer cloud client data in the default Overview when local point entries
+  coexist, while respecting an explicitly configured network and cloud outages.
+- Extend frontend failure/recovery tests and the fictional demo. No backend
+  naming, discovery, device/entity identity or lighting behavior changes.
+
 ## 0.11.0 — Verified name remediation (beta)
 
 - Add explicit, per-network opt-in automatic correction of generic Google Wi-Fi

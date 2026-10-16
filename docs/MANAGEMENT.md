@@ -77,6 +77,14 @@ Personalized Google names and non-placeholder hostnames are preserved. Opening
 the page does not modify any name.
 
 Use **Apply name in Google** to review and confirm an individual suggestion.
+To rename several devices once, tick their checkboxes and use **Rename selected**,
+or choose **Rename all eligible**. Review the complete network/name/MAC list and
+confirm. These actions leave automatic naming unchanged. Requests run one at a
+time with per-device verification; progress, skipped previews and failures are
+shown. The queue stops on a rejected or unconfirmed result. Keep the page open;
+**Stop after current device** stops the remaining queue without recalling a sent
+request. Pending journal entries cannot be selected for another batch.
+
 To continue correcting new generic names automatically, use **Enable automatic
 naming** and confirm the selected network. The setting starts disabled and is
 saved separately for each account entry and network. **Disable automatic naming**

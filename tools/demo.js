@@ -16,7 +16,7 @@ const proposedName='Reading tablet';
 const demoNaming={enabled:false,paused_reason:null,history:[],excluded_station_ids:[]};
 let demoGoogleName='Unnamed device';
 const namingSummary=()=>({enabled:demoNaming.enabled,paused_reason:null,last_state:demoNaming.history.at(-1)?.state||'idle',verified_count:demoNaming.history.filter(r=>r.state==='verified').length,unconfirmed_count:0});
-function demoRename(){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',old_name:demoGoogleName,new_name:proposedName,state:'verified',kind:'rename',automatic:demoNaming.enabled};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
+function demoRename(automatic=false){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',mac_address:'02:00:00:00:00:06',old_name:demoGoogleName,new_name:proposedName,state:'verified',kind:'rename',automatic};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
 function management(){
  return {scope:'example',network_id:'example',name:'Demo WiFi',entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
   points:names.map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
@@ -96,7 +96,7 @@ function build(){
    if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
    if(['set_name_sync','rename_client','undo_name','verify_name'].includes(request.service)){
     let result=null;
-    if(request.service==='set_name_sync'){demoNaming.enabled=request.service_data.enabled;if(demoNaming.enabled&&demoGoogleName==='Unnamed device'&&!demoNaming.excluded_station_ids.includes('client5'))result=demoRename();}
+    if(request.service==='set_name_sync'){demoNaming.enabled=request.service_data.enabled;if(demoNaming.enabled&&demoGoogleName==='Unnamed device'&&!demoNaming.excluded_station_ids.includes('client5'))result=demoRename(true);}
     if(request.service==='rename_client'){if(demoGoogleName!==request.service_data.expected_google_name||request.service_data.expected_mac!=='02:00:00:00:00:06'||request.service_data.expected_ha_name!==proposedName)throw Error('Demo preview changed');result=demoRename();}
     if(request.service==='undo_name'){const original=demoNaming.history.find(r=>r.request_id===request.service_data.request_id);if(!original||demoGoogleName!==original.new_name)throw Error('Demo name changed');result={...original,request_id:'demo-undo',old_name:original.new_name,new_name:original.old_name,kind:'undo',automatic:false};demoGoogleName=original.old_name;demoNaming.history.push(result);demoNaming.excluded_station_ids.push('client5');}
     if(request.service==='verify_name')result=demoNaming.history.find(r=>r.request_id===request.service_data.request_id);

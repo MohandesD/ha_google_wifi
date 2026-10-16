@@ -24,7 +24,26 @@ A suggestion requires all of the following:
   1–63 characters without control characters. The length restriction is a
   conservative integration limit, not a documented Google API limit.
 
-Use **Apply name in Google** to review and confirm one suggestion. Use **Enable
+Use **Apply name in Google** to review and confirm one suggestion.
+
+From version 0.11.1, tick individual suggestions and use **Rename selected**, or
+use **Rename all eligible** for the current eligible list. Both are one-time
+actions: they do not enable automatic naming or schedule later work. Review the
+network, MACs and old/new names in the confirmation before sending. Each request
+still uses fresh Google/HA identity checks, a durable intent and verified
+read-back through the existing single-device service. No parallel writes are
+sent by a batch.
+
+Progress shows verified, skipped and not-sent counts plus individual outcomes.
+A changed preview is skipped before dispatch. An unconfirmed or rejected result
+stops the remaining queue, with no automatic replay. Pending journal entries
+cannot be selected again. Keep Management open until completion; leaving the
+view, losing administrator access or losing the network stops further dispatch.
+**Stop after current device** leaves the current request alone and stops those
+not yet sent. Check **Recent name changes** after any uncertain result or closed
+browser before starting another batch.
+
+Use **Enable
 automatic naming** to confirm ongoing remediation for the selected network.
 Automatic work runs after successful normal HA updates, at most once every five
 minutes, with at most three candidates across all networks in that config entry

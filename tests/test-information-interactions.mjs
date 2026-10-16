@@ -102,6 +102,18 @@ test('overview state updates retain the information panel outside the refreshed 
  assert.equal(details.open,false);card.remove();
 });
 
+test('overview prefers cloud client data over a coexisting local entry and honors an explicit network',async()=>{
+ const {card}=await cardEnvironment('google-wifi-dashboard-ui.js','google-wifi-dashboard-ui');
+ const networks={
+  'sensor.local':{state:'quality_unknown',attributes:{gwi_scope:'local',gwi_kind:'network',gwi_metric:'diagnosis',data_source:'local',device_name:'Local point'}},
+  'sensor.cloud':{state:'quality_data_available',attributes:{gwi_scope:'cloud',gwi_kind:'network',gwi_metric:'diagnosis',data_source:'google_cloud',device_name:'Fictional cloud network'}},
+ };
+ card.hass={states:networks,language:'en'};card._update();assert.equal(card._network.scope,'cloud');
+ card.setConfig({network_entity:'sensor.local'});assert.equal(card._network.scope,'local');
+ card.setConfig({});networks['sensor.cloud'].state='unavailable';card.hass={states:networks,language:'en'};card._update();assert.equal(card._network.scope,'cloud');assert.equal(card._network.unavailable,true);
+ delete networks['sensor.cloud'];card.hass={states:networks,language:'en'};card._update();assert.equal(card._network.scope,'local');card.remove();
+});
+
 test('map updates retain both outer and nested firmware disclosures and JSON position',async()=>{
  const {card}=await cardEnvironment('google-wifi-insights-map.js','google-wifi-insights-map');
  const outer=card.shadowRoot.querySelector('[data-gwi-disclosure="home:point"]');

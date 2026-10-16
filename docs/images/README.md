@@ -2,6 +2,8 @@
 
 The screenshots in this directory were captured in a browser on 2026-10-16 from
 the released **0.11.0** panel components, imported directly by `tools/demo.html`.
+`naming-demo.png` was refreshed from **0.11.1** to show the one-time batch controls
+and a selected fictional device while automatic naming remains disabled.
 The surrounding Home Assistant sidebar/header is a simulated demo frame, not a
 connection to a Home Assistant instance. The component layout and behavior are
 the released code; the demo does not override their templates or styles.

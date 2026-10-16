@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.11.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.11.1.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -104,6 +104,12 @@ clients using exact, unambiguous HA MAC matches. Version 0.11.0 can apply a
 selected proposal, verify its result, undo it and enable automatic naming per
 network. Automatic naming starts disabled. Personalized Google names are
 preserved; uncertain results pause automatic writes and are never retried.
+
+For a one-time cleanup, select device checkboxes and use **Rename selected**, or
+choose **Rename all eligible**. Version 0.11.1 confirms the complete proposal list,
+shows progress and stops on an unconfirmed or rejected result. It does not
+enable automatic naming. Keep Management open while the batch runs; use
+**Stop after current device** to stop the remaining queue.
 
 The request schema was established by static inspection of Google's Android
 client. This release has no new live Google-account trial: provider acceptance

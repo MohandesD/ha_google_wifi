@@ -149,3 +149,112 @@ test('an undone client explains its automatic exclusion and does not offer the o
  assert.ok([...root.querySelectorAll('button')].some(b=>b.textContent==='Apply name in Google'));
  assert.equal(calls.length,1);
 });
+
+function batchEnvironment(handler){
+ let env;
+ const candidates=Array.from({length:3},(_,i)=>({station_id:'client'+i,entity_id:'sensor.client'+i,google_name:'Unnamed device',proposed_name:'Example device '+i,mac_address:'02:00:00:00:00:0'+i}));
+ const remaining=new Set(candidates.map(c=>c.entity_id));
+ const response=(record)=>{const d=data();d.name_candidates=candidates.filter(c=>remaining.has(c.entity_id));d.rename={writable:true,enabled:false,history:[]};if(record)d.name_result=record;return d;};
+ env=environment(async request=>{
+  if(request.service==='get_management')return response();
+  assert.equal(request.service,'rename_client','Manual batches never enable automatic naming');
+  const candidate=candidates.find(c=>c.entity_id===request.service_data.entity_id);
+  assert.ok(candidate);
+  const record={...candidate,new_name:candidate.proposed_name,kind:'rename',automatic:false,state:'verified'};
+  const result=handler?await handler({request,candidate,record,env,response}):record;
+  if(result?.state==='verified')remaining.delete(candidate.entity_id);
+  return result?.scope?result:response(result);
+ });
+ for(const c of candidates)env.hass.states[c.entity_id]={state:'Example point',attributes:{google_name:c.google_name}};
+ env.candidates=candidates;env.response=response;return env;
+}
+function selectName(root,index){const check=root.querySelectorAll('input[data-name-select]')[index];assert.ok(check);check.click();return check;}
+
+test('one-time renaming sends only selected frozen proposals after a list confirmation',async()=>{
+ const {root,calls,card,hass}=batchEnvironment();await settle();
+ assert.equal(click(root,'Rename selected').disabled,true);assert.equal(calls.length,1);
+ selectName(root,0);selectName(root,2);assert.match(root.textContent,/2 of 3 eligible/);
+ const check=root.querySelector('input[data-name-select]');check.focus();for(let i=0;i<20;i++)card.hass={...hass};
+ assert.equal(root.activeElement,check);assert.equal(root.querySelector('input[data-name-select]'),check);assert.equal(check.checked,true);
+ click(root,'Rename selected');assert.equal(calls.length,1);const preview=root.querySelector('.confirmation');
+ assert.match(preview.textContent,/2 devices.*entry:one/);assert.match(preview.textContent,/does not enable automatic naming/);assert.equal(preview.querySelectorAll('li').length,2);
+ assert.doesNotMatch(preview.textContent,/Example device 1/);
+ click(root,'Confirm request');await settle();await settle();
+ assert.deepEqual(calls.filter(c=>c.service==='rename_client').map(c=>c.service_data.entity_id),['sensor.client0','sensor.client2']);
+ assert.deepEqual({...calls[1].service_data},{entity_id:'sensor.client0',expected_google_name:'Unnamed device',expected_mac:'02:00:00:00:00:00',expected_ha_name:'Example device 0'});
+ assert.equal(card._data.rename.enabled,false);assert.match(root.textContent,/2 verified · 0 skipped · 0 not sent/);assert.match(root.textContent,/One-time renaming finished/);
+});
+
+test('rename all captures all eligible proposals without requiring selection or automatic mode',async()=>{
+ const {root,calls,card}=batchEnvironment();await settle();click(root,'Rename all eligible');
+ assert.equal(root.querySelector('.confirmation li').textContent,'Unnamed device → Example device 0 · 02:00:00:00:00:00');
+ click(root,'Cancel');assert.equal(calls.length,1);
+ click(root,'Rename all eligible');click(root,'Confirm request');await settle();await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,3);assert.equal(card._data.rename.enabled,false);
+ assert.match(root.textContent,/3 verified · 0 skipped · 0 not sent/);
+});
+
+test('selection is scoped, supports select-all and prunes changed previews on refresh',async()=>{
+ const {root,calls,card,hass,candidates}=batchEnvironment();await settle();
+ const all=root.querySelector('input[aria-label="Select all eligible devices"]');all.click();assert.equal(root.querySelectorAll('input[data-name-select]:checked').length,3);
+ selectName(root,1);assert.equal(all.indeterminate,true);assert.match(root.textContent,/2 of 3 eligible/);
+ candidates[0].proposed_name='New HA label';click(root,'Refresh view');await settle();assert.equal(root.querySelectorAll('input[data-name-select]:checked').length,1);
+ hass.states['sensor.client2'].attributes.google_name='Personal name';card.hass={...hass};assert.equal(root.querySelectorAll('input[data-name-select]:checked').length,0);
+ const selector=root.querySelector('.toolbar select');selector.value='entry:two';selector.dispatchEvent(new selector.ownerDocument.defaultView.Event('change'));await settle();
+ assert.equal(card._selectedNames.size,0);assert.equal(calls.filter(c=>c.service==='rename_client').length,0);
+});
+
+for(const outcome of ['unconfirmed','rejected','cancelled','throw','wrong_network','wrong_client'])test('manual batches stop without replay after '+outcome,async()=>{
+ const {root,calls,card,hass}=batchEnvironment(({record,response})=>{
+  if(outcome==='throw')throw Error('Connection lost');
+  if(outcome==='wrong_network')return {...response(record),scope:'entry:two'};
+  if(outcome==='wrong_client')return {...record,station_id:'different-client'};
+  return {...record,state:outcome};
+ });await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/One-time renaming stopped/);assert.match(root.textContent,/0 verified · 0 skipped · 2 not sent/);
+ for(let i=0;i<20;i++)card.hass={...hass};assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
+ assert.equal(card._data.rename.enabled,false);
+});
+
+test('stop waits for the current response and never starts a second write',async()=>{
+ let finish;const {root,calls}=batchEnvironment(({record})=>new Promise(resolve=>{finish=()=>resolve(record);}));
+ await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ assert.match(root.textContent,/Renaming 1 of 3 · Example device 0/);assert.match(root.textContent,/0 verified · 0 skipped · 2 not sent/);assert.equal(click(root,'Rename all eligible').disabled,true);
+ click(root,'Stop after current device');assert.match(root.textContent,/request may still complete/);assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
+ finish();await settle();assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/1 verified · 0 skipped · 2 not sent/);
+});
+
+test('stale candidates are skipped before dispatch and cannot silently change the confirmed batch',async()=>{
+ const {root,calls,card,hass}=batchEnvironment(({record,candidate})=>{if(candidate.station_id==='client0')hass.states['sensor.client1'].attributes.google_name='Personal name';return record;});
+ await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();await settle();
+ assert.deepEqual(calls.filter(c=>c.service==='rename_client').map(c=>c.service_data.entity_id),['sensor.client0','sensor.client2']);
+ assert.match(root.textContent,/2 verified · 1 skipped · 0 not sent/);assert.equal(card._data.rename.enabled,false);
+});
+
+test('leaving management while a request runs does not dispatch the remainder on return',async()=>{
+ let finish;const {root,card,calls,hass}=batchEnvironment(({record})=>new Promise(resolve=>{finish=()=>resolve(record);}));
+ await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ card.remove();finish();await settle();card.ownerDocument.querySelector('main').append(card);card.hass={...hass};await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.equal(card._batch.running,false);assert.equal(card._batch.stopped,true);
+});
+
+test('loss of administrator rights or a network outage stops a running manual batch',async()=>{
+ for(const mode of ['admin','outage']){
+  let finish;const {root,card,calls,hass}=batchEnvironment(({record})=>new Promise(resolve=>{finish=()=>resolve(record);}));
+  await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+  card.hass=mode==='admin'?{...hass,user:{is_admin:false}}:{...hass,states:{...hass.states,'sensor.entry_one':{...hass.states['sensor.entry_one'],state:'unavailable'}}};
+  finish();await settle();assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
+ }
+});
+
+test('unconfirmed journal entries cannot be selected for a new manual batch',async()=>{
+ const {root,card,calls}=batchEnvironment();await settle();card._data.rename.history=[{station_id:'client1',state:'unconfirmed',kind:'rename'}];card._renderContent();card._updateDisabled();
+ assert.equal(root.querySelector('input[data-name-select="sensor.client1"]').disabled,true);click(root,'Rename all eligible');assert.equal(root.querySelectorAll('.confirmation li').length,2);
+ click(root,'Cancel');assert.equal(calls.length,1);
+});
+
+test('manual batch labels follow the Home Assistant language and provider text stays escaped',async()=>{
+ const {root,card,hass,candidates,calls}=batchEnvironment();await settle();candidates[0].proposed_name='<img src=x onerror=bad>';click(root,'Refresh view');await settle();
+ card.hass={...hass,language:'pt-PT'};click(root,'Renomear todos os elegíveis');assert.match(root.querySelector('.confirmation').textContent,/não ativa a renomeação automática/);assert.equal(root.querySelector('img'),null);
+ click(root,'Cancelar');assert.equal(calls.filter(c=>c.service==='rename_client').length,0);
+});

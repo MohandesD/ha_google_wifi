@@ -1,8 +1,17 @@
 # Validation and publication audit
 
-Current engineering scope: 0.9.3 stabilization, reviewed on 2026-10-15. See the
+Current engineering scope: 0.11.1 one-time name batches, reviewed on 2026-10-16. See the
 [release checks](TESTING.md), [readiness matrix](RELEASE_READINESS.md) and
 [GitHub Actions](https://github.com/spkon/ha_google_wifi/actions) for current evidence.
+
+The 0.11.1 local suite passed 310 Python tests at 91.19% combined statement/branch
+coverage and 69 frontend tests. New cases cover exact selection/confirmation,
+sequential dispatch, changed previews, wrong network/client responses, rejected
+or uncertain results, stop/navigation behavior, permission/network loss and
+unchanged automatic-naming settings. The fictional browser demo also exercised
+selection, confirmation and completion. Its local simulated completion is not
+evidence of a real Google backend accepting a rename. Backend naming services
+and device/entity identity behavior are unchanged in this patch.
 
 ## Isolation and privacy
 
