@@ -42,6 +42,28 @@ test('management loads cached data once and retains drafts, focus and scroll dur
  click(root,'Refresh view');await settle();assert.equal(root.querySelector('select[data-point]').value,'studio');
 });
 
+test('embedded management follows the shared network while standalone cards keep their selector',async()=>{
+ const {card,root,calls}=environment();await settle();
+ assert.equal(card._networkLabel.hidden,false);
+ card.setConfig({hide_network_selector:true,network_entity:'sensor.entry_two'});await settle();
+ assert.equal(card._networkLabel.hidden,true);assert.equal(card._scope,'entry:two');
+ assert.equal(calls.at(-1).service_data.entity_id,'sensor.entry_two');
+ click(root,'Restart point');click(root,'Confirm request');await settle();
+ assert.equal(calls.at(-1).service_data.entity_id,'sensor.entry_two_point');
+ card.setConfig({});await settle();assert.equal(card._networkLabel.hidden,false);
+});
+
+test('optional automatic controls start collapsed and retain disclosure state only within their network',async()=>{
+ const {card,root,calls}=environment();await settle();
+ assert.equal(root.querySelector('.automatic-settings').open,false);
+ root.querySelector('.automatic-settings').open=true;root.querySelector('.name-history').open=true;
+ click(root,'Refresh view');await settle();
+ assert.equal(root.querySelector('.automatic-settings').open,true);assert.equal(root.querySelector('.name-history').open,true);
+ card.setConfig({network_entity:'sensor.entry_two'});await settle();
+ assert.equal(root.querySelector('.automatic-settings').open,false);assert.equal(root.querySelector('.name-history').open,false);
+ assert.equal(calls.filter(c=>c.service!=='get_management').length,0);
+});
+
 test('saving an area calls the verified point service and allows clearing it',async()=>{
  const {root,calls}=environment(request=>{
   const value=data();if(request.service==='set_point_area')value.points[0].area_id=request.service_data.area_id;return value;

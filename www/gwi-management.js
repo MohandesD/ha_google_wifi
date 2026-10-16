@@ -1,5 +1,5 @@
 // Management uses HA services and cached discovery. No provider credentials enter the UI.
-import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.12.1';
+import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.12.2';
 
 const WORDS={
  en:{title:'Network management',intro:'Map Wi-Fi points to Home Assistant areas and launch network actions.',network:'Network',refresh:'Refresh view',loading:'Loading management…',empty:'Connect a Google account to manage a network.',admin:'A Home Assistant administrator is required to manage this network.',failed:'Management is unavailable. Check the integration and try refreshing.',unavailable:'This network is unavailable. Wait for a successful update.',areas:'Points and areas',areaLabel:'Area',areaHint:'Each device gets a WiFi associated area sensor, based on its current wireless point. This estimates the area; it does not change the fixed device area in Home Assistant.',unmapped:'No area mapped',save:'Save area',saved:'Area mapping saved.',online:'Online',offline:'Offline or unknown',names:'Review unnamed devices',nameHint:'Suggestions use an exact MAC match with Home Assistant. Personalized Google names and ambiguous matches are preserved.',nameLimit:'Automatic naming starts disabled.',noNames:'No unnamed devices with an unambiguous HA MAC match.',proposed:'Suggested HA name',google:'Google name',copy:'Copy suggested name',copied:'Name copied. Apply it in Google Home.',copyFailed:'Copy unavailable. Select and copy the suggested name below.',guide:'Google naming instructions',actions:'Quick actions',actionHint:'Requests are sent only after confirmation. Tests may affect throughput; restarts temporarily interrupt connectivity.',restart_network:'Restart network',restart_point:'Restart point',test_internet:'Test Internet speed',test_mesh:'Test mesh to primary',test_local:'Test local speed',test_clients:'Test WiFi clients',confirm:'Confirm request',cancel:'Cancel',confirmHint:'Send this request to the selected target?',sending:'Sending request…',accepted:'Google accepted the request. Completion is not yet confirmed.',completed:'Google reports the operation completed.',unconfirmed:'The result is unconfirmed. Check the action status before sending again.',actionFailed:'The request failed or its delivery is unconfirmed. Check the action status before sending again.',latest:'Latest operation',status:'Status',primary:'Primary point',selectName:'Suggested device name'},
@@ -15,7 +15,83 @@ Object.assign(WORDS.pt,{manualNames:'Renomear agora',manualHint:'Renomeie uma ve
 const button=(text,action)=>{const n=node('button',text);n.type='button';n.addEventListener('click',action);return n;};
 Object.assign(WORDS.en,{batchHint:'Review every proposed change below. Up to {limit} devices run at once, with individual identity checks and verification. New requests stop on a rejected or unconfirmed result; requests already in progress may still complete. This does not enable automatic naming. Keep this page open until the batch finishes.',batchWorking:'{active} in progress · {done} of {total} checked',batchSummary:'{verified} verified · {active} in progress · {skipped} skipped · {review} to review · {remaining} not sent',stopBatch:'Stop pending requests',batchStopping:'Stopping new requests. {active} requests are still in progress and may complete.',batchConcurrency:'Up to {limit} devices at once',batchUpgrade:'The installed backend supports one device at a time. Update the complete integration for parallel renaming.',batchRefreshFailed:'Could not refresh the verified management view. Remaining requests were not sent.'});
 Object.assign(WORDS.pt,{batchHint:'Reveja cada alteração abaixo. São processados até {limit} dispositivos em simultâneo, com validação da identidade e confirmação individuais. Novos pedidos param se houver rejeição ou falta de confirmação; os que já estão em curso podem terminar. Isto não ativa a renomeação automática. Mantenha esta página aberta até terminar.',batchWorking:'{active} em curso · {done} de {total} verificados',batchSummary:'{verified} confirmados · {active} em curso · {skipped} ignorados · {review} para rever · {remaining} não enviados',stopBatch:'Parar pedidos pendentes',batchStopping:'A parar novos pedidos. Existem {active} pedidos em curso que ainda podem terminar.',batchConcurrency:'Até {limit} dispositivos em simultâneo',batchUpgrade:'O backend instalado suporta um dispositivo de cada vez. Atualize a integração completa para renomear em paralelo.',batchRefreshFailed:'Não foi possível atualizar a vista de gestão confirmada. Os pedidos restantes não foram enviados.'});
-const CSS=`:host{display:block;padding:20px;color:var(--primary-text-color);font:14px/1.5 var(--paper-font-body1_-_font-family,system-ui)}h1{font-size:24px;margin:0}h2{font-size:19px;margin:0 0 8px}h3{font-size:16px;margin:0}p{color:var(--secondary-text-color);margin:6px 0 14px;max-width:85ch}.toolbar,.buttons{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.toolbar{margin:20px 0}.toolbar label{display:grid;gap:4px;min-width:220px}section{background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}.point,.candidate,.action-target{border:1px solid var(--divider-color);border-radius:12px;padding:16px;min-width:0;overflow-wrap:anywhere}.point label{display:grid;gap:6px;margin:10px 0}.candidate{margin-top:10px}.candidate input{width:100%;box-sizing:border-box;margin:6px 0 12px}.meta{font-size:12px;color:var(--secondary-text-color)}button,select,input{font:inherit;color:inherit;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);padding:9px 12px;min-height:42px;max-width:100%}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}.primary{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:transparent}.notice{background:var(--secondary-background-color);border-radius:10px;padding:12px}.feedback{white-space:pre-line;overflow-wrap:anywhere}.confirmation{border:2px solid var(--primary-color);padding:16px;border-radius:12px;margin:12px 0}.confirmation p{color:inherit}a{color:var(--primary-color)}[hidden]{display:none!important}@media(max-width:500px){:host{padding:12px}section{padding:14px}.toolbar label{min-width:0;width:100%}.buttons button{flex:1 1 120px}}`;
+const CSS=`*{box-sizing:border-box}
+:host{display:block;container-type:inline-size;overflow-wrap:anywhere;padding:20px;color:var(--primary-text-color);font:14px/1.5 var(--paper-font-body1_-_font-family,system-ui)}
+h1{font-size:24px;margin:0}
+h2{font-size:19px;margin:0 0 8px}
+h3{font-size:16px;margin:0}
+p{color:var(--secondary-text-color);margin:6px 0 14px;max-width:85ch}
+.toolbar,.buttons{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.page-header{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.page-heading{flex:1 1 240px;min-width:0}
+.page-heading p{margin-bottom:0}
+.toolbar{margin:0;align-items:flex-end;flex:1 1 320px}
+.toolbar.embedded{flex:0 0 auto}
+.refresh-icon{display:none}
+.page-status:empty,.feedback:empty{margin:0}
+.toolbar label{display:grid;gap:6px;min-width:0;flex:1 1 220px}
+.toolbar select,.point select{width:100%;min-width:0}
+section{background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:16px;padding:20px;margin:18px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}
+.points-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.candidates{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.point,.candidate,.action-target{border:1px solid var(--divider-color);border-radius:12px;padding:16px;min-width:0;overflow-wrap:anywhere}
+.point{display:flex;flex-direction:column;align-items:stretch}
+.point label{display:grid;gap:6px;margin:10px 0}
+.point button{align-self:flex-start}
+.point h3{min-height:1.5em}
+.point label{margin-top:auto;padding-top:10px}
+.candidates{margin:16px 0}
+.candidate{margin-top:10px}
+.candidates .candidate{margin:0;display:flex;flex-direction:column}
+.candidate-actions{margin-top:auto;padding-top:4px}
+.candidate input[type=checkbox]{flex-shrink:0;padding:0}
+.candidate input{width:100%;box-sizing:border-box;margin:6px 0 12px}
+.meta{font-size:12px;color:var(--secondary-text-color)}
+button,select,input{font:inherit;color:inherit;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);padding:9px 12px;min-height:44px;max-width:100%}
+button{cursor:pointer}
+button.danger{color:var(--error-color,#b3261e);border-color:currentColor}
+.confirmation .buttons{margin-top:12px}
+.name-settings-actions{margin:12px 0 20px}
+.name-history{margin-top:16px;border:1px solid var(--divider-color);border-radius:10px;padding:0 14px}
+.name-history summary{cursor:pointer;min-height:48px;padding:12px 0;font-weight:600}
+.name-history summary:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}
+.automatic-settings{margin-top:20px;border:1px solid var(--divider-color);border-radius:10px;padding:0 14px}
+.automatic-settings>summary{display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;font-weight:600;list-style:none}
+.automatic-settings>summary::-webkit-details-marker{display:none}
+.automatic-settings>summary::before{content:'▸';color:var(--primary-color)}
+.automatic-settings[open]>summary::before{content:'▾'}
+.automatic-settings>summary:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}
+.automatic-state{margin-inline-start:auto;background:var(--secondary-background-color);border-radius:8px;padding:3px 8px;font-size:12px;font-weight:400}
+.name-controls{position:sticky;top:var(--gwi-sticky-offset,0px);z-index:1;padding:12px 0;background:var(--card-background-color);border-bottom:1px solid var(--divider-color);margin-bottom:16px}
+.select-all{display:flex;align-items:center;gap:8px;min-height:44px;min-width:0}
+.select-all input{flex-shrink:0;padding:0}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}
+.primary{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:transparent}
+.notice{background:var(--secondary-background-color);border-radius:10px;padding:12px}
+.feedback{white-space:pre-line;overflow-wrap:anywhere}
+.confirmation{border:2px solid var(--primary-color);padding:16px;border-radius:12px;margin:12px 0}
+.confirmation p{color:inherit}
+a{color:var(--primary-color)}
+[hidden]{display:none!important}
+@media(max-width:500px){:host{padding:12px}
+section{padding:14px}
+.toolbar label{min-width:0;width:100%}
+.buttons button{flex:1 1 120px}
+}
+@container(max-width:640px){.points-grid{grid-template-columns:minmax(0,1fr)}.name-controls{position:static}
+.buttons button{flex:1 1 140px}
+.select-all{flex-basis:100%}
+}
+@container(max-width:480px){.toolbar.embedded .refresh-icon{display:block}
+.toolbar.embedded .refresh-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.toolbar.embedded button{width:44px;padding:10px}
+.page-header{gap:12px}
+section{padding:14px}
+.name-settings-actions a{flex-basis:100%}
+}
+`;
 
 export class GwiManagement extends HTMLElement {
  constructor(){super();this.attachShadow({mode:'open'});this._generation=0;this._drafts=new Map();this._selectedNames=new Map();}
@@ -26,6 +102,8 @@ export class GwiManagement extends HTMLElement {
  _update(){
   const language=languageOf(this._hass),admin=this._hass?.user?.is_admin===true;
   if(language!==this._language||!this._built){this._language=language;this._build();}
+  this._networkLabel.hidden=this._config?.hide_network_selector===true;
+  this._toolbar.classList.toggle('embedded',this._networkLabel.hidden);
   this._admin=admin;
   const networks=mapModel(this._hass?.states,this._config).filter(n=>n.source==='google_cloud');
   const signature=JSON.stringify(networks.map(n=>[n.scope,n.name,n.locationName]));
@@ -50,19 +128,21 @@ export class GwiManagement extends HTMLElement {
  _network(){return this._networks?.find(n=>n.scope===this._scope);}
  _build(){
   this._built=true;this._networksSignature=null;this._confirmation=null;
-  this.shadowRoot.replaceChildren(node('style',CSS),node('h1',this._t('title')),node('p',this._t('intro')));
+  this.shadowRoot.replaceChildren(node('style',CSS));
+  const header=node('header');header.className='page-header';const heading=node('div');heading.className='page-heading';heading.append(node('h1',this._t('title')),node('p',this._t('intro')));header.append(heading);
   const toolbar=node('div');toolbar.className='toolbar';const label=node('label',this._t('network'));
+  this._toolbar=toolbar;this._networkLabel=label;
   this._selector=node('select');this._selector.addEventListener('change',()=>{this._changeScope(this._selector.value);this._update();});
-  label.append(this._selector);this._refresh=button(this._t('refresh'),()=>this._load());toolbar.append(label,this._refresh);
-  this._status=node('p');this._status.setAttribute('role','status');this._status.setAttribute('aria-live','polite');
-  this._content=node('div');this.shadowRoot.append(toolbar,this._status,this._content);
+  label.append(this._selector);this._refresh=button('',()=>this._load());this._refresh.setAttribute('aria-label',this._t('refresh'));const refreshIcon=node('ha-icon');refreshIcon.className='refresh-icon';refreshIcon.setAttribute('icon','mdi:refresh');refreshIcon.setAttribute('aria-hidden','true');const refreshLabel=node('span',this._t('refresh'));refreshLabel.className='refresh-label';this._refresh.append(refreshIcon,refreshLabel);toolbar.append(label,this._refresh);
+  header.append(toolbar);this._status=node('p');this._status.className='page-status';this._status.setAttribute('role','status');this._status.setAttribute('aria-live','polite');
+  this._content=node('div');this.shadowRoot.append(header,this._status,this._content);
   this._say(this._message);
   if(this._data)this._renderContent();
  }
  _t(key){return WORDS[this._language||'en'][key]||key;}
  _tf(key,values){return this._t(key).replace(/\{(\w+)\}/g,(_,name)=>String(values[name]));}
  _say(key){this._message=key;this._status.textContent=key?this._t(key):'';if(key==='empty'){const link=node('a',this._language==='pt'?'Localizações e passos de ligação':'Locations and connection steps');link.href=this._config?.locations_path||'/config/integrations/integration/google_wifi_insights';this._status.append(document.createTextNode(' '),link);}}
- _changeScope(scope){if(this._batch)this._batch.stopRequested=true;this._batch=null;this._selectedNames.clear();this._scope=scope;this._generation++;this._data=null;this._loading=false;this._attempted=false;this._confirmation=null;this._content.replaceChildren();this._say(null);}
+ _changeScope(scope){if(this._batch)this._batch.stopRequested=true;this._batch=null;this._selectedNames.clear();this._automaticSettings=this._history=null;this._scope=scope;this._generation++;this._data=null;this._loading=false;this._attempted=false;this._confirmation=null;this._content.replaceChildren();this._say(null);}
  async _call(service,data){const result=await this._hass.callWS({type:'call_service',domain:'google_wifi_insights',service,service_data:data,return_response:true});return result.response;}
  async _load(){
   const network=this._network();if(!this._admin||!network||this._busy)return;
@@ -76,8 +156,9 @@ export class GwiManagement extends HTMLElement {
  }
  _section(title,hint){const section=node('section');section.append(node('h2',this._t(title)),node('p',this._t(hint)));this._content.append(section);return section;}
  _renderContent(){
+  const automaticOpen=this._automaticSettings?.open||false,historyOpen=this._history?.open||false;
   this._content.replaceChildren();if(!this._data)return;
-  const areas=this._section('areas','areaHint'),grid=node('div');grid.className='grid';areas.append(grid);
+  const areas=this._section('areas','areaHint'),grid=node('div');grid.className='grid points-grid';areas.append(grid);
   for(const point of this._data.points){
    const card=node('div');card.className='point';card.append(node('h3',point.name));const meta=node('p',point.online===true?this._t('online'):this._t('offline'));meta.className='meta';card.append(meta);
    const label=node('label',this._t('areaLabel')),select=node('select');select.dataset.point=point.id;select.setAttribute('aria-label',this._t('areaLabel')+' · '+point.name);
@@ -93,8 +174,8 @@ export class GwiManagement extends HTMLElement {
    names.append(node('h3',this._t('manualNames')),node('p',this._t('manualHint')));
    names.append(node('p',this._tf('batchConcurrency',{limit:this._nameConcurrency()})));
    if(this._nameConcurrency()===1)names.append(node('p',this._t('batchUpgrade')));
-   const toolbar=node('div');toolbar.className='buttons';toolbar.style.cssText='position:sticky;top:64px;z-index:1;padding:8px 0;background:var(--card-background-color)';
-   const allLabel=node('label',this._t('selectAll'));allLabel.style.cssText='display:flex;align-items:center;gap:8px';
+   const toolbar=node('div');toolbar.className='buttons name-controls';
+   const allLabel=node('label',this._t('selectAll'));allLabel.className='select-all';
    this._selectAllNames=node('input');this._selectAllNames.type='checkbox';this._selectAllNames.setAttribute('aria-label',this._t('selectAll'));this._selectAllNames.style.cssText='width:20px;min-height:20px';
    this._selectAllNames.addEventListener('change',()=>{this._selectedNames.clear();if(this._selectAllNames.checked)for(const c of this._eligibleNames())this._selectedNames.set(c.entity_id,this._nameFingerprint(c));this._nameConfirmHost.replaceChildren();this._updateNameSelection();});allLabel.prepend(this._selectAllNames);
    this._renameSelected=button(this._t('renameSelected'),()=>this._confirmBatch(false));this._renameAll=button(this._t('renameAll'),()=>this._confirmBatch(true));
@@ -102,16 +183,17 @@ export class GwiManagement extends HTMLElement {
    this._selectionStatus=node('p');this._selectionStatus.setAttribute('role','status');this._selectionStatus.style.margin='0';toolbar.append(this._selectionStatus);
   }else{this._selectAllNames=this._renameSelected=this._renameAll=this._selectionStatus=null;}
   this._batchHost=node('div');names.append(this._batchHost);this._renderBatchProgress();
-  names.append(node('h3',this._t('namesStatus')));const limit=node('p',this._t('nameLimit'));limit.className='notice';names.append(limit);
-  this._nameStatus=node('p');this._nameStatus.setAttribute('role','status');names.append(this._nameStatus);
+  const automaticSettings=node('details');this._automaticSettings=automaticSettings;automaticSettings.className='automatic-settings';automaticSettings.open=automaticOpen;const automaticSummary=node('summary',this._t('namesStatus'));this._automaticState=node('span');this._automaticState.className='automatic-state';automaticSummary.append(this._automaticState);automaticSettings.append(automaticSummary);const limit=node('p',this._t('nameLimit'));limit.className='notice';automaticSettings.append(limit);
+  this._nameStatus=node('p');this._nameStatus.setAttribute('role','status');automaticSettings.append(this._nameStatus);
   this._nameToggle=button(this._t('enableNames'),()=>{
    const settings=this._network()?.nameSync||this._data.rename;
    if(settings?.enabled)this._nameRequest('set_name_sync',{entity_id:this._data.entity_id,enabled:false});
    else this._confirmName('enableNames',this._data.name,()=>this._nameRequest('set_name_sync',{entity_id:this._data.entity_id,enabled:true}));
-  });this._nameToggle.dataset.write='name-toggle';this._nameToggle.dataset.entity=this._data.entity_id||'';names.append(this._nameToggle);
-  this._nameResume=button(this._t('resumeNames'),()=>this._confirmName('resumeNames',this._data.name,()=>this._nameRequest('set_name_sync',{entity_id:this._data.entity_id,enabled:true})));this._nameResume.dataset.write='name';this._nameResume.dataset.entity=this._data.entity_id||'';names.append(this._nameResume);
-  const guide=node('a',this._t('guide'));guide.href='https://support.google.com/googlehome/answer/6346150';guide.target='_blank';guide.rel='noopener noreferrer';names.append(guide);
+  });this._nameToggle.dataset.write='name-toggle';this._nameToggle.dataset.entity=this._data.entity_id||'';
+  this._nameResume=button(this._t('resumeNames'),()=>this._confirmName('resumeNames',this._data.name,()=>this._nameRequest('set_name_sync',{entity_id:this._data.entity_id,enabled:true})));this._nameResume.dataset.write='name';this._nameResume.dataset.entity=this._data.entity_id||'';
+  const guide=node('a',this._t('guide'));guide.href='https://support.google.com/googlehome/answer/6346150';guide.target='_blank';guide.rel='noopener noreferrer';const nameSettings=node('div');nameSettings.className='buttons name-settings-actions';nameSettings.append(this._nameToggle,this._nameResume,guide);automaticSettings.append(nameSettings);
   if(!this._data.name_candidates.length)names.append(node('p',this._t('noNames')));
+  const candidates=node('div');candidates.className='grid candidates';names.append(candidates);
   for(const candidate of this._data.name_candidates){
    const row=node('div');row.className='candidate';if(!this._data.rename?.writable)row.append(node('h3',candidate.proposed_name));row.append(node('p',this._t('google')+': '+candidate.google_name));
    if(this._data.rename?.excluded_station_ids?.includes(candidate.station_id))row.append(node('p',this._t('nameExcluded')));
@@ -120,15 +202,15 @@ export class GwiManagement extends HTMLElement {
     const check=node('input');check.type='checkbox';check.dataset.nameSelect=candidate.entity_id||'';check.setAttribute('aria-label',this._t('selectDevice')+' · '+candidate.proposed_name);check.style.cssText='width:20px;min-height:20px;margin:0';
     check.addEventListener('change',()=>{if(check.checked)this._selectedNames.set(candidate.entity_id,this._nameFingerprint(candidate));else this._selectedNames.delete(candidate.entity_id);this._nameConfirmHost.replaceChildren();this._updateNameSelection();});label.prepend(check);row.prepend(label);
    }
-   const meta=node('p',candidate.mac_address);meta.className='meta';row.append(meta);const label=node('label',this._t('proposed')),input=node('input');input.readOnly=true;input.value=candidate.proposed_name;input.setAttribute('aria-label',this._t('selectName'));label.append(input);row.append(label,button(this._t('copy'),async()=>{
+   const meta=node('p',candidate.mac_address);meta.className='meta';row.append(meta);const label=node('label',this._t('proposed')),input=node('input');input.readOnly=true;input.value=candidate.proposed_name;input.setAttribute('aria-label',this._t('selectName'));label.append(input);const actions=node('div');actions.className='buttons candidate-actions';row.append(label,actions);actions.append(button(this._t('copy'),async()=>{
     try{await navigator.clipboard.writeText(candidate.proposed_name);this._say('copied');}catch{input.focus();input.select();this._say('copyFailed');}
-   }));names.append(row);
+   }));candidates.append(row);
    if(this._data.rename?.writable){
     const apply=button(this._t('applyName'),()=>this._confirmName('applyName',candidate.google_name+' → '+candidate.proposed_name,()=>this._nameRequest('rename_client',{entity_id:candidate.entity_id,expected_google_name:candidate.google_name,expected_mac:candidate.mac_address,expected_ha_name:candidate.proposed_name})));
-    apply.dataset.write='name';apply.dataset.entity=candidate.entity_id||'';apply.dataset.expectedName=candidate.google_name;row.append(apply);
+    apply.dataset.write='name';apply.dataset.entity=candidate.entity_id||'';apply.dataset.expectedName=candidate.google_name;actions.append(apply);
    }
   }
-  const history=node('details');history.append(node('summary',this._t('recentNames')));names.append(history);
+  const history=node('details');this._history=history;history.open=historyOpen;history.className='name-history';history.append(node('summary',this._t('recentNames')));names.append(history);
   const records=this._data.rename?.history||[],latestByClient=new Map(records.map(r=>[r.station_id,r.request_id]));
   for(const record of [...records].reverse()){
    const row=node('div');row.className='candidate';row.append(node('strong',record.old_name+' → '+(record.observed_name||record.new_name)),node('p',this._t(record.state)));
@@ -136,13 +218,13 @@ export class GwiManagement extends HTMLElement {
    if(service){const key=service==='undo_name'?'undoName':'verifyName',run=()=>this._nameRequest(service,{entity_id:this._data.entity_id,request_id:record.request_id});const b=button(this._t(key),()=>service==='undo_name'?this._confirmName(key,record.new_name+' → '+record.old_name,run):run());b.dataset.write='name';b.dataset.entity=this._data.entity_id||'';row.append(b);}
    history.append(row);
   }
-  const actions=this._section('actions','actionHint');this._confirmHost=node('div');actions.append(this._confirmHost);
+  names.append(automaticSettings);const actions=this._section('actions','actionHint');this._confirmHost=node('div');actions.append(this._confirmHost);
   const targets=node('div');targets.className='grid';actions.append(targets);
   this._feedbackNodes=[];
   for(const target of [{id:this._data.network_id,name:this._data.name,entity_id:this._data.entity_id,kind:'network'},...this._data.points.map(p=>({...p,kind:'point'}))]){
    const card=node('div');card.className='action-target';card.append(node('h3',target.name));const buttons=node('div');buttons.className='buttons';card.append(buttons);
    const keys=target.kind==='network'?['test_internet','restart_network']:['test_local','test_clients',...(!target.is_root?['test_mesh']:[]),'restart_point'];
-   for(const action of keys){const b=button(this._t(action),()=>this._confirm(target,action));b.dataset.action=action;b.dataset.target=target.id;b.dataset.write='action';b.dataset.entity=target.entity_id||'';buttons.append(b);}
+   for(const action of keys){const b=button(this._t(action),()=>this._confirm(target,action));if(action.startsWith('restart'))b.className='danger';b.dataset.action=action;b.dataset.target=target.id;b.dataset.write='action';b.dataset.entity=target.entity_id||'';buttons.append(b);}
    const feedback=node('p');feedback.className='feedback';feedback.setAttribute('role','status');card.append(feedback);this._feedbackNodes.push({target,node:feedback});targets.append(card);
   }
   this._updateFeedback();this._updateDisabled();
@@ -189,7 +271,7 @@ export class GwiManagement extends HTMLElement {
   if(this._busy||!this._admin||this._network()?.unavailable)return;
   this._nameConfirmHost.replaceChildren();const box=node('div');box.className='confirmation';box.append(node('strong',this._t(label)+' · '+(target===this._data.name?'':target+' · ')+this._data.name),node('p',this._t(label==='undoName'?'nameUndoConfirm':'nameConfirm')));
   if(preview.length){box.append(node('p',this._tf('batchHint',{limit:this._nameConcurrency()})));const list=node('ul');list.style.cssText='max-height:220px;overflow:auto;padding-inline-start:24px';for(const c of preview)list.append(node('li',c.google_name+' → '+c.proposed_name+' · '+c.mac_address));box.append(list);}
-  const confirm=button(this._t('confirm'),()=>{this._nameConfirmHost.replaceChildren();run();});confirm.className='primary';box.append(confirm,button(this._t('cancel'),()=>this._nameConfirmHost.replaceChildren()));this._nameConfirmHost.append(box);confirm.focus();
+  const confirm=button(this._t('confirm'),()=>{this._nameConfirmHost.replaceChildren();run();});confirm.className='primary';const controls=node('div');controls.className='buttons';controls.append(confirm,button(this._t('cancel'),()=>this._nameConfirmHost.replaceChildren()));box.append(controls);this._nameConfirmHost.append(box);confirm.focus();
  }
  _renderBatchProgress(){
   if(!this._batchHost)return;this._batchHost.replaceChildren();const batch=this._batch;if(!batch||batch.scope!==this._scope)return;
@@ -274,7 +356,7 @@ export class GwiManagement extends HTMLElement {
   this._confirmation={target,action};this._confirmHost.replaceChildren();const box=node('div');box.className='confirmation';box.setAttribute('role','group');
   box.append(node('strong',this._t(action)+' · '+target.name+' · '+this._data.name),node('p',this._t('confirmHint')));
   const confirm=button(this._t('confirm'),()=>this._execute()),cancel=button(this._t('cancel'),()=>{this._confirmation=null;this._confirmHost.replaceChildren();});confirm.className='primary';
-  box.append(confirm,cancel);this._confirmHost.append(box);confirm.focus();
+  if(action.startsWith('restart'))confirm.className='danger';const controls=node('div');controls.className='buttons';controls.append(confirm,cancel);box.append(controls);this._confirmHost.append(box);confirm.focus();
  }
  async _execute(){
   const request=this._confirmation;if(!request||this._busy||!this._admin||this._network()?.unavailable)return;
@@ -288,6 +370,7 @@ export class GwiManagement extends HTMLElement {
  _updateFeedback(){
   const network=this._network();
   const names=network?.nameSync||this._data?.rename;
+  if(this._automaticState&&names)this._automaticState.textContent=this._t(names.paused_reason?'paused':names.enabled?'enabled':'disabled');
   if(this._nameStatus&&names){this._nameStatus.textContent=this._t('namesStatus')+': '+this._t(names.paused_reason?'paused':names.enabled?'enabled':'disabled')+' · '+this._t('renamedCount')+': '+(names.verified_count||0)+' · '+this._t('pendingCount')+': '+(names.unconfirmed_count||0)+'. '+this._t('refreshNames');this._nameToggle.textContent=this._t(names.enabled?'disableNames':'enableNames');this._nameResume.hidden=!names.paused_reason||!names.enabled;}
   for(const item of this._feedbackNodes||[]){
    const target=item.target.kind==='network'?network:network?.points.find(p=>p.id===item.target.id);

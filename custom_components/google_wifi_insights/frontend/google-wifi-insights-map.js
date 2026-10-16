@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.12.1";
-import {formatBytes} from "./gwi-usage-history.js?v=0.12.1";
-import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.12.1";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.12.2";
+import {formatBytes} from "./gwi-usage-history.js?v=0.12.2";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.12.2";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -32,6 +32,10 @@ const CSS = `
   .point { display:flex; flex-direction:column; gap:6px; align-items:center; width:160px; text-align:center; }
   .point .circle { width:54px; height:54px; display:grid; place-items:center; border:1px solid var(--divider-color); border-radius:50%; font-size:14px; font-weight:500; }
   .point.primary .circle { border:2px solid var(--primary-color); }
+  .point-column .gwi-disclosure-summary { display:grid; grid-template-columns:20px minmax(0,1fr); gap:4px 8px; text-align:left; }
+  .point-column .gwi-disclosure-action { grid-column:2; }
+  .point-column .gwi-info-pairs { grid-template-columns:minmax(0,1fr); }
+  .point-column .gwi-info-pairs dd { padding-bottom:8px; }
   .name { display:block; font-size:14px; font-weight:500; overflow-wrap:anywhere; }
   .meta { display:block; font-size:12px; color:var(--secondary-text-color); line-height:1.45; overflow-wrap:anywhere; }
   .status { display:flex; gap:5px; align-items:center; font-size:12px; }
@@ -44,11 +48,11 @@ const CSS = `
   .mesh-overview .edges path { stroke-dasharray:6 4; }
   .mesh-ratings { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:12px 0; }
   .peer-list { display:grid; gap:8px; padding:8px 0 12px; font-size:12px; color:var(--secondary-text-color); }
-  details summary { cursor:pointer; font-size:12px; color:var(--primary-color); padding:8px 0; }
+  details summary { cursor:pointer; font-size:12px; color:var(--primary-color); padding:8px 0; min-height:44px; }
   .client-row { position:relative; z-index:1; background:var(--ha-card-background,var(--card-background-color)); }
   .client-row .client { width:100%; }
   .actions { display:flex; flex-wrap:wrap; gap:4px 16px; padding-left:41px; }
-  .actions button,.actions a { color:var(--primary-color); font-size:12px; text-decoration:none; padding:4px 0; }
+  .actions button,.actions a { color:var(--primary-color); font-size:12px; text-decoration:none; padding:8px 0; min-height:44px; display:inline-flex; align-items:center; cursor:pointer; }
   .action-control { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:4px 0; }
   .action-status { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; font-size:12px; color:var(--primary-text-color); border:1px solid var(--divider-color); border-left:4px solid var(--secondary-text-color); border-radius:6px; }
   .action-status.busy { border-left-color:var(--primary-color); }
@@ -215,7 +219,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(p.backhaul)point.append(element("span","meta",t("backhaul",{type:p.backhaul})));
     if(p.meshTest!=null && p.meshTestAt)point.append(element("span","meta",t("mesh_test",{speed:p.meshTest,time:new Date(p.meshTestAt).toLocaleString(this._language)})));
     point.addEventListener("click",()=>this._moreInfo(p.entityId));
-    const wrapper=element("div");wrapper.append(point,this._controls(p.controls));
+    const wrapper=element("div","point-column");wrapper.append(point,this._controls(p.controls));
     if(p.firmwareInfo||p.lanInfo)wrapper.append(this._informationPanel(scope+":"+p.id,this._language==="pt"?"Firmware e informação LAN/WAN":"Firmware and LAN/WAN information",pointInformation(p,this._language,v=>new Date(v).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}))));
     return wrapper;
   }

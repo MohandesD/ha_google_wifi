@@ -1,8 +1,8 @@
-import './google-wifi-dashboard-ui.js?v=0.12.1';
-import './google-wifi-insights-map.js?v=0.12.1';
-import './gwi-management.js?v=0.12.1';
-import './gwi-locations.js?v=0.12.1';
-import {languageOf,overviewPath,mapModel} from './gwi-map-model.js?v=0.12.1';
+import './google-wifi-dashboard-ui.js?v=0.12.2';
+import './google-wifi-insights-map.js?v=0.12.2';
+import './gwi-management.js?v=0.12.2';
+import './gwi-locations.js?v=0.12.2';
+import {languageOf,overviewPath,mapModel} from './gwi-map-model.js?v=0.12.2';
 
 class GoogleWifiInsightsPanel extends HTMLElement {
   constructor() {
@@ -28,7 +28,12 @@ class GoogleWifiInsightsPanel extends HTMLElement {
       const style=document.createElement('style');
       style.textContent=':host{display:block;background:var(--primary-background-color);min-height:100%;color:var(--primary-text-color)}nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:2;padding:10px 16px;background:var(--card-background-color);border-bottom:1px solid var(--divider-color)}button{font:inherit;min-height:44px;padding:8px 16px;border:0;border-radius:12px;background:transparent;color:var(--primary-text-color);cursor:pointer}button[aria-selected=true]{background:var(--primary-color);color:var(--text-primary-color)}button:focus-visible,select:focus-visible{outline:3px solid var(--primary-color);outline-offset:3px}main{max-width:1600px;margin:auto}main>google-wifi-insights-map{padding:16px}.filters{display:flex;flex-wrap:wrap;gap:14px;padding:14px 20px 0;max-width:1560px;margin:auto}.filters label{display:grid;gap:4px;font:13px system-ui}.filters select{font:14px system-ui;min-height:44px;max-width:min(100%,480px);padding:8px 12px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:inherit}[hidden]{display:none!important}';
       this._nav=document.createElement('nav');this._nav.setAttribute('role','tablist');
-      style.textContent+='nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav::-webkit-scrollbar{display:none}nav button{flex:none;white-space:nowrap}.filters label{min-width:0;max-width:100%}';
+      style.textContent+=`:host{container-type:inline-size;--gwi-sticky-offset:65px}*{box-sizing:border-box}
+        nav{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:thin}nav button{flex:none;white-space:nowrap}
+        .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));align-items:end}
+        .filters label{min-width:0;max-width:100%}.filters select{width:100%;min-width:0;max-width:100%}
+        @container(max-width:460px){nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:8px}nav button{min-width:0;padding:8px;white-space:normal}.filters{padding:12px 12px 0;gap:10px}}
+      `;
       this._buttons={};this._cards={};this._main=document.createElement('main');
       for (const [view,tag] of [['overview','google-wifi-dashboard-ui'],['map','google-wifi-insights-map'],['management','google-wifi-management'],['locations','google-wifi-locations']]) {
         const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');
@@ -53,24 +58,26 @@ class GoogleWifiInsightsPanel extends HTMLElement {
     const networks=mapModel(this._hass?.states),locations=new Map();
     for(const n of networks)if(n.locationId)locations.set(n.locationId,n.locationName);
     if(this._location&&this._location!=='unassigned'&&!locations.has(this._location))this._location='';
-    const candidates=networks.filter(n=>!this._location||(n.locationId||'unassigned')===this._location);
+    const singleNetwork=this._view==='management';
+    const candidates=networks.filter(n=>(!this._location||(n.locationId||'unassigned')===this._location)&&(!singleNetwork||n.source==='google_cloud'));
     if(!candidates.some(n=>n.scope===this._network))this._network='';
+    if(singleNetwork&&!this._network)this._network=candidates[0]?.scope||'';
     const filterSignature=JSON.stringify([language,networks.map(n=>[n.scope,n.name,n.source,n.locationId,n.locationName])]);
     if(filterSignature!==this._filterSignature){
       this._filterSignature=filterSignature;
       const option=(value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;return o;};
       this._selectors.location.replaceChildren(option('',language==='pt'?'Todas as localizações':'All locations'),option('unassigned',language==='pt'?'Sem localização atribuída':'No location assigned'),...[...locations].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>option(id,name)));
     }
-    const candidateSignature=JSON.stringify([language,candidates.map(n=>[n.scope,n.name,n.source,n.locationName])]);
+    const candidateSignature=JSON.stringify([language,singleNetwork,candidates.map(n=>[n.scope,n.name,n.source,n.locationName])]);
     if(candidateSignature!==this._candidateSignature){
       this._candidateSignature=candidateSignature;
       const option=(value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;return o;};
-      this._selectors.network.replaceChildren(option('',language==='pt'?'Todas as redes':'All networks'),...candidates.map(n=>option(n.scope,[n.locationName,n.name,n.source==='local_status'?(language==='pt'?'Estado local':'Local status'):(language==='pt'?'Conta Google':'Google account')].filter(Boolean).join(' · '))));
+      this._selectors.network.replaceChildren(...(!singleNetwork?[option('',language==='pt'?'Todas as redes':'All networks')]:[]),...candidates.map(n=>option(n.scope,[n.locationName,n.name,n.source==='local_status'?(language==='pt'?'Estado local':'Local status'):(language==='pt'?'Conta Google':'Google account')].filter(Boolean).join(' · '))));
     }
     this._selectors.location.value=this._location||'';this._selectors.network.value=this._network||'';
     for(const key of ['location','network']){const text=key==='location'?(language==='pt'?'Casa / edifício / localização':'Home / building / location'):(language==='pt'?'Rede':'Network');this._filterLabels[key].textContent=text;this._selectors[key].setAttribute('aria-label',text);}
     this._filters.hidden=this._view==='locations';
-    const config={language:'auto',map_path:mapPath,locations_path:this._locationsPath,overview_path:returnPath,max_clients:8,location_id:this._location||undefined,network_entity:candidates.find(n=>n.scope===this._network)?.entityId};
+    const config={language:'auto',map_path:mapPath,locations_path:this._locationsPath,overview_path:returnPath,max_clients:8,hide_network_selector:true,location_id:this._location||undefined,network_entity:candidates.find(n=>n.scope===this._network)?.entityId};
     if(JSON.stringify(config)!==this._cardConfig){this._cardConfig=JSON.stringify(config);for(const view of ['overview','map','management'])this._cards[view].setConfig(config);}
     this._language=language;this.lang=language;
     this._nav.setAttribute('aria-label',language==='pt'?'Google WiFi · vistas':'Google WiFi · views');

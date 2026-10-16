@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.12.2 — Dashboard layout and navigation fixes (beta)
+
+- Align selectors and refresh controls; use one shared cloud-network selector in
+  the bundled Management view. Keep the selected home/network explicit, preserve
+  unavailable targets and retain the local selector on standalone cards.
+- Constrain filter widths, keep every tab visible on narrow screens and wrap
+  long point labels in Overview and firmware disclosures in the map's narrow
+  point columns. Improve layouts for point areas, location forms,
+  name candidates, batch controls and confirmation buttons.
+- Separate automatic naming from manual actions, make name history easier to
+  expand and distinguish restart actions visually. Keep touch targets at least
+  44 pixels for map actions and usage controls.
+- Add regression checks for management selection and cross-home isolation. Extend
+  the fictional demo with long labels, English/Portuguese and light/dark themes.
+  Provider requests, authentication, naming limits and lighting behavior are unchanged.
+
 ## 0.12.1 — Parallel manual name batches (beta)
 
 - Process up to three different clients concurrently in **Rename selected** and

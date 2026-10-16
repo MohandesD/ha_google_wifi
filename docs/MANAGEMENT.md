@@ -6,6 +6,12 @@ currently available Google account network. Local-only mode has no cloud client
 association inventory. Existing dashboard cards keep working; the Management
 page is part of the bundled sidebar panel.
 
+From version 0.12.2, use the shared **Network** selector above the page. Management
+requires one Google account network, so it replaces **All networks** with an
+explicit cloud target. The selected home still limits the available networks;
+an outage does not silently switch actions to another home. Standalone management
+cards retain their own selector. The refresh control reads cached data only.
+
 Version 0.12.0 adds a shared location/network filter and a **Locations** page for
 multiple homes and setup guidance. [Location labels](LOCATIONS.md) are independent
 of the existing point-to-area mappings below. Assign each cloud network its home
@@ -94,8 +100,10 @@ without recalling sent requests. Pending journal entries cannot be selected for
 another batch. An older backend retains serial behavior and shows an upgrade
 notice until the complete integration is updated.
 
-To continue correcting new generic names automatically, use **Enable automatic
-naming** and confirm the selected network. The setting starts disabled and is
+To continue correcting new generic names automatically, expand **Automatic naming**
+below the suggestions, use **Enable automatic naming** and confirm the selected
+network. This optional section starts collapsed; its current status remains visible.
+The setting starts disabled and is
 saved separately for each account entry and network. **Disable automatic naming**
 stops subsequent requests, including during outages. An in-flight request cannot
 be recalled.

@@ -1,11 +1,10 @@
 # Screenshot provenance
 
 The screenshots in this directory were captured in a browser on 2026-10-16 from
-the released **0.11.0** panel components, imported directly by `tools/demo.html`.
-`naming-demo.png` was refreshed from **0.11.1** to show the one-time batch controls
-and a selected fictional device while automatic naming remains disabled.
-`locations-demo.png` and `connection-guide-demo.png` were captured from **0.12.0**
-using its fictional multi-home scenario and the same released components.
+the **0.12.2** panel components, imported directly by `tools/demo.html`.
+They show the shared network selector, manual naming controls and revised layouts.
+Automatic naming remains disabled. The Management and Locations captures use the
+fictional multi-home scenario; the mobile capture validates a 390-pixel viewport.
 The surrounding Home Assistant sidebar/header is a simulated demo frame, not a
 connection to a Home Assistant instance. The component layout and behavior are
 the released code; the demo does not override their templates or styles.
@@ -35,6 +34,7 @@ JavaScript objects.
 | `naming-demo.png` | An exact-MAC name proposal; automatic naming is disabled. |
 | `locations-demo.png` | Independent networks labeled by home/building. |
 | `connection-guide-demo.png` | Connection steps reached from a local-status network. |
+| `management-mobile-demo.png` | Management on a narrow screen, with every tab and the single network selector visible. |
 
 Each image is an ordinary viewport capture, so some continue below the visible
 area as in Home Assistant. Browser JPEG captures are converted to PNG without

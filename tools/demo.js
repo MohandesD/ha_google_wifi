@@ -7,10 +7,14 @@ let tick=0;
 const entities={};
 const parameters=new URLSearchParams(location.search);
 const capture=parameters.get('capture')==='1';
-if(parameters.get('scenario')==='homes')document.querySelector('#scenario').value='homes';
+if(['homes','stress'].includes(parameters.get('scenario')))document.querySelector('#scenario').value=parameters.get('scenario');
+if(parameters.get('language')==='pt')document.querySelector('#language').value='pt';
+if(parameters.get('theme')==='dark')document.querySelector('#theme').value='dark';
 document.documentElement.classList.toggle('capture',capture);
 const now=()=>new Date().toISOString();
-const names=['Hall point','Office point','Studio point','Upstairs point'];
+let names=['Hall point','Office point','Studio point','Upstairs point'];
+const shortPointNames=[...names];
+const longPointNames=['Example entrance and reception point','Example administration and shared workspace point','ExampleStudioPointWithAnUnusuallyLongContinuousName','Example upstairs landing and guest rooms point'];
 const demoAreas=[{id:'hall',name:'Hall'},{id:'office',name:'Office'},{id:'studio',name:'Studio'},{id:'upstairs',name:'Upstairs'}];
 const areaMappings={point0:'hall',point1:'office',point2:'studio',point3:'upstairs'};
 const demoLocations={example:{id:'demo-home',name:'Example home'},'remote-example':{id:'demo-workshop',name:'Example workshop'},'local-example':{id:'demo-home',name:'Example home'}};
@@ -19,7 +23,8 @@ const demoNaming={enabled:false,paused_reason:null,history:[],excluded_station_i
 let demoGoogleName='Unnamed device';
 const namingSummary=()=>({enabled:demoNaming.enabled,paused_reason:null,last_state:demoNaming.history.at(-1)?.state||'idle',verified_count:demoNaming.history.filter(r=>r.state==='verified').length,unconfirmed_count:0});
 function demoRename(automatic=false){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',mac_address:'02:00:00:00:00:06',old_name:demoGoogleName,new_name:proposedName,state:'verified',kind:'rename',automatic};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
-function management(){
+function management(scope='example'){
+ if(scope==='remote-example')return {scope,network_id:scope,name:'Workshop WiFi',location:demoLocations[scope],entity_id:'sensor.demo_remote-example_network_remote_diagnosis',areas:demoAreas,points:[{id:'point0',name:'Workshop primary',entity_id:'sensor.demo_remote-example_point_point0_clients',area_id:null,online:true,is_root:true},{id:'point1',name:'Annex point',entity_id:'sensor.demo_remote-example_point_point1_clients',area_id:null,online:true,is_root:false}],name_candidates:[],rename:{enabled:false,history:[],writable:true,max_concurrent:3,state:'demo_only'}};
  return {scope:'example',network_id:'example',name:'Demo WiFi',location:demoLocations.example,entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
   points:names.map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
   name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:proposedName,mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),max_concurrent:3,state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
@@ -43,6 +48,8 @@ function history(mode='hour',scale=1){
   return {period:{start:new Date(start).toISOString(),end:new Date(end).toISOString(),expected_buckets:size,granularity_seconds:step/1000},retrieved_at:now(),series:Array.from({length:size},(_,i)=>({start:new Date(start+i*step).toISOString(),end:new Date(start+(i+1)*step).toISOString(),download_bytes:Math.round((200000000+120000000*(1+Math.sin(i*.7)))*factor),upload_bytes:Math.round((20000000+15000000*(1+Math.cos(i*.4)))*factor)}))};
 }
 function build(){
+  const stress=document.querySelector('#scenario').value==='stress';names=stress?longPointNames:shortPointNames;
+  document.documentElement.dataset.theme=document.querySelector('#theme').value;
   for(const key of Object.keys(entities))delete entities[key];
   const scope='example';
   // Measured RSSI belongs only to the six fictional Shelly relays, never phones or laptops.
@@ -93,7 +100,7 @@ function build(){
     state('unavailable-example','network','network','diagnosis','unavailable','Second example network');
     state('unavailable-example','point','old-point','clients','unavailable','Unavailable example point');
   }
-  if(document.querySelector('#scenario').value==='homes'){
+  if(['homes','stress'].includes(document.querySelector('#scenario').value)){
     state('remote-example','network','remote','diagnosis','quality_data_available','Workshop WiFi');
     for(let i=0;i<2;i++)state('remote-example','point','point'+i,'clients',i===0?1:0,i===0?'Workshop primary':'Annex point',{online:true,is_root:i===0,root_ap_id:'point0'});
     state('remote-example','client','tablet','point','Workshop primary','Example work tablet',{connected:true,ap_id:'point0',connection_type:'WIRELESS',ip_address:'198.51.100.20',mac_address:'02:00:00:00:10:20'});
@@ -103,7 +110,7 @@ function build(){
   for(const s of Object.values(entities))if(s.attributes.gwi_kind==='network'&&s.attributes.gwi_metric==='diagnosis'){
     const location=demoLocations[s.attributes.gwi_scope];Object.assign(s.attributes,{network_location:location?.name||null,network_location_id:location?.id||null,gwi_entry_id:'fictional-entry'});
   }
-  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},services:{google_wifi_insights:{set_network_location:{}}},states:entities,callWS:async request=>{
+  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},themes:{darkMode:document.querySelector('#theme').value==='dark'},config:{time_zone:'UTC'},user:{is_admin:true},services:{google_wifi_insights:{set_network_location:{}}},states:entities,callWS:async request=>{
    if(request.service==='set_network_location'){
     const target=entities[request.service_data.entity_id];if(target?.attributes.gwi_kind!=='network')throw Error('Unknown demo network');
     const scope=target.attributes.gwi_scope,name=request.service_data.name?.normalize('NFKC').trim().replace(/\s+/g,' ')||null;
@@ -111,7 +118,7 @@ function build(){
     demoLocations[scope]=name?{id:'demo-'+name.toLowerCase().replace(/\W/g,'-'),name}:null;
     panel.hass=build();return {response:{scope,location:demoLocations[scope]}};
    }
-   if(request.service==='get_management')return {response:management()};
+   if(request.service==='get_management')return {response:management(entities[request.service_data.entity_id]?.attributes.gwi_scope)};
    if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
    if(['set_name_sync','rename_client','undo_name','verify_name'].includes(request.service)){
     let result=null;
@@ -131,6 +138,7 @@ panel.panel={config:{map_path:'/google-wifi-insights/mapa'}};
 panel.route={path:parameters.get('view')==='locations'?'/locations':parameters.get('view')==='map'?'/mapa':parameters.get('view')==='management'?'/management':'/overview'};
 document.querySelector('#language').addEventListener('change',update);
 document.querySelector('#scenario').addEventListener('change',update);
+document.querySelector('#theme').addEventListener('change',update);
 document.addEventListener('hass-more-info',event=>{
   document.querySelector('#detail-text').textContent=JSON.stringify(entities[event.detail.entityId]||{demo:true},null,2);
   document.querySelector('#details').showModal();

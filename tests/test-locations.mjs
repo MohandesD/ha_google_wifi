@@ -100,7 +100,7 @@ test('location filters never merge repeated point IDs, names or clients from sep
  assert.equal(model.mapModel(states,{location_id:'home',network_entity:'sensor.second'}).length,0);
 });
 
-test('shared panel filters all views to the chosen home/network while locations remains an inventory',()=>{
+function panelEnvironment(){
  const dom=new JSDOM('<main></main>',{url:'http://ha.example/google-wifi-insights/overview',runScripts:'outside-only'}),context=dom.getInternalVMContext();Object.assign(context,model);
  for(const tag of ['google-wifi-dashboard-ui','google-wifi-insights-map','google-wifi-management','google-wifi-locations']){
   dom.window.customElements.define(tag,class extends dom.window.HTMLElement{setConfig(value){this.config=value;}set hass(value){this.lastHass=value;}});
@@ -108,10 +108,38 @@ test('shared panel filters all views to the chosen home/network while locations 
  vm.runInContext(panelSource.replace(/^import[^\n]*\n/gm,''),context);
  const panel=dom.window.document.createElement('google-wifi-insights-panel');dom.window.document.querySelector('main').append(panel);panel._hass=fixture();panel._update();
  const change=(key,value)=>{panel._selectors[key].value=value;panel._selectors[key].dispatchEvent(new dom.window.Event('change'));};
+ return {panel,change};
+}
+
+test('shared panel filters all views to the chosen home/network while locations remains an inventory',()=>{
+ const {panel,change}=panelEnvironment();
  change('location','remote');assert.equal(panel._selectors.network.options.length,2);change('network','second');
  for(const view of ['overview','map','management']){assert.equal(panel._cards[view].config.location_id,'remote');assert.equal(panel._cards[view].config.network_entity,'sensor.second');}
  assert.equal(panel._cards.map.config.locations_path,'/google-wifi-insights/locations');
  panel.route={path:'/locations'};assert.equal(panel._main.firstChild,panel._cards.locations);assert.equal(panel._filters.hidden,true);assert.equal(panel._cards.locations.config.location_id,undefined);
  change('location','home');assert.equal(panel._cards.overview.config.network_entity,undefined);assert.equal(panel._selectors.network.options.length,3);
  assert.equal(panel._cards.management.config.location_id,'home');
+});
+
+test('management uses one explicit shared cloud network and preserves a selected home',()=>{
+ const {panel,change}=panelEnvironment();
+ change('location','remote');change('network','second');panel.route={path:'/management'};
+ assert.equal(panel._selectors.network.options.length,1);assert.equal(panel._selectors.network.value,'second');
+ assert.equal(panel._cards.management.config.network_entity,'sensor.second');assert.equal(panel._cards.management.config.hide_network_selector,true);
+ change('location','home');assert.equal(panel._selectors.network.options.length,1);assert.equal(panel._selectors.network.value,'first');
+ assert.equal(panel._cards.management.config.network_entity,'sensor.first');
+ panel.route={path:'/overview'};assert.equal(panel._selectors.network.options.length,3);
+ change('network','local');panel.route={path:'/management'};
+ assert.equal(panel._selectors.network.value,'first','A local-status row is not a management target');
+ change('location','');change('network','second');
+ panel._hass.states['sensor.second'].state='unavailable';panel._update();
+ assert.equal(panel._selectors.network.value,'second','An outage never silently switches actions to another home');
+});
+
+test('a local-only selected location never falls back to a cloud network in another home',()=>{
+ const {panel,change}=panelEnvironment();change('location','home');
+ for(const key of Object.keys(panel._hass.states))if(key.startsWith('sensor.first'))delete panel._hass.states[key];
+ panel.route={path:'/management'};
+ assert.equal(panel._selectors.network.options.length,0);assert.equal(panel._cards.management.config.network_entity,undefined);
+ assert.equal(model.mapModel(panel._hass.states,panel._cards.management.config).filter(n=>n.source==='google_cloud').length,0);
 });

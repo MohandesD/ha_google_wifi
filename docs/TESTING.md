@@ -77,3 +77,13 @@ captures and scroll to individual sections rather than shrinking a whole long
 page into an unreadable image. The small demo badge, generic demo user, names,
 documentation-only IP ranges and locally administered MACs distinguish this
 fixture from a real installation. See [screenshot provenance](images/README.md).
+
+Use `&scenario=stress` for long point labels, `&language=pt` for Portuguese and
+`&theme=dark` for the dark fixture. Theme and scenario controls are also available
+outside capture mode. Check Overview, Map, Management and Locations at 320, 768
+and 1280 pixels: the document must fit its viewport, controls must remain usable,
+and Management must expose exactly one explicit cloud-network selector. Confirm
+that unavailable or local-only homes cannot silently target another home's cloud
+network. These are layout checks with fictional data, not live household trials.
+The [narrow-screen capture](images/management-mobile-demo.png) shows the expected
+tab and filter layout without horizontal page scrolling.
