@@ -69,3 +69,9 @@ precede 1.0. Default-catalogue inclusion is a separate submission. The integrati
 ships its own original brand assets for modern HA/HACS; it does not depend on a
 central Brands pull request. No official endorsement or Quality Scale tier is
 claimed. Freeze new endpoints during stabilization unless a fix requires them.
+
+The subsequent 0.10.0 beta adds local point/area mappings, associated-area sensors,
+management UI and read-only name proposals. It introduces no new Google writes
+and does not convert the 0.9.3 hardware evidence into a 1.0 compatibility claim.
+The automatic rename request schema/read-back/undo gates in
+[MANAGEMENT.md](MANAGEMENT.md) remain pending.

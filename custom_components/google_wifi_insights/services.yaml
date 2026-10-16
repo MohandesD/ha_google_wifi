@@ -69,3 +69,25 @@ get_google_metrics:
       selector:
         entity:
           integration: google_wifi_insights
+get_management:
+  name: Get network management
+  description: Return cached point/area mappings, available HA areas and read-only name suggestions from exact, unambiguous MAC matches. No Google requests are made.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+set_point_area:
+  name: Map point to area
+  description: Map a current Google WiFi point to an existing HA area. Updates WiFi associated area sensors without changing fixed device areas. Clear area_id to remove the mapping.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    area_id:
+      required: true
+      selector:
+        area:

@@ -1,6 +1,7 @@
-import './google-wifi-dashboard-ui.js?v=0.9.3';
-import './google-wifi-insights-map.js?v=0.9.3';
-import {languageOf,overviewPath} from './gwi-map-model.js?v=0.9.3';
+import './google-wifi-dashboard-ui.js?v=0.10.0';
+import './google-wifi-insights-map.js?v=0.10.0';
+import './gwi-management.js?v=0.10.0';
+import {languageOf,overviewPath} from './gwi-map-model.js?v=0.10.0';
 
 class GoogleWifiInsightsPanel extends HTMLElement {
   constructor() {
@@ -14,7 +15,7 @@ class GoogleWifiInsightsPanel extends HTMLElement {
     if (!this._timer) this._timer=setTimeout(()=>{this._timer=undefined;this._update();},200);
   }
   set panel(value) { this._panel=value; this._update(); }
-  set route(value) { this._select(/(?:^|\/)mapa(?:\/|$)/.test(value?.path||'')?'map':'overview'); }
+  set route(value) { this._select(/(?:^|\/)management(?:\/|$)/.test(value?.path||'')?'management':/(?:^|\/)mapa(?:\/|$)/.test(value?.path||'')?'map':'overview'); }
   connectedCallback() { this._update(); }
   disconnectedCallback() { clearTimeout(this._timer);this._timer=undefined; }
   _select(view) { this._view=view;this._update(); }
@@ -24,10 +25,10 @@ class GoogleWifiInsightsPanel extends HTMLElement {
     const returnPath=overviewPath(this._panel?.config,mapPath);
     if (!this._built) {
       const style=document.createElement('style');
-      style.textContent=':host{display:block;background:var(--primary-background-color);min-height:100%;color:var(--primary-text-color)}nav{display:flex;gap:8px;position:sticky;top:0;z-index:2;padding:10px 16px;background:var(--card-background-color);border-bottom:1px solid var(--divider-color)}button{font:inherit;min-height:44px;padding:8px 16px;border:0;border-radius:12px;background:transparent;color:var(--primary-text-color);cursor:pointer}button[aria-selected=true]{background:var(--primary-color);color:var(--text-primary-color)}button:focus-visible{outline:3px solid var(--primary-color);outline-offset:3px}main{max-width:1600px;margin:auto}main>google-wifi-insights-map{padding:16px}';
+      style.textContent=':host{display:block;background:var(--primary-background-color);min-height:100%;color:var(--primary-text-color)}nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:2;padding:10px 16px;background:var(--card-background-color);border-bottom:1px solid var(--divider-color)}button{font:inherit;min-height:44px;padding:8px 16px;border:0;border-radius:12px;background:transparent;color:var(--primary-text-color);cursor:pointer}button[aria-selected=true]{background:var(--primary-color);color:var(--text-primary-color)}button:focus-visible{outline:3px solid var(--primary-color);outline-offset:3px}main{max-width:1600px;margin:auto}main>google-wifi-insights-map{padding:16px}';
       this._nav=document.createElement('nav');this._nav.setAttribute('role','tablist');
       this._buttons={};this._cards={};this._main=document.createElement('main');
-      for (const [view,tag] of [['overview','google-wifi-dashboard-ui'],['map','google-wifi-insights-map']]) {
+      for (const [view,tag] of [['overview','google-wifi-dashboard-ui'],['map','google-wifi-insights-map'],['management','google-wifi-management']]) {
         const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');
         button.addEventListener('click',()=>this._select(view));this._buttons[view]=button;this._nav.append(button);
         const card=document.createElement(tag);card.setConfig(view==='map'?{max_clients:8,overview_path:returnPath}:{language:'auto',map_path:mapPath});
@@ -47,12 +48,12 @@ class GoogleWifiInsightsPanel extends HTMLElement {
     this._language=language;this.lang=language;
     this._nav.setAttribute('aria-label',language==='pt'?'Google WiFi · vistas':'Google WiFi · views');
     for (const [view,button] of Object.entries(this._buttons)) {
-      button.textContent=view==='map'?(language==='pt'?'Mapa':'Map'):(language==='pt'?'Visão geral':'Overview');
+      button.textContent={map:language==='pt'?'Mapa':'Map',overview:language==='pt'?'Visão geral':'Overview',management:language==='pt'?'Gestão':'Management'}[view];
       button.setAttribute('aria-selected',String(view===this._view));
       button.setAttribute('tabindex',view===this._view?'0':'-1');
       button.onkeydown=event=>{
         if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
-        event.preventDefault();const next=event.key==='Home'?'overview':event.key==='End'?'map':view==='map'?'overview':'map';
+        event.preventDefault();const views=Object.keys(this._buttons),next=event.key==='Home'?views[0]:event.key==='End'?views.at(-1):views[(views.indexOf(view)+(event.key==='ArrowRight'?1:views.length-1))%views.length];
         this._select(next);this._buttons[next].focus();
       };
     }

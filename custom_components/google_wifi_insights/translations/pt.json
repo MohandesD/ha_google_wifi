@@ -378,6 +378,9 @@
       },
       "api_environment": {
         "name": "Ambiente da API"
+      },
+      "associated_area": {
+        "name": "Divisão associada ao Wi-Fi"
       }
     },
     "binary_sensor": {

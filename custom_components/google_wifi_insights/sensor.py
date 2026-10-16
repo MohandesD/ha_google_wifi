@@ -52,6 +52,7 @@ SENSORS = {
         ("wireless_band", "WiFi band"),
         ("connection_type", "Connection type"),
         ("point", "Connected point"),
+        ("associated_area", "WiFi associated area"),
         ("rssi", "WiFi RSSI"),
         ("signal_quality", "Signal quality"),
         ("download_mbps", "Download traffic"),

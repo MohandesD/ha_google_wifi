@@ -5,6 +5,13 @@ const panel=document.querySelector('#panel');
 let tick=0;
 const entities={};
 const now=()=>new Date().toISOString();
+const demoAreas=[{id:'office',name:'Example office'},{id:'studio',name:'Example studio'},{id:'hall',name:'Example hall'}];
+const areaMappings={point0:'hall',point1:'office',point2:'studio'};
+function management(){
+ return {scope:'example',network_id:'example',name:'Example WiFi',entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
+  points:['Main point','Office point','Studio point'].map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
+  name_candidates:[{station_id:'client5',google_name:'Unnamed device',proposed_name:'Example tablet',mac_address:'02:00:00:00:00:06'}],rename:{state:'request_schema_unverified',writable:false}};
+}
 function state(scope,kind,id,key,value,name,extra={}){
   const entityId=`sensor.demo_${scope}_${kind}_${id}_${key}`;
   entities[entityId]={entity_id:entityId,state:String(value),last_updated:now(),attributes:{gwi_scope:scope,gwi_network_id:scope,gwi_kind:kind,gwi_item_id:id,gwi_metric:key,device_name:name,data_source:'google_cloud',...extra}};
@@ -31,7 +38,8 @@ function build(){
   names.forEach((name,i)=>{
     const firmware={installed_version:'123.4.5',local_version:'123.4.5',update_status:'idle',update_channel:'stable',update_required:false,lan_stale:false,lan_retrieved_at:now(),release_notes:{state:'available',queried_version:'123.4.5',matching_installed:true,notes:[{version:'123.4.5',title:'Example release notes',description:'Fictional firmware note used to demonstrate this view.',matches_installed:true}]}};
     const lan={host:`192.0.2.${i+1}`,stale:false,retrieved_at:now(),status:{system:{groupRole:i===0?'root':'leaf',uptime:86400},wan:{online:true,ethernetLink:true,ipMethod:'dhcp',localIpAddress:`192.0.2.${i+1}`,gatewayIpAddress:'192.0.2.1'}},endpoints:{status:{state:'available',stale:false,retrieved_at:now()}}};
-    state(scope,'point',`point${i}`,'clients',rows.filter(row=>row[1]===i).length,name,{online:true,is_root:i===0,root_ap_id:'point0',mesh_quality:i===2?'fair':'excellent',mesh_quality_source:'google_mesh_rating'});
+    const area=demoAreas.find(a=>a.id===areaMappings[`point${i}`]);
+    state(scope,'point',`point${i}`,'clients',rows.filter(row=>row[1]===i).length,name,{online:true,is_root:i===0,root_ap_id:'point0',mesh_quality:i===2?'fair':'excellent',mesh_quality_source:'google_mesh_rating',mapped_area:area?.name,mapped_area_id:area?.id});
     state(scope,'point',`point${i}`,'google_telemetry_at',now(),name,{google_telemetry:{firmwareInformation:firmware,lanInformation:lan}});
     state(scope,'point',`point${i}`,'update_status','idle',name,{firmware_information:firmware});
     state(scope,'point',`point${i}`,'lan_status','available',name,{lan_information:lan});
@@ -39,12 +47,19 @@ function build(){
   rows.forEach(([name,point,rssi,quality],i)=>{
     if(document.querySelector('#scenario').value==='missing'){rssi=null;quality=null;}
     state(scope,'client',`client${i}`,'point',names[point],name,{connected:true,ap_id:`point${point}`,point:names[point],rssi,rssi_source:rssi==null?null:'shelly_wifi_status',rssi_observed_at:rssi==null?null:now(),signal_quality:quality,quality_source:'google_connection_rating',wireless_band:'BAND_5000_MHZ',connection_type:'WIRELESS',ip_address:`192.0.2.${i+10}`,mac_address:`02:00:00:00:00:${String(i+1).padStart(2,'0')}`,download_mbps:i===0?3.5+tick/100:Math.max(0,1-i/10),upload_mbps:.1,google_name:name,ha_device_name:i===0?'Example computer':null,wifi_test_mbps:120+i*20,wifi_test_at:now(),wifi_test_point:names[point],usage_windows:{hour:usage},usage_hourly:summary.series});
+    const area=demoAreas.find(a=>a.id===areaMappings[`point${point}`]);
+    Object.assign(entities[`sensor.demo_example_client_client${i}_point`].attributes,{associated_area:area?.name,associated_area_id:area?.id,area_source:area?'wifi_point':null});
   });
   if(document.querySelector('#scenario').value==='partial'){
     state('unavailable-example','network','network','diagnosis','unavailable','Second example network');
     state('unavailable-example','point','old-point','clients','unavailable','Unavailable example point');
   }
-  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},states:entities,callWS:async request=>({response:history(request.service_data?.resolution)}),callService:async()=>{throw new Error('Demo mode: network actions are disabled');}};
+  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},states:entities,callWS:async request=>{
+   if(request.service==='get_management')return {response:management()};
+   if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
+   if(request.service==='google_action')throw Error('Demo mode: network actions are disabled');
+   return {response:history(request.service_data?.resolution)};
+  },callService:async()=>{throw new Error('Demo mode: network actions are disabled');}};
 }
 function update(){panel.hass=build();}
 panel.panel={config:{map_path:'/google-wifi-insights/mapa'}};

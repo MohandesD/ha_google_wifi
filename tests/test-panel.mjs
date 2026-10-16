@@ -40,6 +40,8 @@ test('bundled panel keeps existing view instances and respects alternate HA rout
   assert.equal(panel._main.firstChild,panel._cards.map);
   panel.route={path:'/overview'};
   assert.equal(panel._main.firstChild,overview);
+  panel.route={path:'/management'};
+  assert.equal(panel._main.firstChild,panel._cards.management);
 });
 
 test('panel coalesces HA updates and follows the HA user language',()=>{
@@ -51,6 +53,7 @@ test('panel coalesces HA updates and follows the HA user language',()=>{
   assert.equal(panel._cards.map.updates,undefined);
   assert.equal(panel._buttons.map.textContent,'Mapa');
   assert.equal(panel._buttons.overview.textContent,'Visão geral');
+  assert.equal(panel._buttons.management.textContent,'Gestão');
 });
 
 test('panel tabs support keyboard selection and more-info events can bubble',()=>{
@@ -62,6 +65,12 @@ test('panel tabs support keyboard selection and more-info events can bubble',()=
   assert.equal(panel._buttons.map.focused,true);
   panel._buttons.map.onkeydown({key:'Home',preventDefault(){}});
   assert.equal(panel._buttons.overview.attributes['aria-selected'],'true');
+  panel._buttons.overview.onkeydown({key:'End',preventDefault(){}});
+  assert.equal(panel._buttons.management.attributes['aria-selected'],'true');
+  panel._buttons.management.onkeydown({key:'ArrowRight',preventDefault(){}});
+  assert.equal(panel._buttons.overview.attributes['aria-selected'],'true');
+  panel._buttons.overview.onkeydown({key:'ArrowLeft',preventDefault(){}});
+  assert.equal(panel._buttons.management.attributes['aria-selected'],'true');
   assert.equal(panel.shadowRoot.listeners['hass-more-info'],undefined);
 });
 

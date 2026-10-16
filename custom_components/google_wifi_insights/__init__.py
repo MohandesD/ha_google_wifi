@@ -1,6 +1,7 @@
 """Google WiFi Insights custom integration."""
 
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import WifiCoordinator
@@ -34,6 +35,11 @@ async def async_unload_entry(hass, entry):
     if unloaded:
         async_unload_frontend(hass, entry.entry_id)
     return unloaded
+
+
+async def async_remove_entry(hass, entry):
+    """Remove only this entry's private local area mappings when it is deleted."""
+    await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.areas").async_remove()
 
 
 async def async_remove_config_entry_device(hass, entry, device):

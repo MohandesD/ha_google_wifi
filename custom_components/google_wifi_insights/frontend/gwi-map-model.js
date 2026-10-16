@@ -154,7 +154,7 @@ export function mapModel(states, config = {}, language="en") {
     const a = state.attributes || {};
     if (a.gwi_kind === "network" && a.gwi_metric === "diagnosis") {
       const n = network(a);
-      if (n) { n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
+      if (n) { n.entityId=entityId;n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
     }
   }
   for (const [entityId, state] of entries) {
@@ -168,6 +168,7 @@ export function mapModel(states, config = {}, language="en") {
         online: unavailable ? null : typeof a.online === "boolean" ? a.online : null,
         unavailable, clients: [], count: ["unknown", "unavailable"].includes(state.state) ? null : Number.isFinite(Number(state.state)) ? Number(state.state) : null,
         isRoot: a.is_root === true, rootId: a.root_ap_id || null,
+        area:unavailable?null:a.mapped_area,areaId:unavailable?null:a.mapped_area_id,
         mesh: quality(a.mesh_quality,a.mesh_quality_source,unavailable || a.online !== true,locale),
       });
     }
@@ -180,6 +181,7 @@ export function mapModel(states, config = {}, language="en") {
     const client = {
       entityId, id: a.gwi_item_id || entityId, name: a.device_name || entityId,
       pointId: a.ap_id || null, pointName: a.point || null,
+      associatedArea:a.associated_area || null,associatedAreaId:a.associated_area_id || null,
       signal: connection(a,locale),
       band: Object.hasOwn({BAND_2400_MHZ:2.4,BAND_5000_MHZ:5,BAND_6000_MHZ:6},a.wireless_band)?t.number({BAND_2400_MHZ:2.4,BAND_5000_MHZ:5,BAND_6000_MHZ:6}[a.wireless_band])+" GHz":null,
       download: a.download_mbps, upload: a.upload_mbps,

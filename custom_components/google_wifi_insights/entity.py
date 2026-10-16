@@ -148,6 +148,7 @@ class WifiEntity(CoordinatorEntity):
                 "download_mbps", "upload_mbps", "traffic_source", "rssi_source",
                 "rssi_observed_at", "wifi_bssid", "wifi_channel", "roaming_supported",
                 "radio_available", "roam_rssi_threshold", "roam_interval", "gwi_device_id",
+                "associated_area", "associated_area_id", "area_source",
             ) if self.key in {"point", "tracker", "connected"} else (
                 "ip_address", "ip_addresses", "mac_address", "google_name",
                 "ha_device_id", "ha_device_name", "identity_match", "name_source",
@@ -158,6 +159,8 @@ class WifiEntity(CoordinatorEntity):
                     "rssi_source", "rssi_observed_at", "quality_source",
                     "signal_quality", "connection_type", "wireless_band",
                 )
+            if self.key == "associated_area":
+                client_keys += ("associated_area_id", "area_source")
             attributes.update(
                 {
                     key: item.get(key)
@@ -173,6 +176,8 @@ class WifiEntity(CoordinatorEntity):
             attributes.update(
                 {
                     "devices": item.get("client_list", []),
+                    "mapped_area": item.get("mapped_area"),
+                    "mapped_area_id": item.get("mapped_area_id"),
                     "unassigned_clients": network.get("unassigned_clients"),
                     "unknown_connection_clients": network.get(
                         "unknown_connection_clients"

@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.9.3";
-import {formatBytes} from "./gwi-usage-history.js?v=0.9.3";
-import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.9.3";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.10.0";
+import {formatBytes} from "./gwi-usage-history.js?v=0.10.0";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.10.0";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -172,6 +172,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
       if(client.channel && client.bssid)text.append(element("span","meta",t("radio_details",{channel:client.channel,bssid:client.bssid})));
     }
     if(client.ip || client.mac)text.append(element("span","meta",[client.ip,client.mac].filter(Boolean).join(" · ")));
+    if(client.associatedArea)text.append(element("span","meta",(this._language==='pt'?'Divisão pelo Wi-Fi: ':'Area via Wi-Fi: ')+client.associatedArea));
     const format=value=>typeof value==="number" && Number.isFinite(value)?new Intl.NumberFormat(this._language,{maximumFractionDigits:4}).format(value):"—";
     text.append(element("span","meta",client.download==null && client.upload==null?t("no_traffic"):t("traffic",{download:format(client.download),upload:format(client.upload)})));
     if(client.wifiTest!=null && client.wifiTestAt)text.append(element("span","meta",t("wifi_test",{speed:format(client.wifiTest),point:client.wifiTestPoint || t("unknown_point"),time:new Date(client.wifiTestAt).toLocaleString(this._language,{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"})})));
@@ -205,6 +206,7 @@ class GoogleWifiInsightsMap extends HTMLElement {
     const status=element("span","status");
     status.append(element("i","dot "+(p.online===true?"online":p.online===false?"offline":"")),document.createTextNode(p.unavailable?t("unavailable"):p.online===true?"Online":p.online===false?"Offline":t("unknown_status")));
     point.append(status,element("span","meta",p.isRoot?t("primary"):t("mesh_quality",{quality:p.mesh.label})),element("span","meta",p.count===null?t("no_clients_data"):t("observed_clients",{count:p.count})));
+    if(p.area)point.append(element("span","meta",(this._language==='pt'?'Divisão: ':'Area: ')+p.area));
     if(p.ratedClients) point.append(element("span","meta",t("rated",{count:p.ratedClients})));
     const operationBadge=this._operationBadge(p.operation);if(operationBadge)point.append(operationBadge);
     if(p.weakClients) point.append(element("span","meta weak-count",t("weak_clients",{count:p.weakClients})));

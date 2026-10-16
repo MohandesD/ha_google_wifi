@@ -20,7 +20,7 @@ def test_hacs_download_contains_all_frontend_dependencies():
     manifest = json.loads((component / "manifest.json").read_text())
     assert manifest["version"] == FRONTEND_VERSION
     assets = list((component / "frontend").glob("*.js"))
-    assert len(assets) == 6
+    assert len(assets) == 7
     for asset in assets:
         text = asset.read_text(encoding="utf-8")
         for module, version in re.findall(r"['\"]\./([^'\"?]+)\?v=([^'\"]+)['\"]", text):

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.10.0 — Point areas and management (beta)
+
+- Add a Management page to the bundled panel, with English/Portuguese labels
+  following the HA user language and keyboard navigation across all three views.
+- Map points to existing HA areas using administrator-checked, entity-scoped
+  services. Store mappings separately per config entry, network and point.
+- Add a WiFi associated area sensor for clients. It follows the explicit current
+  wireless point and clears when disconnected, wired, unmapped, unknown or offline.
+  Failed network polls remain unavailable. Fixed HA device areas are never moved.
+- Update mappings after HA area renames/deletions without polling Google. Preserve
+  mappings across reloads, and display area estimates on the map.
+- Group network/point restarts and Internet, mesh, local and client speed tests
+  with target/network confirmation and existing provider operation feedback.
+- Add read-only name proposals for generic Google client names, using exact MAC
+  identity only. Preserve personalized names, ambiguous matches and IP-only
+  matches. Copy proposals for manual use in Google Home; automatic cloud rename
+  remains unavailable until its request schema and read-back are validated.
+- Preserve mapping drafts, focus and scroll during regular HA state updates.
+  Discard responses from a previously selected network and avoid automatic retries
+  of failed management loads or uncertain writes.
+- Extend isolated HA, frontend and fictional-demo validation for management.
+
+This release does not install or restart a household HA. Google rename writes,
+physical room tracking and BSSID pinning are not claimed capabilities.
+
 ## 0.9.3 — Stabilization
 
 - Isolate per-network cloud failures. A denied, unreachable or malformed network

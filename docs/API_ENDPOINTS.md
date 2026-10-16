@@ -123,6 +123,16 @@ unverified endpoints remain excluded from routine polling. See
 
 ## Primary references
 
+### Client display names
+
+The historical Android inventory lists `PUT`/`DELETE`
+`groups/{groupId}/stations/{stationId}/stationName`. Its request body has not been
+verified. Version 0.10.0 adds exact-MAC name proposals and manual copy assistance,
+not Google rename writes. See [management](MANAGEMENT.md) for the validation gates
+before enabling this endpoint. No extra Google endpoint is polled by Management.
+
+### Sources
+
 - [Google mesh-test description](https://support.google.com/googlehome/answer/7620337?hl=en)
 - [Original Android endpoint inventory](https://github.com/olssonm/google-wifi-api/issues/6)
 - [Node client's request/result definitions](https://github.com/JamesHawkinss/google-wifi-api-node/blob/master/index.js)

@@ -74,8 +74,23 @@ def register_services(hass):
             result["saved_results"] = getattr(coordinator.client, "_optional_cache", {}).get(nid, {})
         return safe_metadata(result)
 
+    async def management(call):
+        await authorized(call)
+        coordinator, nid, _, _ = resolve(call.data["entity_id"])
+        return coordinator.management.response(nid, coordinator.data["networks"][nid])
+
+    async def point_area(call):
+        await authorized(call)
+        coordinator, nid, kind, sid = resolve(call.data["entity_id"])
+        if kind != "point":
+            raise HomeAssistantError("Select a Google WiFi point entity")
+        await coordinator.async_set_point_area(nid, sid, call.data["area_id"])
+        return coordinator.management.response(nid, coordinator.data["networks"][nid])
+
     base = {vol.Required("entity_id"): str}
     hass.services.async_register(DOMAIN, "google_action", action, schema=vol.Schema({**base, vol.Required("action"): vol.In(ACTION_KINDS), vol.Optional("parameters", default={}): dict}), supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "get_usage_history", history, schema=vol.Schema({**base, vol.Required("resolution", default="hour"): vol.In(("minute", "hour", "day", "month"))}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "get_capabilities", capabilities, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "get_google_metrics", telemetry, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "get_management", management, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "set_point_area", point_area, schema=vol.Schema({**base, vol.Required("area_id"): vol.Any(None, str)}), supports_response=SupportsResponse.OPTIONAL)

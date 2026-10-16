@@ -6,8 +6,9 @@ from collections import Counter
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
-from homeassistant.helpers import device_registry
+from homeassistant.helpers import area_registry, device_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -24,6 +25,7 @@ from .const import (
 from .identity import enrich_snapshot
 from .information import apply_network_information, apply_point_information
 from .lan import LanDiagnostics
+from .management import WifiManagement
 from .model import apply_roaming
 from .operations import MONITORED_ACTIONS
 from .shelly_radio import ShellyRadio
@@ -50,6 +52,8 @@ class WifiCoordinator(DataUpdateCoordinator):
         self._operation_tasks = {}
         self._failed_networks = set()
         self._stopping = False
+        self.management = WifiManagement(hass, entry)
+        entry.async_on_unload(hass.bus.async_listen(area_registry.EVENT_AREA_REGISTRY_UPDATED, self._areas_changed))
         entry.async_on_unload(self._cancel_operation_tasks)
         data = entry.data
         self.client = (
@@ -66,6 +70,7 @@ class WifiCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
+            await self.management.async_load()
             snapshot = enrich_snapshot(self.hass, self.config_entry, apply_roaming(await self.client.snapshot(), self.data))
             self._merge_local_points(snapshot)
             if isinstance(self.client, CloudClient):
@@ -97,7 +102,7 @@ class WifiCoordinator(DataUpdateCoordinator):
                     else:
                         logger.info("All Google WiFi networks are available again")
                     self._failed_networks = set(failures)
-            return snapshot
+            return self.management.apply(snapshot)
         except AuthError:
             raise ConfigEntryAuthFailed("Google authentication needs renewal") from None
         except RateLimitError as error:
@@ -106,6 +111,22 @@ class WifiCoordinator(DataUpdateCoordinator):
             ) from None
         except ApiError as error:
             raise UpdateFailed(str(error)) from None
+
+    @callback
+    def _areas_changed(self, event):
+        """Area renames/deletions update local sensors without a Google request."""
+        if self.data and self.last_update_success:
+            self.async_set_updated_data(self.management.apply(deepcopy(self.data)))
+
+    async def async_set_point_area(self, nid, pid, area_id):
+        network = self._current_network(nid)
+        if pid not in network["points"]:
+            raise HomeAssistantError("Select a current Google WiFi point")
+        await self.management.async_set_area(nid, pid, area_id)
+        # A poll can fail while storage is being written. Saving a local mapping
+        # must not turn stale cloud measurements into a successful update.
+        if self.last_update_success:
+            self.async_set_updated_data(self.management.apply(deepcopy(self.data)))
 
     def _update_device_metadata(self, snapshot):
         """Refresh only our network/point records, retaining user names and IDs."""
