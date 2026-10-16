@@ -138,7 +138,15 @@ async def json_get(session, url, headers=None) -> dict:
     return await json_request(session, "GET", url, headers)
 
 
-async def json_request(session, method, url, headers=None, payload=None) -> dict:
+async def _single_attempt(request, handler):
+    """Convert retryable disconnects before aiohttp can replay a naming write."""
+    try:
+        return await handler(request)
+    except (aiohttp.ClientOSError, aiohttp.ServerDisconnectedError):
+        raise ApiError("Network request failed; delivery of a write is unconfirmed") from None
+
+
+async def json_request(session, method, url, headers=None, payload=None, *, single_attempt=False) -> dict:
     """Never follow redirects with credentials or log response bodies."""
     try:
         async with session.request(
@@ -147,6 +155,8 @@ async def json_request(session, method, url, headers=None, payload=None) -> dict
             json=payload,
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=15),
+            # Per-request middleware replaces defaults; retain HA's SSRF middleware.
+            **({"middlewares": (*session._middlewares, _single_attempt)} if single_attempt else {}),
         ) as response:
             if response.status == 429:
                 retry = response.headers.get("Retry-After", "300")
@@ -275,6 +285,7 @@ class CloudClient:
                 CLOUD_URL + path,
                 {"Authorization": f"Bearer {self._token}"},
                 payload,
+                **({"single_attempt": True} if not retry_auth else {}),
             )
         except AuthError:
             if not retry_auth:

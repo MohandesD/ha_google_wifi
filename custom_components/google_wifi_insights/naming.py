@@ -218,6 +218,7 @@ class NameSync:
                     raise HomeAssistantError("Google name or MAC changed since this rename; undo was refused")
                 record = {**original, "request_id": uuid4().hex, "undo_of": request_id, "kind": "undo",
                           "old_name": original["new_name"], "new_name": original["old_name"], "state": "unconfirmed", "automatic": False, "updated_at": now_iso()}
+                record.pop("observed_name", None)
                 await self._record(nid, record, exclude=True)
                 self._client(nid, sid)
                 return await self._send(nid, record, None if original["restore_automatic"] else original["old_name"], restore_automatic=original["restore_automatic"])

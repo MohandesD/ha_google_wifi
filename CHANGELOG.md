@@ -11,6 +11,8 @@
 - Recheck fresh Google identity and the HA proposal before each write. Persist
   intent first, require fresh read-back for completion and never replay an
   uncertain write. Rejected/unconfirmed results pause automatic work.
+- Prevent aiohttp's built-in connection retry from replaying naming `PUT`/`DELETE`
+  requests; verify this with a server that disconnects after receiving the write.
 - Limit automatic batches to three candidates per config entry every five
   minutes, driven by normal successful polls. Disable remains available during
   outages. Reloads preserve settings and pause unfinished requests.

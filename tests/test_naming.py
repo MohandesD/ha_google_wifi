@@ -147,6 +147,23 @@ async def test_verify_uncertain_write_is_read_only_and_undo_preserves_subsequent
     assert await real_hass.config_entries.async_unload(entry.entry_id)
 
 
+async def test_unconfirmed_undo_does_not_inherit_a_previous_verified_observation(real_hass, monkeypatch):
+    from custom_components.google_wifi_insights.api import ApiError
+
+    entry, provider, identity, writer, _, _ = await setup_names(real_hass, monkeypatch)
+    original = await rename(entry)
+    assert original["observed_name"] == NAME
+    identity.side_effect = [dict(provider), ApiError("Read-back unavailable")]
+    undone = await entry.runtime_data.names.async_undo("home", original["request_id"])
+    assert undone["state"] == "unconfirmed" and undone["new_name"] == OLD
+    assert "observed_name" not in undone
+    identity.side_effect = lambda *args: dict(provider)
+    verified = await entry.runtime_data.names.async_verify("home", undone["request_id"])
+    assert verified["state"] == "verified" and verified["observed_name"] == OLD
+    assert writer.call_count == 2
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+
+
 async def test_automatic_sync_requires_persisted_network_opt_in_and_is_bounded(real_hass, monkeypatch):
     entry, provider, _, writer, _, _ = await setup_names(real_hass, monkeypatch)
     names = entry.runtime_data.names

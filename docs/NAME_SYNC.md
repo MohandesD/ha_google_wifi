@@ -54,6 +54,13 @@ including after authentication errors or integration reloads. A saved unfinished
 intent also pauses the network after reload. A client with a retained,
 non-cancelled attempt is skipped by later automatic batches.
 
+The naming transport also intercepts connection loss before aiohttp's built-in
+retry of `PUT`/`DELETE`. A request-specific
+[client middleware](https://docs.aiohttp.org/en/stable/client_advanced.html#client-middleware)
+converts those failures to an unconfirmed result without changing the shared HA
+session. Loopback tests close the connection after receiving each write and
+assert that the server receives exactly one request.
+
 Use **Verify result** for a fresh read without resending the write. If it confirms
 the intended value, the record becomes **Verified**. Review the history before
 using **Resume automatic naming**; resuming permits other eligible candidates but

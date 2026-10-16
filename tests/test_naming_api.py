@@ -73,6 +73,34 @@ async def test_rename_401_does_not_reauthenticate_and_replay_the_write(monkeypat
         assert writes == ["PUT"] and auth.call_count == 1
 
 
+@pytest.mark.parametrize("name", ["Example phone", None], ids=["put", "delete"])
+async def test_disconnection_after_write_never_replays_through_http_client(monkeypatch, name):
+    writes, middleware_calls = [], []
+
+    async def existing_middleware(request, handler):
+        middleware_calls.append(request.method)
+        return await handler(request)
+
+    async def handler(request):
+        if request.path == "/ping":
+            return web.json_response({"reachable": True})
+        body = await request.json() if request.can_read_body else None
+        writes.append((request.method, body))
+        request.transport.close()  # Request received; the client gets no acknowledgement.
+        return web.Response(status=204)
+
+    app = web.Application()
+    app.router.add_route("*", "/{path:.*}", handler)
+    async with TestServer(app) as server, aiohttp.ClientSession(middlewares=(existing_middleware,)) as session:
+        client = await client_for(server, session, monkeypatch)
+        assert await client._get("ping") == {"reachable": True}
+        with pytest.raises(api.ApiError, match="unconfirmed"):
+            await client.set_station_name("home", "client", name)
+        assert writes == [("DELETE", None) if name is None else ("PUT", {"name": name})]
+        assert middleware_calls == ["GET", "DELETE" if name is None else "PUT"]
+        assert await client._get("ping") == {"reachable": True}
+
+
 @pytest.mark.parametrize("failure", ["stations", "duplicate", "offline", "operation", "malformed-operation", "failed", "pending", "mac", "duplicate-mac"], ids=str)
 async def test_unverified_station_or_mac_blocks_identity(monkeypatch, failure):
     monkeypatch.setattr(api.asyncio, "sleep", AsyncMock())
