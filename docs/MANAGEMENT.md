@@ -29,7 +29,8 @@ before mapping points when accounts expose more than one house.
 Mappings are local to this integration, keyed by config entry, Google network ID
 and point ID. Point names are labels, not identity keys. Renaming a point does
 not lose the mapping. Several points may share one area. This does not rename
-Google rooms or change a client's fixed HA device area.
+Google rooms. Client fixed device areas stay unchanged unless area following is
+explicitly enabled as described below.
 
 From version 0.12.3, the chosen mapping also fills an unassigned HA device area
 for that WiFi Point. An explicit mapping change updates the point when it still
@@ -44,7 +45,8 @@ effective association. Create a new mapping if that area is later replaced.
 Each client gets a **WiFi associated area** sensor. For example, a phone connected
 to a point mapped to **Example office** reports that area. When Google's next
 successful poll associates the phone with a point mapped to **Example studio**,
-the sensor reports **Example studio**. No fixed HA device area is moved.
+the sensor reports **Example studio**. Fixed HA device areas stay unchanged by
+default; optional area following also updates them.
 
 The sensor exposes `associated_area_id` and `area_source: wifi_point`. The same
 fields appear on the canonical Connected point sensor used by the map. The sensor
@@ -82,6 +84,44 @@ actions:
 Replace the fictional entity and area IDs with the values shown by your HA. The
 example creates a local HA notification; it does not switch lights or change the
 network.
+
+## Let client device areas follow points
+
+From version 0.13.0, **Management → Points and areas → Client device areas** can
+update HA device areas as wireless clients roam. This is disabled by default.
+
+1. Map each Wi-Fi Point to the intended existing HA area.
+2. Select **Automatically follow Wi-Fi Point areas** for the intended network.
+3. Optionally select **Also move matching Home Assistant devices** to include
+   devices from other integrations with an exact MAC match.
+4. Press **Save area following**.
+
+![Client area-following controls with fictional data](images/area-following-demo.png)
+
+Connected wireless clients use their current point's mapped area on the next
+successful observation. Newly discovered clients receive their area as they are
+registered. While enabled, this replaces a different manually assigned area for
+the opted-in client devices. Entity-specific area overrides remain unchanged.
+It does not change Google room settings or send commands to physical devices.
+
+Wired clients, disconnected clients, failed network/point queries and points
+without a valid mapped area keep their last fixed device area. A retained area is
+not proof of current presence. The **WiFi associated area** sensor independently
+remains unknown when the association is not current. The update interval depends
+on the Google polling interval; this is not a real-time indoor location system.
+
+The optional original-device setting can change which devices are targeted by
+area-based automations. It excludes IP-only matches, duplicate connected MACs,
+disabled devices and conflicting areas for multiple interfaces of the same HA
+device. Separate homes remain separate scopes. Disabling following stops future
+updates and retains the last assigned area; it does not restore earlier areas.
+
+Settings survive integration reloads and are removed with the integration entry.
+An administrator can also use `google_wifi_insights.set_client_area_sync` with a
+network entity, `enabled` and optional `include_matched_devices` booleans. Settings
+can be changed during outages; cached failed observations never move devices.
+The feature requires a complete integration update and HA restart. An older
+loaded backend shows an update notice rather than an unusable control.
 
 ## Name review
 

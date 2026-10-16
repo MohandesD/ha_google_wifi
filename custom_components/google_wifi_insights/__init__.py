@@ -43,6 +43,7 @@ async def async_remove_entry(hass, entry):
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.areas").async_remove()
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.names").async_remove()
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.locations").async_remove()
+    await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.client_areas").async_remove()
 
 
 async def async_remove_config_entry_device(hass, entry, device):

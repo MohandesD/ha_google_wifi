@@ -16,6 +16,8 @@ let names=['Hall point','Office point','Studio point','Upstairs point'];
 const shortPointNames=[...names];
 const longPointNames=['Example entrance and reception point','Example administration and shared workspace point','ExampleStudioPointWithAnUnusuallyLongContinuousName','Example upstairs landing and guest rooms point'];
 const demoAreas=[{id:'hall',name:'Hall'},{id:'office',name:'Office'},{id:'studio',name:'Studio'},{id:'upstairs',name:'Upstairs'}];
+const demoAreaPolicies={};
+const areaPolicy=scope=>({supported:true,enabled:false,include_matched_devices:false,...demoAreaPolicies[scope]});
 const areaMappings={point0:'hall',point1:'office',point2:'studio',point3:'upstairs'};
 const demoLocations={example:{id:'demo-home',name:'Example home'},'remote-example':{id:'demo-workshop',name:'Example workshop'},'local-example':{id:'demo-home',name:'Example home'}};
 const proposedName='Reading tablet';
@@ -24,8 +26,8 @@ let demoGoogleName='Unnamed device';
 const namingSummary=()=>({enabled:demoNaming.enabled,paused_reason:null,last_state:demoNaming.history.at(-1)?.state||'idle',verified_count:demoNaming.history.filter(r=>r.state==='verified').length,unconfirmed_count:0});
 function demoRename(automatic=false){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',mac_address:'02:00:00:00:00:06',old_name:demoGoogleName,new_name:proposedName,state:'verified',kind:'rename',automatic};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
 function management(scope='example'){
- if(scope==='remote-example')return {scope,network_id:scope,name:'Workshop WiFi',location:demoLocations[scope],entity_id:'sensor.demo_remote-example_network_remote_diagnosis',areas:demoAreas,points:[{id:'point0',name:'Workshop primary',entity_id:'sensor.demo_remote-example_point_point0_clients',area_id:null,online:true,is_root:true},{id:'point1',name:'Annex point',entity_id:'sensor.demo_remote-example_point_point1_clients',area_id:null,online:true,is_root:false}],name_candidates:[],rename:{enabled:false,history:[],writable:true,max_concurrent:3,state:'demo_only'}};
- return {scope:'example',network_id:'example',name:'Demo WiFi',location:demoLocations.example,entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
+ if(scope==='remote-example')return {scope,network_id:scope,name:'Workshop WiFi',location:demoLocations[scope],entity_id:'sensor.demo_remote-example_network_remote_diagnosis',areas:demoAreas,client_area_sync:areaPolicy(scope),points:[{id:'point0',name:'Workshop primary',entity_id:'sensor.demo_remote-example_point_point0_clients',area_id:null,online:true,is_root:true},{id:'point1',name:'Annex point',entity_id:'sensor.demo_remote-example_point_point1_clients',area_id:null,online:true,is_root:false}],name_candidates:[],rename:{enabled:false,history:[],writable:true,max_concurrent:3,state:'demo_only'}};
+ return {scope:'example',network_id:'example',name:'Demo WiFi',location:demoLocations.example,entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,client_area_sync:areaPolicy(scope),
   points:names.map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
   name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:proposedName,mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),max_concurrent:3,state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
 }
@@ -118,6 +120,7 @@ function build(){
     demoLocations[scope]=name?{id:'demo-'+name.toLowerCase().replace(/\W/g,'-'),name}:null;
     panel.hass=build();return {response:{scope,location:demoLocations[scope]}};
    }
+   if(request.service==='set_client_area_sync'){const target=entities[request.service_data.entity_id];if(target?.attributes.gwi_kind!=='network')throw Error('Unknown demo network');const scope=target.attributes.gwi_scope;demoAreaPolicies[scope]={enabled:request.service_data.enabled,include_matched_devices:request.service_data.include_matched_devices};return {response:management(scope)};}
    if(request.service==='get_management')return {response:management(entities[request.service_data.entity_id]?.attributes.gwi_scope)};
    if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
    if(['set_name_sync','rename_client','undo_name','verify_name'].includes(request.service)){

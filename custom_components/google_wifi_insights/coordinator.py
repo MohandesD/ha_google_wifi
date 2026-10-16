@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .actions import build_action
 from .api import ApiError, AuthError, CloudClient, LocalClient, RateLimitError
+from .area_sync import ClientAreaSync
 from .capabilities import ADVANCED, DESTRUCTIVE
 from .const import (
     CONF_ADVANCED,
@@ -54,6 +55,7 @@ class WifiCoordinator(DataUpdateCoordinator):
         self._failed_networks = set()
         self._stopping = False
         self.management = WifiManagement(hass, entry)
+        self.client_areas = ClientAreaSync(hass, entry)
         self.names = NameSync(self)
         self._name_task = None
         entry.async_on_unload(self._cancel_name_task)
@@ -75,6 +77,7 @@ class WifiCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             await self.management.async_load()
+            await self.client_areas.async_load()
             await self.names.async_load()
             snapshot = enrich_snapshot(self.hass, self.config_entry, apply_roaming(await self.client.snapshot(), self.data))
             self._merge_local_points(snapshot)
@@ -109,7 +112,7 @@ class WifiCoordinator(DataUpdateCoordinator):
                     self._failed_networks = set(failures)
             for nid, network in snapshot["networks"].items():
                 network["name_sync"] = self.names.summary(nid)
-            return self.management.apply(snapshot)
+            return self.client_areas.apply(self.management.apply(snapshot))
         except AuthError:
             raise ConfigEntryAuthFailed("Google authentication needs renewal") from None
         except RateLimitError as error:
@@ -159,7 +162,7 @@ class WifiCoordinator(DataUpdateCoordinator):
     def _areas_changed(self, event):
         """Area renames/deletions update local sensors without a Google request."""
         if self.data and self.last_update_success:
-            self.async_set_updated_data(self.management.apply(deepcopy(self.data)))
+            self.async_set_updated_data(self.client_areas.apply(self.management.apply(deepcopy(self.data))))
 
     async def async_set_point_area(self, nid, pid, area_id):
         network = self._current_network(nid)
@@ -169,7 +172,21 @@ class WifiCoordinator(DataUpdateCoordinator):
         # A poll can fail while storage is being written. Saving a local mapping
         # must not turn stale cloud measurements into a successful update.
         if self.last_update_success:
-            self.async_set_updated_data(self.management.apply(deepcopy(self.data)))
+            self.async_set_updated_data(self.client_areas.apply(self.management.apply(deepcopy(self.data))))
+
+    async def async_set_client_area_sync(self, nid, enabled, include_matched_devices):
+        """Persist local opt-in; an outage must not apply cached associations."""
+        network = (self.data or {}).get("networks", {}).get(nid)
+        if self._stopping or not network or network.get("source") != "google_cloud":
+            raise HomeAssistantError("Select a known Google account network")
+        await self.client_areas.async_set(nid, enabled, include_matched_devices)
+        updated = deepcopy(self.data)
+        if self.last_update_success:
+            self.async_set_updated_data(self.client_areas.apply(self.management.apply(updated)))
+        else:
+            updated["networks"][nid]["client_area_sync"] = self.client_areas.response(nid)
+            self.data = updated
+            self.async_update_listeners()
 
     async def async_set_network_location(self, nid, name):
         """Save local organization even during outages, without polling Google."""

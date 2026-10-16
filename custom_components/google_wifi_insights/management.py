@@ -181,6 +181,7 @@ class WifiManagement:
         return {
             "network_id": nid, "scope": f"{self.entry.entry_id}:{nid}", "name": network["name"],
             "location": location_details(self.locations.get(nid)),
+            "client_area_sync": self.entry.runtime_data.client_areas.response(nid),
             "entity_id": target("network", nid, "diagnosis"),
             "areas": sorted([{"id": area.id, "name": area.name} for area in
                              area_registry.async_get(self.hass).areas.values()], key=lambda row: row["name"].casefold()),

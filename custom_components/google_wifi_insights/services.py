@@ -118,6 +118,14 @@ def register_services(hass):
         location = await coordinator.async_set_network_location(nid, call.data["name"])
         return {"scope": f"{coordinator.config_entry.entry_id}:{nid}", "location": location}
 
+    async def client_area_sync(call):
+        await authorized(call)
+        coordinator, nid, kind, _ = resolve(call.data["entity_id"], allow_unavailable=True)
+        if kind != "network":
+            raise HomeAssistantError("Select a Google WiFi network entity")
+        await coordinator.async_set_client_area_sync(nid, call.data["enabled"], call.data["include_matched_devices"])
+        return coordinator.management.response(nid, coordinator.data["networks"][nid])
+
     base = {vol.Required("entity_id"): str}
     hass.services.async_register(DOMAIN, "google_action", action, schema=vol.Schema({**base, vol.Required("action"): vol.In(ACTION_KINDS), vol.Optional("parameters", default={}): dict}), supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "get_usage_history", history, schema=vol.Schema({**base, vol.Required("resolution", default="hour"): vol.In(("minute", "hour", "day", "month"))}), supports_response=SupportsResponse.ONLY)
@@ -126,6 +134,7 @@ def register_services(hass):
     hass.services.async_register(DOMAIN, "get_management", management, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_point_area", point_area, schema=vol.Schema({**base, vol.Required("area_id"): vol.Any(None, str)}), supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "set_network_location", network_location, schema=vol.Schema({**base, vol.Required("name"): vol.Any(None, str)}), supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "set_client_area_sync", client_area_sync, schema=vol.Schema({**base, vol.Required("enabled"): bool, vol.Optional("include_matched_devices", default=False): bool}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_name_sync", naming, schema=vol.Schema({**base, vol.Required("enabled"): bool}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "rename_client", naming, schema=vol.Schema({**base, vol.Required("expected_google_name"): str, vol.Required("expected_ha_name"): str, vol.Required("expected_mac"): str}), supports_response=SupportsResponse.ONLY)
     for service in ("undo_name", "verify_name"):

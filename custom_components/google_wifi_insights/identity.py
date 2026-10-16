@@ -240,6 +240,8 @@ def enrich_snapshot(hass, entry, snapshot):
             client["ha_device_id"] = match["id"] if match else None
             client["ha_device_name"] = match["name"] if match else None
             client["identity_match"] = method
+            mac = normalize_mac(client.get("mac_address"))
+            client["ha_area_device_ids"] = sorted({record["id"] for record in index[0].get(mac, [])}) if method == "mac" else []
             matched_device = registry.async_get(match["id"]) if match else None
             client["ha_manufacturer"] = matched_device.manufacturer if matched_device else None
             client["ha_model"] = matched_device.model if matched_device else None

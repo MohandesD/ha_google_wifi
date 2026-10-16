@@ -38,7 +38,7 @@ test('management loads cached data once and retains drafts, focus and scroll dur
  for(let i=0;i<200;i++)card.hass={...hass};
  assert.equal(calls.length,1);assert.equal(calls[0].service,'get_management');
  assert.equal(root.querySelector('select[data-point]'),select);assert.equal(select.value,'studio');assert.equal(root.activeElement,select);assert.equal(section.scrollTop,125);
- assert.match(root.textContent,/does not change the fixed device area/);
+ assert.match(root.textContent,/Device areas stay unchanged unless area following is enabled/);
  click(root,'Refresh view');await settle();assert.equal(root.querySelector('select[data-point]').value,'studio');
 });
 
@@ -51,6 +51,50 @@ test('embedded management follows the shared network while standalone cards keep
  click(root,'Restart point');click(root,'Confirm request');await settle();
  assert.equal(calls.at(-1).service_data.entity_id,'sensor.entry_two_point');
  card.setConfig({});await settle();assert.equal(card._networkLabel.hidden,false);
+});
+
+test('area following is unavailable with an older backend and never writes on load',async()=>{
+ const {root,calls}=environment();await settle();
+ assert.match(root.textContent,/full integration update and HA restart/);
+ assert.equal(root.querySelector('button[data-write="client-areas"]'),null);
+ assert.deepEqual(calls.map(c=>c.service),['get_management']);
+});
+
+test('area following explicitly saves both scope options to the selected network',async()=>{
+ const policies=new Map();
+ const {root,card,calls}=environment(request=>{
+  const scope=request.service_data.entity_id==='sensor.entry_two'?'entry:two':'entry:one';
+  if(request.service==='set_client_area_sync')policies.set(scope,{supported:true,enabled:request.service_data.enabled,include_matched_devices:request.service_data.include_matched_devices});
+  return {...data(scope),client_area_sync:policies.get(scope)||{supported:true,enabled:false,include_matched_devices:false}};
+ });await settle();
+ assert.equal(card._areaFollowToggle.checked,false);assert.equal(card._areaMatchedToggle.checked,false);
+ card._areaFollowToggle.checked=true;card._areaMatchedToggle.checked=true;
+ click(root,'Save area following');await settle();
+ const sent=calls.at(-1);assert.equal(sent.service,'set_client_area_sync');
+ assert.deepEqual(JSON.parse(JSON.stringify(sent.service_data)),{entity_id:'sensor.entry_one',enabled:true,include_matched_devices:true});
+ assert.match(root.textContent,/settings saved/);assert.equal(card._areaFollowToggle.checked,true);
+ card.setConfig({network_entity:'sensor.entry_two'});await settle();
+ assert.equal(card._areaFollowToggle.checked,false);assert.equal(card._areaMatchedToggle.checked,false);
+ assert.equal(calls.filter(c=>c.service==='set_client_area_sync').length,1);
+});
+
+test('area following can be disabled during an outage without sending network actions',async()=>{
+ const {root,card,hass,calls}=environment(request=>({...data(),client_area_sync:{supported:true,enabled:request.service==='set_client_area_sync'?request.service_data.enabled:true,include_matched_devices:false}}));
+ await settle();hass.states.sensor_entry_one={};hass.states['sensor.entry_one'].state='unavailable';card.hass={...hass};
+ card._areaFollowToggle.checked=false;const save=[...root.querySelectorAll('button')].find(b=>b.textContent==='Save area following');
+ assert.equal(save.disabled,false);save.click();await settle();
+ assert.equal(calls.at(-1).service,'set_client_area_sync');assert.equal(calls.at(-1).service_data.enabled,false);
+ assert.equal(calls.some(c=>c.service==='google_action'),false);
+});
+
+test('a late area-following response cannot replace another home view',async()=>{
+ let reply;
+ const {root,card,calls}=environment(request=>request.service==='set_client_area_sync'?new Promise(resolve=>reply=resolve):({...data(request.service_data.entity_id==='sensor.entry_two'?'entry:two':'entry:one'),client_area_sync:{supported:true,enabled:false,include_matched_devices:false}}));
+ await settle();card._areaFollowToggle.checked=true;click(root,'Save area following');
+ card.setConfig({network_entity:'sensor.entry_two'});
+ reply({...data(),client_area_sync:{supported:true,enabled:true,include_matched_devices:false}});await settle();await settle();
+ assert.equal(card._scope,'entry:two');assert.equal(card._data.scope,'entry:two');assert.equal(card._areaFollowToggle.checked,false);
+ assert.equal(calls.find(c=>c.service==='set_client_area_sync').service_data.entity_id,'sensor.entry_one');
 });
 
 test('optional automatic controls start collapsed and retain disclosure state only within their network',async()=>{

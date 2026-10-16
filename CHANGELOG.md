@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.13.0 — Device areas following Wi-Fi Points (beta)
+
+- Add per-network, opt-in HA device area following in **Management → Points and
+  areas**. Connected wireless clients move to the area explicitly mapped to their
+  current point, including after roaming and initial discovery. Existing users
+  keep their fixed client device areas until they enable this option.
+- Optionally include devices from other HA integrations identified by exact MAC.
+  Do not use IP-only matches. Duplicate connected MACs and conflicting areas for
+  multiple interfaces of one HA device leave the original device area unchanged.
+- Keep the last fixed device area when disconnected, wired, unmapped or when the
+  network/point is unavailable. The associated-area sensor still becomes unknown
+  when a current association cannot be established. Disabling following retains
+  the last area; it does not restore earlier manual areas.
+- Store settings locally per config entry/network, require an administrator and
+  permit disabling during an outage without clearing the failure. Device and
+  entity identities, Google requests, names and physical controls are unchanged.
+- Add HA and frontend tests for roaming, defaults, persistence, startup, exact
+  MAC matching, multiple homes/interfaces, outages and delayed management replies.
+  A full integration update and HA restart are required for the Python feature.
+
+
 ## 0.12.3 — Google quality labels and point device areas (beta)
 
 - Map Google's `OK` connection and mesh ratings to **Good** / **Boa**, matching

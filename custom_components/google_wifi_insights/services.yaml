@@ -80,7 +80,7 @@ get_management:
           integration: google_wifi_insights
 set_point_area:
   name: Map point to area
-  description: Map a current Google WiFi point to an existing HA area. Updates WiFi associated area sensors without changing fixed device areas. Clear area_id to remove the mapping.
+  description: Map a current Google WiFi point to an existing HA area. Updates WiFi associated area sensors, unassigned point device areas and opted-in client device areas. Clear area_id to remove the mapping.
   fields:
     entity_id:
       required: true
@@ -91,6 +91,23 @@ set_point_area:
       required: true
       selector:
         area:
+set_client_area_sync:
+  name: Set client device area following
+  description: Enable local HA device area updates for connected wireless clients in one network. Devices follow the mapped point area. Unmapped, disconnected, wired or unavailable devices keep their last area. Disabled by default. Optionally include other HA devices identified by exact MAC. Disabling retains the last area; it does not restore earlier areas.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    enabled:
+      required: true
+      selector:
+        boolean:
+    include_matched_devices:
+      default: false
+      selector:
+        boolean:
 set_network_location:
   name: Set network location
   description: Save a home, building or location label in HA for a known cloud or local network. Equal labels group networks in the dashboard. Does not change Google homes, point identity, LAN access or HA device areas. Use null or an empty name to clear the label. Available during outages.

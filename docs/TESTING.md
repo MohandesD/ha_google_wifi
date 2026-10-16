@@ -87,3 +87,9 @@ that unavailable or local-only homes cannot silently target another home's cloud
 network. These are layout checks with fictional data, not live household trials.
 The [narrow-screen capture](images/management-mobile-demo.png) shows the expected
 tab and filter layout without horizontal page scrolling.
+
+The fictional Management view also supports `set_client_area_sync` locally.
+Verify that checking **Automatically follow Wi-Fi Point areas** and saving keeps
+the selected state, without enabling **Also move matching Home Assistant devices**
+or automatic naming. Check the new controls at 320, 768 and 1280 pixels in English
+and Portuguese/dark mode. No real HA registry or device area is changed by the demo.

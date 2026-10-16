@@ -92,6 +92,8 @@ class WifiEntity(CoordinatorEntity):
             self.coordinator.management.sync_point_device_area(
                 self.network_id, self.item_id, self.item.get("mapped_area_id")
             )
+        elif self.kind == "client" and self.coordinator.last_update_success:
+            self.coordinator.client_areas.sync_new_client(self.coordinator.data, self.network_id, self.item_id)
 
     @property
     def item(self):
@@ -148,7 +150,8 @@ class WifiEntity(CoordinatorEntity):
         if self.kind == "network" and self.key == "diagnosis":
             attributes.update(gwi_entry_id=self._entry_id,
                               network_location=self.coordinator.management.locations.get(self.network_id),
-                              network_location_id=(item.get("location") or {}).get("id"))
+                              network_location_id=(item.get("location") or {}).get("id"),
+                              client_area_sync=self.coordinator.client_areas.response(self.network_id))
         if self.kind == "client":
             # The Connected point sensor is the map's canonical client carrier.
             # Do not duplicate changing traffic/radio fields on every identity
