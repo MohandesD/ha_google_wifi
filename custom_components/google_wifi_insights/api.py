@@ -279,6 +279,8 @@ class CloudClient:
         if time.monotonic() < self._retry_until:
             raise RateLimitError(int(self._retry_until - time.monotonic()) + 1)
         await self._authenticate()
+        if time.monotonic() < self._retry_until:
+            raise RateLimitError(int(self._retry_until - time.monotonic()) + 1)
         try:
             return await json_request(
                 self.session, method,

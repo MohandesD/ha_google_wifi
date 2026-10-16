@@ -2,13 +2,14 @@
 
 import asyncio
 import time
+from contextlib import asynccontextmanager
 from copy import deepcopy
 from uuid import uuid4
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 
-from .api import ApiError, CloudClient
+from .api import ApiError, CloudClient, RateLimitError
 from .const import DOMAIN
 from .identity import ha_records, normalize_mac
 from .management import name_proposals
@@ -17,6 +18,7 @@ from .operations import now_iso
 AUTO_INTERVAL = 300
 AUTO_BATCH_SIZE = 3
 HISTORY_LIMIT = 100
+MAX_CONCURRENT_NAMES = 3
 
 
 class NameSync:
@@ -25,7 +27,11 @@ class NameSync:
         self.hass = coordinator.hass
         self._store = Store(self.hass, 1, f"{DOMAIN}.{coordinator.config_entry.entry_id}.names")
         self._storage_lock = asyncio.Lock()
-        self._write_lock = asyncio.Lock()
+        self._slots = asyncio.Semaphore(MAX_CONCURRENT_NAMES)
+        self._station_locks = {}
+        self._gate = asyncio.Condition()
+        self._active = self._admitted = self._operations = 0
+        self._failure_revision = {}
         self._loaded = False
         self._data = {}
         self._next_auto = 0
@@ -55,10 +61,49 @@ class NameSync:
 
     def response(self, nid):
         history = self.network(nid).get("history", [])
-        return {**self.summary(nid), "writable": True, "state": "schema_verified_android_client",
+        return {**self.summary(nid), "writable": True, "max_concurrent": MAX_CONCURRENT_NAMES, "state": "schema_verified_android_client",
                 "provider_state": history[-1]["state"] if history else "not_tested",
                 "history": deepcopy(self.network(nid).get("history", [])[-20:]),
                 "excluded_station_ids": list(self.network(nid).get("excluded", []))}
+
+    @property
+    def busy(self):
+        return self._operations > 0
+
+    @asynccontextmanager
+    async def _operation(self, nid, sid):
+        """Share one action exclusion across a bounded group of different clients."""
+        self._client(nid, sid)
+        self._operations += 1
+        try:
+            lock = self._station_locks.setdefault((nid, sid), asyncio.Lock())
+            async with lock, self._slots:
+                async with self._gate:
+                    # Drain each group before admitting another. Queued network
+                    # actions can acquire the existing FIFO action lock between groups.
+                    await self._gate.wait_for(lambda: self._active == 0 or self._admitted < MAX_CONCURRENT_NAMES)
+                    if self._active == 0:
+                        await self.coordinator.client._action_lock.acquire()
+                        self._admitted = 0
+                    self._active += 1
+                    self._admitted += 1
+                try:
+                    yield self._failure_revision.get(nid, 0)
+                finally:
+                    async with self._gate:
+                        self._active -= 1
+                        if self._active == 0:
+                            self.coordinator.client._action_lock.release()
+                            self._gate.notify_all()
+        finally:
+            self._operations -= 1
+
+    def _failed(self, nid, error=None):
+        """Stop peers that have not sent a write; never cancel a sent request."""
+        self._failure_revision[nid] = self._failure_revision.get(nid, 0) + 1
+        if isinstance(error, RateLimitError):
+            client = self.coordinator.client
+            client._retry_until = max(client._retry_until, time.monotonic() + error.retry_after)
 
     async def _change(self, nid, change):
         async with self._storage_lock:
@@ -137,6 +182,7 @@ class NameSync:
             matches = fresh["name"] == name if name is not None else (
                 restore_automatic and (not fresh["raw_name"] or fresh["name"] == fresh["automatic_name"] or fresh["name"] == record["new_name"]))
             if fresh["mac"] != record["mac_address"] or not matches:
+                self._failed(nid)
                 await self._finish(nid, request_id, "unconfirmed", pause="readback_mismatch")
             else:
                 await self._finish(nid, request_id, "verified", observed_name=fresh["name"])
@@ -144,48 +190,54 @@ class NameSync:
         except (ApiError, TimeoutError) as error:
             if self.coordinator._stopping:
                 return deepcopy(record)
+            self._failed(nid, error)
             rejected = not acknowledged and isinstance(error, ApiError) and error.status is not None and 400 <= error.status < 500
             await self._finish(nid, request_id, "rejected" if rejected else "unconfirmed", pause="request_rejected" if rejected else "delivery_or_readback_unconfirmed")
         return deepcopy(next(r for r in self.network(nid)["history"] if r["request_id"] == request_id))
 
     async def async_rename(self, nid, sid, expected_name, expected_mac, expected_ha_name, *, automatic=False):
-        async with self._write_lock:
+        async with self._operation(nid, sid) as revision:
             row = self._proposal(nid, sid, expected_name, expected_mac, expected_ha_name)
             if self._pending(nid, sid):
                 raise HomeAssistantError("Verify the unconfirmed name change before sending another request")
-            async with self.coordinator.client._action_lock:
-                try:
-                    fresh = await self.coordinator.client.station_identity(nid, sid)
-                except (ApiError, TimeoutError):
-                    raise HomeAssistantError("Fresh Google identity could not be verified; no rename was sent") from None
-                if (fresh["name"], fresh["mac"]) != (expected_name, row["mac_address"]):
-                    raise HomeAssistantError("The current Google name or MAC changed; no rename was sent")
+            try:
+                fresh = await self.coordinator.client.station_identity(nid, sid)
+            except (ApiError, TimeoutError) as error:
+                self._failed(nid, error)
+                raise HomeAssistantError("Fresh Google identity could not be verified; no rename was sent") from None
+            if (fresh["name"], fresh["mac"]) != (expected_name, row["mac_address"]):
+                self._failed(nid)
+                raise HomeAssistantError("The current Google name or MAC changed; no rename was sent")
+            self._proposal(nid, sid, expected_name, expected_mac, expected_ha_name)
+            if revision != self._failure_revision.get(nid, 0):
+                raise HomeAssistantError("Another name request failed; no rename was sent")
+            if automatic and (not self.network(nid).get("enabled") or self.network(nid).get("paused_reason") or sid in self.network(nid).get("excluded", [])):
+                return None
+            record = {"request_id": uuid4().hex, "station_id": sid, "mac_address": row["mac_address"],
+                      "ha_device_id": row["ha_device_id"], "old_name": fresh["name"], "new_name": row["proposed_name"],
+                      "restore_automatic": not fresh["raw_name"] or fresh["raw_name"] == fresh["automatic_name"],
+                      "state": "unconfirmed", "kind": "rename", "automatic": automatic, "updated_at": now_iso()}
+            await self._record(nid, record)
+            try:
                 self._proposal(nid, sid, expected_name, expected_mac, expected_ha_name)
-                if automatic and (not self.network(nid).get("enabled") or self.network(nid).get("paused_reason") or sid in self.network(nid).get("excluded", [])):
-                    return None
-                record = {"request_id": uuid4().hex, "station_id": sid, "mac_address": row["mac_address"],
-                          "ha_device_id": row["ha_device_id"], "old_name": fresh["name"], "new_name": row["proposed_name"],
-                          "restore_automatic": not fresh["raw_name"] or fresh["raw_name"] == fresh["automatic_name"],
-                          "state": "unconfirmed", "kind": "rename", "automatic": automatic, "updated_at": now_iso()}
-                await self._record(nid, record)
-                try:
-                    self._proposal(nid, sid, expected_name, expected_mac, expected_ha_name)
-                except HomeAssistantError:
-                    if not self.coordinator._stopping:
-                        await self._finish(nid, record["request_id"], "cancelled")
-                    raise
-                if automatic and not self.network(nid).get("enabled"):
+            except HomeAssistantError:
+                if not self.coordinator._stopping:
                     await self._finish(nid, record["request_id"], "cancelled")
-                    return None
-                return await self._send(nid, record, row["proposed_name"])
+                raise
+            if revision != self._failure_revision.get(nid, 0) or automatic and not self.network(nid).get("enabled"):
+                await self._finish(nid, record["request_id"], "cancelled")
+                return deepcopy(self._find(nid, record["request_id"]))
+            return await self._send(nid, record, row["proposed_name"])
 
     async def async_verify(self, nid, request_id):
-        async with self._write_lock:
+        sid = self._find(nid, request_id)["station_id"]
+        async with self._operation(nid, sid):
             record = self._find(nid, request_id)
             self._client(nid, record["station_id"])
             try:
                 fresh = await self.coordinator.client.station_identity(nid, record["station_id"])
-            except (ApiError, TimeoutError):
+            except (ApiError, TimeoutError) as error:
+                self._failed(nid, error)
                 raise HomeAssistantError("Google read-back is unavailable; no write was sent") from None
             desired = record["new_name"]
             matches = fresh["name"] == desired or (record["kind"] == "undo" and record["restore_automatic"] and (not fresh["raw_name"] or fresh["name"] == fresh["automatic_name"]))
@@ -201,7 +253,8 @@ class NameSync:
         return record
 
     async def async_undo(self, nid, request_id):
-        async with self._write_lock:
+        sid = self._find(nid, request_id)["station_id"]
+        async with self._operation(nid, sid) as revision:
             original = self._find(nid, request_id)
             sid = original["station_id"]
             self._client(nid, sid)
@@ -209,19 +262,25 @@ class NameSync:
                 raise HomeAssistantError("Only a verified rename without an unconfirmed request can be undone")
             if next(r for r in reversed(self.network(nid)["history"]) if r["station_id"] == sid)["request_id"] != request_id:
                 raise HomeAssistantError("A later request exists for this client; select the latest change")
-            async with self.coordinator.client._action_lock:
-                try:
-                    fresh = await self.coordinator.client.station_identity(nid, sid)
-                except (ApiError, TimeoutError):
-                    raise HomeAssistantError("Fresh Google identity could not be verified; no undo was sent") from None
-                if fresh["name"] != original["new_name"] or fresh["mac"] != original["mac_address"]:
-                    raise HomeAssistantError("Google name or MAC changed since this rename; undo was refused")
-                record = {**original, "request_id": uuid4().hex, "undo_of": request_id, "kind": "undo",
-                          "old_name": original["new_name"], "new_name": original["old_name"], "state": "unconfirmed", "automatic": False, "updated_at": now_iso()}
-                record.pop("observed_name", None)
-                await self._record(nid, record, exclude=True)
-                self._client(nid, sid)
-                return await self._send(nid, record, None if original["restore_automatic"] else original["old_name"], restore_automatic=original["restore_automatic"])
+            try:
+                fresh = await self.coordinator.client.station_identity(nid, sid)
+            except (ApiError, TimeoutError) as error:
+                self._failed(nid, error)
+                raise HomeAssistantError("Fresh Google identity could not be verified; no undo was sent") from None
+            if fresh["name"] != original["new_name"] or fresh["mac"] != original["mac_address"]:
+                self._failed(nid)
+                raise HomeAssistantError("Google name or MAC changed since this rename; undo was refused")
+            if revision != self._failure_revision.get(nid, 0):
+                raise HomeAssistantError("Another name request failed; no undo was sent")
+            record = {**original, "request_id": uuid4().hex, "undo_of": request_id, "kind": "undo",
+                      "old_name": original["new_name"], "new_name": original["old_name"], "state": "unconfirmed", "automatic": False, "updated_at": now_iso()}
+            record.pop("observed_name", None)
+            await self._record(nid, record, exclude=True)
+            self._client(nid, sid)
+            if revision != self._failure_revision.get(nid, 0):
+                await self._finish(nid, record["request_id"], "cancelled")
+                return deepcopy(self._find(nid, record["request_id"]))
+            return await self._send(nid, record, None if original["restore_automatic"] else original["old_name"], restore_automatic=original["restore_automatic"])
 
     def automatic_due(self):
         return time.monotonic() >= self._next_auto and any(row.get("enabled") and not row.get("paused_reason") for row in self._data.values())

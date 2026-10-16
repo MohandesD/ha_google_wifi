@@ -22,7 +22,7 @@ function demoRename(automatic=false){const record={request_id:'demo-name-'+(demo
 function management(){
  return {scope:'example',network_id:'example',name:'Demo WiFi',location:demoLocations.example,entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
   points:names.map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
-  name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:proposedName,mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
+  name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:proposedName,mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),max_concurrent:3,state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
 }
 function control(kind,id,key,name,domain='button',value='unknown'){
  const sensor=state('example',kind,id,key,value,name,{friendly_name:name});

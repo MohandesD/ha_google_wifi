@@ -31,16 +31,24 @@ use **Rename all eligible** for the current eligible list. Both are one-time
 actions: they do not enable automatic naming or schedule later work. Review the
 network, MACs and old/new names in the confirmation before sending. Each request
 still uses fresh Google/HA identity checks, a durable intent and verified
-read-back through the existing single-device service. No parallel writes are
-sent by a batch.
+read-back through the existing single-device service.
 
-Progress shows verified, skipped and not-sent counts plus individual outcomes.
+From version 0.12.1, manual batches process up to **three devices concurrently**.
+Each group finishes before the next starts. This is a conservative integration
+limit, not a published Google quota. The installed backend advertises its limit
+as `rename.max_concurrent`; an older backend keeps the panel serial until the
+complete integration is updated.
+
+Progress shows verified, in-progress, skipped, review and not-sent counts, plus
+individual outcomes in preview order. Concurrent service responses are not merged:
+the panel reads the cached management view once after each group finishes.
 A changed preview is skipped before dispatch. An unconfirmed or rejected result
 stops the remaining queue, with no automatic replay. Pending journal entries
 cannot be selected again. Keep Management open until completion; leaving the
 view, losing administrator access or losing the network stops further dispatch.
-**Stop after current device** leaves the current request alone and stops those
-not yet sent. Check **Recent name changes** after any uncertain result or closed
+**Stop pending requests** stops further dispatch. Up to three requests already in
+progress may still finish and their results remain visible. Check **Recent name
+changes** after any uncertain result or closed
 browser before starting another batch.
 
 Use **Enable
@@ -60,7 +68,15 @@ Each rename rechecks the current Google name and MAC using fresh Google reads,
 then rechecks the HA match against the preview. The sensitive-information lookup
 for this check does not rely on the normal MAC cache. The integration saves an
 intent record before writing and checks local identity again after that save.
-One naming operation runs at a time per config entry.
+Up to three naming operations for different clients share the config entry's
+network-action exclusion. Requests for the same client remain serialized, as do
+intent-storage updates. Each group releases the exclusion before admitting the
+next, so a queued restart or network test is not starved. A failed peer prevents
+other members of the group that have not yet sent their write from sending it.
+An HTTP 429 also applies Google's retry delay to subsequent cloud calls, including
+requests waiting for authentication. Sent requests are never recalled or replayed.
+Automatic naming remains sequential and keeps its existing three-candidate,
+five-minute limit; manual parallelism does not enable it.
 
 The verified request is a `PUT` to
 `groups/{groupId}/stations/{stationId}/stationName` with `{"name": "Example phone"}`.

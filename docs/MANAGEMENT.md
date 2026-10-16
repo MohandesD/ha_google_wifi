@@ -84,11 +84,15 @@ the page does not modify any name.
 Use **Apply name in Google** to review and confirm an individual suggestion.
 To rename several devices once, tick their checkboxes and use **Rename selected**,
 or choose **Rename all eligible**. Review the complete network/name/MAC list and
-confirm. These actions leave automatic naming unchanged. Requests run one at a
-time with per-device verification; progress, skipped previews and failures are
-shown. The queue stops on a rejected or unconfirmed result. Keep the page open;
-**Stop after current device** stops the remaining queue without recalling a sent
-request. Pending journal entries cannot be selected for another batch.
+confirm. These actions leave automatic naming unchanged. From version 0.12.1,
+up to three devices run concurrently with individual identity checks, durable
+intent and read-back verification. Each group finishes before the next begins.
+The panel shows active, verified, skipped, review and not-sent counts. A rejected
+or unconfirmed result stops new requests; already active requests may still
+complete. Keep the page open; **Stop pending requests** stops the remaining queue
+without recalling sent requests. Pending journal entries cannot be selected for
+another batch. An older backend retains serial behavior and shows an upgrade
+notice until the complete integration is updated.
 
 To continue correcting new generic names automatically, use **Enable automatic
 naming** and confirm the selected network. The setting starts disabled and is

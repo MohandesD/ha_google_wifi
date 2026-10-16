@@ -127,7 +127,7 @@ class WifiCoordinator(DataUpdateCoordinator):
     @callback
     def _schedule_name_sync(self):
         if (not self._stopping and self.last_update_success and self.data
-                and isinstance(self.client, CloudClient) and not self.names._write_lock.locked()
+                and isinstance(self.client, CloudClient) and not self.names.busy
                 and (self._name_task is None or self._name_task.done()) and self.names.automatic_due()):
             self._name_task = self.config_entry.async_create_background_task(
                 self.hass, self.names.async_automatic(), f"{DOMAIN} automatic names", eager_start=False)

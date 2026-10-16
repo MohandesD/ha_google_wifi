@@ -1,5 +1,5 @@
 // Management uses HA services and cached discovery. No provider credentials enter the UI.
-import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.12.0';
+import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.12.1';
 
 const WORDS={
  en:{title:'Network management',intro:'Map Wi-Fi points to Home Assistant areas and launch network actions.',network:'Network',refresh:'Refresh view',loading:'Loading management…',empty:'Connect a Google account to manage a network.',admin:'A Home Assistant administrator is required to manage this network.',failed:'Management is unavailable. Check the integration and try refreshing.',unavailable:'This network is unavailable. Wait for a successful update.',areas:'Points and areas',areaLabel:'Area',areaHint:'Each device gets a WiFi associated area sensor, based on its current wireless point. This estimates the area; it does not change the fixed device area in Home Assistant.',unmapped:'No area mapped',save:'Save area',saved:'Area mapping saved.',online:'Online',offline:'Offline or unknown',names:'Review unnamed devices',nameHint:'Suggestions use an exact MAC match with Home Assistant. Personalized Google names and ambiguous matches are preserved.',nameLimit:'Automatic naming starts disabled.',noNames:'No unnamed devices with an unambiguous HA MAC match.',proposed:'Suggested HA name',google:'Google name',copy:'Copy suggested name',copied:'Name copied. Apply it in Google Home.',copyFailed:'Copy unavailable. Select and copy the suggested name below.',guide:'Google naming instructions',actions:'Quick actions',actionHint:'Requests are sent only after confirmation. Tests may affect throughput; restarts temporarily interrupt connectivity.',restart_network:'Restart network',restart_point:'Restart point',test_internet:'Test Internet speed',test_mesh:'Test mesh to primary',test_local:'Test local speed',test_clients:'Test WiFi clients',confirm:'Confirm request',cancel:'Cancel',confirmHint:'Send this request to the selected target?',sending:'Sending request…',accepted:'Google accepted the request. Completion is not yet confirmed.',completed:'Google reports the operation completed.',unconfirmed:'The result is unconfirmed. Check the action status before sending again.',actionFailed:'The request failed or its delivery is unconfirmed. Check the action status before sending again.',latest:'Latest operation',status:'Status',primary:'Primary point',selectName:'Suggested device name'},
@@ -13,6 +13,8 @@ Object.assign(WORDS.pt,{nameUndoConfirm:'Restaurar o nome Google anterior após 
 Object.assign(WORDS.en,{manualNames:'Rename now',manualHint:'Rename selected suggestions or all eligible suggestions once, without enabling automatic naming.',selectDevice:'Select device',selectAll:'Select all eligible devices',selectionCount:'{selected} of {eligible} eligible devices selected',renameSelected:'Rename selected',renameAll:'Rename all eligible',batchHint:'Review every proposed change below. Requests run one at a time and stop on a rejected or unconfirmed result. This does not enable automatic naming. Keep this page open until the batch finishes.',batchDevices:'{count} devices',batchRunning:'Renaming {current} of {total} · {name}',batchSummary:'{verified} verified · {skipped} skipped · {remaining} not sent',batchComplete:'One-time renaming finished.',batchStopped:'One-time renaming stopped. Review the results before starting another batch.',batchProgress:'One-time rename progress',stopBatch:'Stop after current device',batchStopping:'Stopping after the current device. Its request may still complete.',skipped:'Preview changed; no request sent',sendingName:'Sending and verifying',notSent:'Not sent'});
 Object.assign(WORDS.pt,{manualNames:'Renomear agora',manualHint:'Renomeie uma vez as sugestões selecionadas ou todas as elegíveis, sem ativar a renomeação automática.',selectDevice:'Selecionar dispositivo',selectAll:'Selecionar todos os dispositivos elegíveis',selectionCount:'{selected} de {eligible} dispositivos elegíveis selecionados',renameSelected:'Renomear selecionados',renameAll:'Renomear todos os elegíveis',batchHint:'Reveja cada alteração abaixo. Os pedidos são enviados um de cada vez e param se houver rejeição ou falta de confirmação. Isto não ativa a renomeação automática. Mantenha esta página aberta até terminar.',batchDevices:'{count} dispositivos',batchRunning:'A renomear {current} de {total} · {name}',batchSummary:'{verified} confirmados · {skipped} ignorados · {remaining} não enviados',batchComplete:'Renomeação pontual terminada.',batchStopped:'Renomeação pontual interrompida. Reveja os resultados antes de iniciar outro lote.',batchProgress:'Progresso da renomeação pontual',stopBatch:'Parar após o dispositivo atual',batchStopping:'A parar após o dispositivo atual. O pedido em curso ainda pode terminar.',skipped:'A sugestão mudou; nenhum pedido enviado',sendingName:'A enviar e verificar',notSent:'Não enviado'});
 const button=(text,action)=>{const n=node('button',text);n.type='button';n.addEventListener('click',action);return n;};
+Object.assign(WORDS.en,{batchHint:'Review every proposed change below. Up to {limit} devices run at once, with individual identity checks and verification. New requests stop on a rejected or unconfirmed result; requests already in progress may still complete. This does not enable automatic naming. Keep this page open until the batch finishes.',batchWorking:'{active} in progress · {done} of {total} checked',batchSummary:'{verified} verified · {active} in progress · {skipped} skipped · {review} to review · {remaining} not sent',stopBatch:'Stop pending requests',batchStopping:'Stopping new requests. {active} requests are still in progress and may complete.',batchConcurrency:'Up to {limit} devices at once',batchUpgrade:'The installed backend supports one device at a time. Update the complete integration for parallel renaming.',batchRefreshFailed:'Could not refresh the verified management view. Remaining requests were not sent.'});
+Object.assign(WORDS.pt,{batchHint:'Reveja cada alteração abaixo. São processados até {limit} dispositivos em simultâneo, com validação da identidade e confirmação individuais. Novos pedidos param se houver rejeição ou falta de confirmação; os que já estão em curso podem terminar. Isto não ativa a renomeação automática. Mantenha esta página aberta até terminar.',batchWorking:'{active} em curso · {done} de {total} verificados',batchSummary:'{verified} confirmados · {active} em curso · {skipped} ignorados · {review} para rever · {remaining} não enviados',stopBatch:'Parar pedidos pendentes',batchStopping:'A parar novos pedidos. Existem {active} pedidos em curso que ainda podem terminar.',batchConcurrency:'Até {limit} dispositivos em simultâneo',batchUpgrade:'O backend instalado suporta um dispositivo de cada vez. Atualize a integração completa para renomear em paralelo.',batchRefreshFailed:'Não foi possível atualizar a vista de gestão confirmada. Os pedidos restantes não foram enviados.'});
 const CSS=`:host{display:block;padding:20px;color:var(--primary-text-color);font:14px/1.5 var(--paper-font-body1_-_font-family,system-ui)}h1{font-size:24px;margin:0}h2{font-size:19px;margin:0 0 8px}h3{font-size:16px;margin:0}p{color:var(--secondary-text-color);margin:6px 0 14px;max-width:85ch}.toolbar,.buttons{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.toolbar{margin:20px 0}.toolbar label{display:grid;gap:4px;min-width:220px}section{background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}.point,.candidate,.action-target{border:1px solid var(--divider-color);border-radius:12px;padding:16px;min-width:0;overflow-wrap:anywhere}.point label{display:grid;gap:6px;margin:10px 0}.candidate{margin-top:10px}.candidate input{width:100%;box-sizing:border-box;margin:6px 0 12px}.meta{font-size:12px;color:var(--secondary-text-color)}button,select,input{font:inherit;color:inherit;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);padding:9px 12px;min-height:42px;max-width:100%}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}.primary{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:transparent}.notice{background:var(--secondary-background-color);border-radius:10px;padding:12px}.feedback{white-space:pre-line;overflow-wrap:anywhere}.confirmation{border:2px solid var(--primary-color);padding:16px;border-radius:12px;margin:12px 0}.confirmation p{color:inherit}a{color:var(--primary-color)}[hidden]{display:none!important}@media(max-width:500px){:host{padding:12px}section{padding:14px}.toolbar label{min-width:0;width:100%}.buttons button{flex:1 1 120px}}`;
 
 export class GwiManagement extends HTMLElement {
@@ -89,6 +91,8 @@ export class GwiManagement extends HTMLElement {
   this._nameConfirmHost=node('div');names.append(this._nameConfirmHost);
   if(this._data.rename?.writable){
    names.append(node('h3',this._t('manualNames')),node('p',this._t('manualHint')));
+   names.append(node('p',this._tf('batchConcurrency',{limit:this._nameConcurrency()})));
+   if(this._nameConcurrency()===1)names.append(node('p',this._t('batchUpgrade')));
    const toolbar=node('div');toolbar.className='buttons';toolbar.style.cssText='position:sticky;top:64px;z-index:1;padding:8px 0;background:var(--card-background-color)';
    const allLabel=node('label',this._t('selectAll'));allLabel.style.cssText='display:flex;align-items:center;gap:8px';
    this._selectAllNames=node('input');this._selectAllNames.type='checkbox';this._selectAllNames.setAttribute('aria-label',this._t('selectAll'));this._selectAllNames.style.cssText='width:20px;min-height:20px';
@@ -157,6 +161,7 @@ export class GwiManagement extends HTMLElement {
   this._updateNameSelection();
  }
  _nameFingerprint(c){return JSON.stringify([c.station_id,c.entity_id,c.google_name,c.mac_address,c.proposed_name]);}
+ _nameConcurrency(){const value=this._data?.rename?.max_concurrent;return Number.isInteger(value)&&value>0?Math.min(value,3):1;}
  _eligibleNames(){
   if(!this._data?.rename?.writable)return [];
   const pending=new Set((this._data.rename.history||[]).filter(r=>r.state==='unconfirmed').map(r=>r.station_id));
@@ -183,44 +188,68 @@ export class GwiManagement extends HTMLElement {
  _confirmName(label,target,run,preview=[]){
   if(this._busy||!this._admin||this._network()?.unavailable)return;
   this._nameConfirmHost.replaceChildren();const box=node('div');box.className='confirmation';box.append(node('strong',this._t(label)+' · '+(target===this._data.name?'':target+' · ')+this._data.name),node('p',this._t(label==='undoName'?'nameUndoConfirm':'nameConfirm')));
-  if(preview.length){box.append(node('p',this._t('batchHint')));const list=node('ul');list.style.cssText='max-height:220px;overflow:auto;padding-inline-start:24px';for(const c of preview)list.append(node('li',c.google_name+' → '+c.proposed_name+' · '+c.mac_address));box.append(list);}
+  if(preview.length){box.append(node('p',this._tf('batchHint',{limit:this._nameConcurrency()})));const list=node('ul');list.style.cssText='max-height:220px;overflow:auto;padding-inline-start:24px';for(const c of preview)list.append(node('li',c.google_name+' → '+c.proposed_name+' · '+c.mac_address));box.append(list);}
   const confirm=button(this._t('confirm'),()=>{this._nameConfirmHost.replaceChildren();run();});confirm.className='primary';box.append(confirm,button(this._t('cancel'),()=>this._nameConfirmHost.replaceChildren()));this._nameConfirmHost.append(box);confirm.focus();
  }
  _renderBatchProgress(){
   if(!this._batchHost)return;this._batchHost.replaceChildren();const batch=this._batch;if(!batch||batch.scope!==this._scope)return;
   const box=node('div');box.className='notice';const done=batch.results.length,verified=batch.results.filter(r=>r.state==='verified').length,skipped=batch.results.filter(r=>r.state==='skipped').length;
-  const status=node('p',batch.running?(batch.stopRequested?this._t('batchStopping'):this._tf('batchRunning',{current:Math.min(done+1,batch.total),total:batch.total,name:batch.current||''})):this._t(batch.stopped?'batchStopped':'batchComplete'));
-  status.setAttribute('role','status');status.setAttribute('aria-live','polite');box.append(status,node('p',this._tf('batchSummary',{verified,skipped,remaining:batch.total-done-(batch.inFlight?1:0)})));
+  const active=batch.active.size,review=batch.results.filter(r=>!['verified','skipped'].includes(r.state)).length;
+  const status=node('p',batch.running?(batch.stopRequested?this._tf('batchStopping',{active}):this._tf('batchWorking',{active,done,total:batch.total})):this._t(batch.stopped?'batchStopped':'batchComplete'));
+  status.setAttribute('role','status');status.setAttribute('aria-live','polite');box.append(status,node('p',this._tf('batchSummary',{verified,skipped,active,review,remaining:batch.total-done-active})));
+  for(const name of batch.active.values())box.append(node('p',name+' · '+this._t('sendingName')));
+  if(batch.refreshFailed)box.append(node('p',this._t('batchRefreshFailed')));
   const progress=node('progress');progress.max=batch.total;progress.value=done;progress.setAttribute('aria-label',this._t('batchProgress'));progress.style.width='100%';box.append(progress);
-  if(batch.results.length){const list=node('ul');list.style.cssText='max-height:220px;overflow:auto;padding-inline-start:24px';for(const r of batch.results)list.append(node('li',r.name+' · '+this._t(r.state)));box.append(list);}
+  if(batch.results.length){const list=node('ul');list.style.cssText='max-height:220px;overflow:auto;padding-inline-start:24px';for(const r of [...batch.results].sort((a,b)=>a.index-b.index))list.append(node('li',r.name+' · '+this._t(r.state)));box.append(list);}
   if(batch.running){const stop=button(this._t('stopBatch'),()=>{batch.stopRequested=true;this._renderBatchProgress();});stop.disabled=batch.stopRequested;box.append(stop);}
   this._batchHost.append(box);
  }
  async _runNameBatch(preview,scope,generation){
-  const current=()=>this._connected&&this._scope===scope&&this._generation===generation&&this._admin&&!this._network()?.unavailable;
+  const sameView=()=>this._connected&&this._scope===scope&&this._generation===generation&&this._admin;
+  const current=()=>sameView()&&Boolean(this._network())&&!this._network().unavailable;
   if(this._busy||!current())return;
-  const batch={scope,total:preview.length,results:[],running:true,stopRequested:false,stopped:false,current:''};this._batch=batch;this._busy=true;this._say(null);this._updateDisabled();
+  const batch={scope,total:preview.length,results:[],active:new Map(),limit:this._nameConcurrency(),running:true,stopRequested:false,stopped:false};this._batch=batch;this._busy=true;this._say(null);this._updateDisabled();
+  const run=async(candidate,index)=>{
+   batch.active.set(candidate.entity_id,candidate.proposed_name);this._renderBatchProgress();
+   let result='unconfirmed';
+   try{
+    const data=await this._call('rename_client',{entity_id:candidate.entity_id,expected_google_name:candidate.google_name,expected_mac:candidate.mac_address,expected_ha_name:candidate.proposed_name});
+    if(data?.scope!==scope||!Array.isArray(data.name_candidates))throw Error('Wrong network response');
+    const record=data.name_result;
+    const matching=record?.station_id===candidate.station_id&&record.mac_address===candidate.mac_address&&record.new_name===candidate.proposed_name&&record.kind==='rename'&&record.automatic===false;
+    result=matching&&['verified','rejected','cancelled'].includes(record.state)?record.state:'unconfirmed';
+   }catch{result='unconfirmed';}
+   finally{
+    batch.active.delete(candidate.entity_id);batch.results.push({index,name:candidate.proposed_name,state:result});
+    if(sameView())this._selectedNames.delete(candidate.entity_id);
+    if(result!=='verified'){batch.stopped=true;batch.stopRequested=true;}
+    if(this._batch===batch&&sameView())this._renderBatchProgress();
+   }
+  };
+  let index=0;
   try{
-   for(const candidate of preview){
-    if(batch.stopRequested||!current()){batch.stopped=true;break;}
-    const eligible=this._eligibleNames().find(c=>c.entity_id===candidate.entity_id);
-    if(!eligible||this._nameFingerprint(eligible)!==this._nameFingerprint(candidate)){batch.results.push({name:candidate.proposed_name,state:'skipped'});this._selectedNames.delete(candidate.entity_id);this._renderBatchProgress();continue;}
-    batch.current=candidate.proposed_name;batch.inFlight=true;this._renderBatchProgress();
-    let result;
-    try{
-     const data=await this._call('rename_client',{entity_id:candidate.entity_id,expected_google_name:candidate.google_name,expected_mac:candidate.mac_address,expected_ha_name:candidate.proposed_name});
-     if(data?.scope!==scope||!Array.isArray(data.name_candidates))throw Error('Wrong network response');
-     const record=data.name_result;
-     const matching=record?.station_id===candidate.station_id&&record.mac_address===candidate.mac_address&&record.new_name===candidate.proposed_name&&record.kind==='rename'&&record.automatic===false;
-     result=matching&&['verified','rejected','cancelled'].includes(record.state)?record.state:'unconfirmed';
-     if(this._scope===scope&&this._generation===generation)this._data=data;
-    }catch{result='unconfirmed';}
-    batch.inFlight=false;batch.results.push({name:candidate.proposed_name,state:result});this._selectedNames.delete(candidate.entity_id);
-    if(result!=='verified'){batch.stopped=true;break;}
+   while(index<preview.length&&!batch.stopRequested&&current()){
+    const wave=[];
+    while(index<preview.length&&wave.length<batch.limit&&!batch.stopRequested&&current()){
+     const position=index++,candidate=preview[position],eligible=this._eligibleNames().find(c=>c.entity_id===candidate.entity_id);
+     if(!eligible||this._nameFingerprint(eligible)!==this._nameFingerprint(candidate)){batch.results.push({index:position,name:candidate.proposed_name,state:'skipped'});this._selectedNames.delete(candidate.entity_id);continue;}
+     wave.push(run(candidate,position));
+    }
+    this._renderBatchProgress();await Promise.allSettled(wave);
+    // Concurrent service responses can arrive out of order. Refresh the cached
+    // view once after the group drains instead of merging stale snapshots.
+    if(sameView()){
+     try{
+      const data=await this._call('get_management',{entity_id:this._network().entityId});
+      if(!sameView())break;
+      if(data?.scope!==scope||!Array.isArray(data.name_candidates)||!Array.isArray(data.points)||!Array.isArray(data.areas))throw Error('Wrong management response');
+      this._data=data;
+     }catch{batch.refreshFailed=true;batch.stopped=true;batch.stopRequested=true;}
+    }
    }
   }finally{
    batch.running=false;batch.stopped||=batch.results.length<batch.total;this._busy=false;
-   if(this._connected&&this._scope===scope&&this._generation===generation){this._renderContent();this._updateDisabled();}
+   if(sameView()){this._renderContent();this._updateDisabled();}else if(this._connected)this._update();
   }
  }
  async _nameRequest(service,payload){

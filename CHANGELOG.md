@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.1 — Parallel manual name batches (beta)
+
+- Process up to three different clients concurrently in **Rename selected** and
+  **Rename all eligible**. Keep requests for the same client ordered, persist each
+  intent before writing and require individual fresh Google read-back.
+- Drain each group before starting the next. Stop pending requests on failure,
+  cancellation, loss of permissions, navigation or network loss. Already active
+  requests may finish; uncertain writes are never replayed. Respect HTTP 429
+  cooldowns even when a request has been waiting for authentication.
+- Preserve exclusion with network actions and allow queued actions between
+  groups. Keep automatic naming opt-in, sequential and bounded as before.
+- Show active, verified, skipped, review and not-sent counts. Refresh the cached
+  management view after each group instead of applying out-of-order snapshots.
+  Older backends remain serial and display a complete-update notice.
+- Add isolated HA tests for concurrency, durable intents, same-client ordering,
+  action fairness, cancellation and failure handling, plus frontend batch tests.
+  No new household rename trial, HA installation or restart is performed.
+
 ## 0.12.0 — Locations and guided connection setup (beta)
 
 - Add a **Locations** page to label each independent network by home, building or

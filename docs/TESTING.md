@@ -31,6 +31,13 @@ latest release. It also runs HACS/hassfest, Python runtime dependency auditing a
 `npm audit`. No failed check is marked successful by ignoring its outcome. Local
 brand assets satisfy the HACS branding check; default-catalogue submission is separate.
 
+Naming concurrency tests use event barriers rather than timing-based speed claims.
+They verify three overlapping client operations, durable per-client intent,
+same-client duplicate prevention, network-action fairness, cancellation cleanup
+and shared HTTP 429 cooldowns. Frontend tests exercise bounded groups, late and
+out-of-order replies, stop/failure behavior, cached refresh failures and older
+backend compatibility. These checks do not measure live Google throughput.
+
 The archive uses fixed timestamps, stable permissions, sorted members and LF text.
 The verifier checks versions, translations, mirrored UI, archive/source identity,
 unexpected members and common credential patterns. A release still requires a

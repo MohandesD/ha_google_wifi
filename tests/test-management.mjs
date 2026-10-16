@@ -150,11 +150,11 @@ test('an undone client explains its automatic exclusion and does not offer the o
  assert.equal(calls.length,1);
 });
 
-function batchEnvironment(handler){
+function batchEnvironment(handler,{count=3,concurrency=1}={}){
  let env;
- const candidates=Array.from({length:3},(_,i)=>({station_id:'client'+i,entity_id:'sensor.client'+i,google_name:'Unnamed device',proposed_name:'Example device '+i,mac_address:'02:00:00:00:00:0'+i}));
+ const candidates=Array.from({length:count},(_,i)=>({station_id:'client'+i,entity_id:'sensor.client'+i,google_name:'Unnamed device',proposed_name:'Example device '+i,mac_address:'02:00:00:00:00:'+i.toString(16).padStart(2,'0')}));
  const remaining=new Set(candidates.map(c=>c.entity_id));
- const response=(record)=>{const d=data();d.name_candidates=candidates.filter(c=>remaining.has(c.entity_id));d.rename={writable:true,enabled:false,history:[]};if(record)d.name_result=record;return d;};
+ const response=(record)=>{const d=data();d.name_candidates=candidates.filter(c=>remaining.has(c.entity_id));d.rename={writable:true,enabled:false,max_concurrent:concurrency,history:[]};if(record)d.name_result=record;return d;};
  env=environment(async request=>{
   if(request.service==='get_management')return response();
   assert.equal(request.service,'rename_client','Manual batches never enable automatic naming');
@@ -162,7 +162,7 @@ function batchEnvironment(handler){
   assert.ok(candidate);
   const record={...candidate,new_name:candidate.proposed_name,kind:'rename',automatic:false,state:'verified'};
   const result=handler?await handler({request,candidate,record,env,response}):record;
-  if(result?.state==='verified')remaining.delete(candidate.entity_id);
+  if((result?.name_result??result)?.state==='verified')remaining.delete(candidate.entity_id);
   return result?.scope?result:response(result);
  });
  for(const c of candidates)env.hass.states[c.entity_id]={state:'Example point',attributes:{google_name:c.google_name}};
@@ -182,7 +182,7 @@ test('one-time renaming sends only selected frozen proposals after a list confir
  click(root,'Confirm request');await settle();await settle();
  assert.deepEqual(calls.filter(c=>c.service==='rename_client').map(c=>c.service_data.entity_id),['sensor.client0','sensor.client2']);
  assert.deepEqual({...calls[1].service_data},{entity_id:'sensor.client0',expected_google_name:'Unnamed device',expected_mac:'02:00:00:00:00:00',expected_ha_name:'Example device 0'});
- assert.equal(card._data.rename.enabled,false);assert.match(root.textContent,/2 verified · 0 skipped · 0 not sent/);assert.match(root.textContent,/One-time renaming finished/);
+ assert.equal(card._data.rename.enabled,false);assert.match(root.textContent,/2 verified · 0 in progress · 0 skipped · 0 to review · 0 not sent/);assert.match(root.textContent,/One-time renaming finished/);
 });
 
 test('rename all captures all eligible proposals without requiring selection or automatic mode',async()=>{
@@ -191,7 +191,7 @@ test('rename all captures all eligible proposals without requiring selection or 
  click(root,'Cancel');assert.equal(calls.length,1);
  click(root,'Rename all eligible');click(root,'Confirm request');await settle();await settle();
  assert.equal(calls.filter(c=>c.service==='rename_client').length,3);assert.equal(card._data.rename.enabled,false);
- assert.match(root.textContent,/3 verified · 0 skipped · 0 not sent/);
+ assert.match(root.textContent,/3 verified · 0 in progress · 0 skipped · 0 to review · 0 not sent/);
 });
 
 test('selection is scoped, supports select-all and prunes changed previews on refresh',async()=>{
@@ -211,7 +211,7 @@ for(const outcome of ['unconfirmed','rejected','cancelled','throw','wrong_networ
   if(outcome==='wrong_client')return {...record,station_id:'different-client'};
   return {...record,state:outcome};
  });await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
- assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/One-time renaming stopped/);assert.match(root.textContent,/0 verified · 0 skipped · 2 not sent/);
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/One-time renaming stopped/);assert.match(root.textContent,/0 verified · 0 in progress · 0 skipped · 1 to review · 2 not sent/);
  for(let i=0;i<20;i++)card.hass={...hass};assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
  assert.equal(card._data.rename.enabled,false);
 });
@@ -219,16 +219,16 @@ for(const outcome of ['unconfirmed','rejected','cancelled','throw','wrong_networ
 test('stop waits for the current response and never starts a second write',async()=>{
  let finish;const {root,calls}=batchEnvironment(({record})=>new Promise(resolve=>{finish=()=>resolve(record);}));
  await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
- assert.match(root.textContent,/Renaming 1 of 3 · Example device 0/);assert.match(root.textContent,/0 verified · 0 skipped · 2 not sent/);assert.equal(click(root,'Rename all eligible').disabled,true);
- click(root,'Stop after current device');assert.match(root.textContent,/request may still complete/);assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
- finish();await settle();assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/1 verified · 0 skipped · 2 not sent/);
+ assert.match(root.textContent,/1 in progress · 0 of 3 checked/);assert.match(root.textContent,/0 verified · 1 in progress · 0 skipped · 0 to review · 2 not sent/);assert.equal(click(root,'Rename all eligible').disabled,true);
+ click(root,'Stop pending requests');assert.match(root.textContent,/requests are still in progress and may complete/);assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
+ finish();await settle();assert.equal(calls.filter(c=>c.service==='rename_client').length,1);assert.match(root.textContent,/1 verified · 0 in progress · 0 skipped · 0 to review · 2 not sent/);
 });
 
 test('stale candidates are skipped before dispatch and cannot silently change the confirmed batch',async()=>{
  const {root,calls,card,hass}=batchEnvironment(({record,candidate})=>{if(candidate.station_id==='client0')hass.states['sensor.client1'].attributes.google_name='Personal name';return record;});
  await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();await settle();
  assert.deepEqual(calls.filter(c=>c.service==='rename_client').map(c=>c.service_data.entity_id),['sensor.client0','sensor.client2']);
- assert.match(root.textContent,/2 verified · 1 skipped · 0 not sent/);assert.equal(card._data.rename.enabled,false);
+ assert.match(root.textContent,/2 verified · 0 in progress · 1 skipped · 0 to review · 0 not sent/);assert.equal(card._data.rename.enabled,false);
 });
 
 test('leaving management while a request runs does not dispatch the remainder on return',async()=>{
@@ -257,4 +257,70 @@ test('manual batch labels follow the Home Assistant language and provider text s
  const {root,card,hass,candidates,calls}=batchEnvironment();await settle();candidates[0].proposed_name='<img src=x onerror=bad>';click(root,'Refresh view');await settle();
  card.hass={...hass,language:'pt-PT'};click(root,'Renomear todos os elegíveis');assert.match(root.querySelector('.confirmation').textContent,/não ativa a renomeação automática/);assert.equal(root.querySelector('img'),null);
  click(root,'Cancelar');assert.equal(calls.filter(c=>c.service==='rename_client').length,0);
+});
+
+test('parallel batches admit three devices and drain each group before the next',async()=>{
+ const pending=new Map();let active=0,peak=0;
+ const {root,calls,card}=batchEnvironment(({candidate,record,response})=>new Promise(resolve=>{
+  peak=Math.max(peak,++active);
+  const stale=response(record);stale.points[0].name='Stale response';
+  pending.set(candidate.station_id,()=>{--active;resolve(stale);});
+ }),{count:7,concurrency:3});
+ await settle();assert.match(root.textContent,/Up to 3 devices at once/);
+ click(root,'Rename all eligible');assert.match(root.querySelector('.confirmation').textContent,/Up to 3 devices run at once/);
+ click(root,'Confirm request');await settle();
+ const writes=()=>calls.filter(c=>c.service==='rename_client');
+ assert.equal(writes().length,3);assert.match(root.textContent,/3 in progress · 0 of 7 checked/);
+ pending.get('client2')();await settle();assert.equal(writes().length,3);assert.match(root.textContent,/1 verified · 2 in progress/);
+ pending.get('client0')();await settle();assert.equal(writes().length,3);
+ pending.get('client1')();await settle();assert.equal(writes().length,6);
+ assert.equal(card._data.points[0].name,'Example point','Out-of-order response snapshots never overwrite the cached refresh');
+ pending.get('client5')();pending.get('client4')();pending.get('client3')();await settle();assert.equal(writes().length,7);
+ pending.get('client6')();await settle();
+ assert.equal(peak,3);assert.equal(active,0);assert.equal(calls.filter(c=>c.service==='get_management').length,4);
+ assert.equal(card._data.name_candidates.length,0);assert.equal(card._data.rename.enabled,false);
+ assert.deepEqual([...root.querySelectorAll('.notice li')].map(li=>li.textContent),Array.from({length:7},(_,i)=>'Example device '+i+' · Verified'));
+ assert.match(root.textContent,/7 verified · 0 in progress · 0 skipped · 0 to review · 0 not sent/);
+});
+
+for(const outcome of ['rejected','unconfirmed','throw','stop'])test('parallel batch drains sent requests and stops pending work after '+outcome,async()=>{
+ const pending=new Map();const {root,calls,card}=batchEnvironment(({candidate,record})=>new Promise((resolve,reject)=>{
+  pending.set(candidate.station_id,()=>outcome==='throw'&&candidate.station_id==='client0'?reject(Error('Lost reply')):resolve({...record,state:candidate.station_id==='client0'&&outcome!=='stop'?outcome:'verified'}));
+ }),{count:8,concurrency:3});
+ await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ if(outcome==='stop')click(root,'Stop pending requests');
+ pending.get('client0')();await settle();assert.equal(card._batch.running,true);assert.equal(card._batch.active.size,2);
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,3);
+ pending.get('client2')();pending.get('client1')();await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,3);assert.equal(card._batch.running,false);
+ assert.equal(card._batch.results.length,3);assert.equal(card._batch.stopped,true);assert.equal(card._data.rename.enabled,false);
+ assert.match(root.textContent,/5 not sent/);assert.match(root.textContent,/One-time renaming stopped/);
+});
+
+for(const change of ['navigation','admin','outage','network'])test('parallel replies do not resume after '+change,async()=>{
+ const pending=[];const {root,calls,card,hass}=batchEnvironment(({record})=>new Promise(resolve=>pending.push(()=>resolve(record))),{count:6,concurrency:3});
+ await settle();click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ const batch=card._batch;
+ if(change==='navigation')card.remove();
+ else if(change==='admin')card.hass={...hass,user:{is_admin:false}};
+ else if(change==='outage')card.hass={...hass,states:{...hass.states,'sensor.entry_one':{...hass.states['sensor.entry_one'],state:'unavailable'}}};
+ else {const select=root.querySelector('.toolbar select');select.value='entry:two';select.dispatchEvent(new select.ownerDocument.defaultView.Event('change'));}
+ for(const finish of pending)finish();await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,3);assert.equal(batch.running,false);assert.equal(batch.stopped,true);
+ if(change==='network')assert.equal(card._scope,'entry:two');
+});
+
+test('a failed cached refresh stops later parallel groups without replay',async()=>{
+ const {root,calls,hass,card}=batchEnvironment(undefined,{count:6,concurrency:3});await settle();
+ const original=hass.callWS;hass.callWS=request=>request.service==='get_management'?Promise.reject(Error('Refresh unavailable')):original(request);
+ click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,3);assert.equal(card._batch.refreshFailed,true);
+ assert.match(root.textContent,/Remaining requests were not sent/);assert.match(root.textContent,/3 verified .*3 not sent/);
+});
+
+for(const concurrency of [undefined,0,-1,'3',99])test('parallel capability is bounded and older backends remain serial: '+concurrency,async()=>{
+ const pending=[];const {root,calls}=batchEnvironment(({record})=>new Promise(resolve=>pending.push(()=>resolve(record))),{count:6,concurrency});await settle();
+ click(root,'Rename all eligible');click(root,'Confirm request');await settle();
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,concurrency===99?3:1);
+ click(root,'Stop pending requests');for(const finish of pending)finish();await settle();
 });
