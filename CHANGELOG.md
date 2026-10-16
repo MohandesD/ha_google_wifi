@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.3 — Google quality labels and point device areas (beta)
+
+- Map Google's `OK` connection and mesh ratings to **Good** / **Boa**, matching
+  Google Home. Keep raw ratings and numeric indices, and retain **Fair** for
+  independently measured RSSI. Expose the raw rating on client quality sensors.
+  Automations matching a Google-derived `fair` state should now match `good`;
+  automations based on measured RSSI keep the existing thresholds.
+- Use the raw Google rating in the map and Overview so these views also show
+  the correct label while an older backend is still loaded.
+- Apply explicit point-to-area mappings to unassigned HA WiFi Point records on
+  discovery and subsequent updates. Follow an explicit mapping change when the
+  point still has the previous mapped area. Preserve a different manual area,
+  fixed client areas, device identities and other networks.
+- Test startup with saved mappings, manual overrides, cross-network isolation,
+  real HA quality entities and frontend compatibility. Python changes require
+  a Home Assistant restart; a config-entry reload retains already loaded code.
+
+
 ## 0.12.2 — Dashboard layout and navigation fixes (beta)
 
 - Align selectors and refresh controls; use one shared cloud-network selector in

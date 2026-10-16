@@ -3,7 +3,13 @@
 import copy
 
 import pytest
-from gwi_test.model import apply_roaming, cloud_network, local_point, parse_points
+from gwi_test.model import (
+    apply_roaming,
+    cloud_network,
+    google_quality,
+    local_point,
+    parse_points,
+)
 
 
 def network(stations, metrics=None):
@@ -240,7 +246,7 @@ def test_mesh_rating_uses_explicit_ap_and_root_even_without_rssi():
     points = cloud_network(group, status, [], metrics)["points"]
     assert points["root"]["is_root"] is True and points["root"]["mesh_quality"] is None
     assert points["leaf"]["is_root"] is False and points["leaf"]["root_ap_id"] == "root"
-    assert points["leaf"]["mesh_quality"] == "fair"
+    assert points["leaf"]["mesh_quality"] == "good"
     assert points["leaf"]["mesh_quality_source"] == "google_mesh_rating"
     assert points["offline"]["mesh_quality"] is None
     assert "unknown" not in points
@@ -262,3 +268,24 @@ def test_good_rating_does_not_claim_good_radio_saturation():
     )
     assert value["diagnosis"] == "quality_data_available"
     assert value["saturation"] is None and value["clients_with_signal"] == 0
+
+
+@pytest.mark.parametrize("rating,expected", [("GREAT", "excellent"), ("OK", "good"), ("WEAK", "weak")])
+def test_google_categories_keep_provider_rating_and_match_home_labels(rating, expected):
+    assert google_quality({"speedRating": rating, "numericSpeedRating": "50"}) == (expected, rating, 50)
+    value = network(
+        [{"id": "phone", "connected": True, "apId": "ap1", "rssi": -72}],
+        {"stationMetrics": [{"station": {"id": "phone", "connected": True, "apId": "ap1"},
+                             "speed": {"speedRating": rating}}]},
+    )
+    client = value["clients"]["phone"]
+    assert client["signal_quality"] == expected
+    assert client["google_rating"] == rating and client["rssi"] == -72
+    assert client["quality_source"] == "google_connection_rating"
+    assert value["saturation"] is None
+
+
+def test_fair_measured_rssi_is_independent_of_google_ok():
+    value = network([{"id": "phone", "connected": True, "apId": "ap1", "rssi": -72}])
+    assert value["clients"]["phone"]["signal_quality"] == "fair"
+    assert value["clients"]["phone"]["quality_source"] == "rssi"

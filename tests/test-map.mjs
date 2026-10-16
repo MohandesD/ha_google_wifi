@@ -78,6 +78,31 @@ test("mesh comparisons use a unique explicit root in the same network",()=>{
   assert.deepEqual(networks.find(n=>n.scope==="a").meshLinks.map(l=>({from:l.from,to:l.to,key:l.quality.key})),[{from:"root",to:"leaf",key:"fair"}]);
   assert.equal(networks.find(n=>n.scope==="b").meshLinks.length,0);
 });
+
+for(const language of ["en","pt"])test(`raw Google OK is Good with an older backend in ${language}`,()=>{
+  const root=point("a","root"),leaf=point("a","leaf"),c=client("a","phone","leaf",undefined);
+  Object.assign(root.attributes,{is_root:true,root_ap_id:"root"});
+  Object.assign(leaf.attributes,{root_ap_id:"root",mesh_quality:"fair",mesh_rating:"OK",mesh_quality_source:"google_mesh_rating"});
+  Object.assign(c.attributes,{signal_quality:"fair",google_rating:"OK",quality_source:"google_connection_rating"});
+  const model=mapModel({"sensor.root":root,"sensor.leaf":leaf,"sensor.client":c},{},language)[0];
+  assert.equal(model.meshLinks[0].quality.key,"good");
+  assert.match(model.meshLinks[0].quality.label,language==="pt"?/Boa/:/Good/);
+  assert.equal(model.clients[0].googleQuality.key,"good");
+  assert.equal(model.clients[0].signal.key,"good");
+  assert.equal(model.clients[0].signal.rssi,undefined);
+  leaf.attributes.online=false;
+  assert.equal(mapModel({"sensor.root":root,"sensor.leaf":leaf},{},language)[0].meshLinks[0].quality.key,"unknown");
+});
+
+test("raw Google categories do not change measured RSSI or endorse an unknown source",()=>{
+  const c=client("a","phone","leaf",-72);
+  Object.assign(c.attributes,{signal_quality:"fair",google_rating:"OK",quality_source:"google_connection_rating"});
+  const model=mapModel({"sensor.ap":point("a","leaf"),"sensor.client":c})[0];
+  assert.equal(model.clients[0].signal.key,"fair");
+  assert.equal(model.clients[0].googleQuality.key,"good");
+  assert.equal(quality("fair","google_mesh_rating",false,"en","UNKNOWN").key,"unknown");
+  assert.equal(quality("fair","unverified",false,"en","OK").key,"unknown");
+});
 test("offline mesh readings stay neutral and wired clients have no radio bars",()=>{
   const p=point("a","ap1"),c=client("a","wired","ap1",-45);
   Object.assign(p.attributes,{online:false,mesh_quality:"excellent",mesh_quality_source:"google_mesh_rating"});

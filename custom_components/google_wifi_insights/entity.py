@@ -86,6 +86,13 @@ class WifiEntity(CoordinatorEntity):
         if kind == "client" and item.get("ha_device_id"):
             self._attr_device_info["configuration_url"] = f"homeassistant://config/devices/device/{item['ha_device_id']}"
 
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.kind == "point":
+            self.coordinator.management.sync_point_device_area(
+                self.network_id, self.item_id, self.item.get("mapped_area_id")
+            )
+
     @property
     def item(self):
         network = (
@@ -169,6 +176,8 @@ class WifiEntity(CoordinatorEntity):
                 )
             if self.key == "associated_area":
                 client_keys += ("associated_area_id", "area_source")
+            if self.key == "signal_quality":
+                client_keys += ("quality_source", "google_rating", "google_rating_index")
             attributes.update(
                 {
                     key: item.get(key)

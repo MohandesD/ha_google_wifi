@@ -48,7 +48,7 @@ def google_quality(speed: Any) -> tuple[str | None, str | None, float | None]:
     rating = speed.get("speedRating")
     if not isinstance(rating, str):
         return None, None, None
-    quality = {"GREAT": "excellent", "OK": "fair", "WEAK": "weak"}.get(rating)
+    quality = {"GREAT": "excellent", "OK": "good", "WEAK": "weak"}.get(rating)
     if quality is None:
         return None, None, None
     return quality, rating, number(speed.get("numericSpeedRating"), 0, 100)

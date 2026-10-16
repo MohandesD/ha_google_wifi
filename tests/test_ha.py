@@ -453,7 +453,8 @@ async def test_device_identity_sensors_names_links_and_ids_remain_stable(real_ha
     assert client_states["ip_address"].state == "192.168.50.2"
     assert client_states["mac_address"].state == "aa:bb:cc:dd:ee:ff"
     assert client_states["download_mbps"].state == "0.0" and client_states["upload_mbps"].state == "0.0"
-    assert client_states["signal_quality"].state == "fair" and client_states["rssi"].state == "unknown"
+    assert client_states["signal_quality"].state == "good" and client_states["rssi"].state == "unknown"
+    assert client_states["signal_quality"].attributes["google_rating"] == "OK"
     assert client_states["point"].attributes["device_name"] == "0123456789ab* (Kitchen Light)"
     own = registry.async_get_device_by_identifier((DOMAIN,f"{entry.entry_id}:home:client:opaque"),entry.entry_id)
     assert own.id != foreign.id and own.name == "0123456789ab* (Kitchen Light)"
@@ -543,7 +544,8 @@ async def test_cloud_dynamic_clients_missing_connection_and_reauth(
     mesh = next(state for state in real_hass.states.async_all()
                 if state.attributes.get("gwi_metric") == "mesh_quality"
                 and state.attributes.get("gwi_item_id") == "ap2")
-    assert mesh.state == "fair" and mesh.attributes["root_ap_id"] == "ap1"
+    assert mesh.state == "good" and mesh.attributes["root_ap_id"] == "ap1"
+    assert mesh.attributes["mesh_rating"] == "OK"
     assert mesh.attributes["device_class"] == "enum"
     import json
 

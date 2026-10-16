@@ -29,7 +29,14 @@ before mapping points when accounts expose more than one house.
 Mappings are local to this integration, keyed by config entry, Google network ID
 and point ID. Point names are labels, not identity keys. Renaming a point does
 not lose the mapping. Several points may share one area. This does not rename
-Google rooms or change the area of any HA device, including the point itself.
+Google rooms or change a client's fixed HA device area.
+
+From version 0.12.3, the chosen mapping also fills an unassigned HA device area
+for that WiFi Point. An explicit mapping change updates the point when it still
+has the previous mapped area; a different manually assigned area is preserved.
+Removing the mapping does not clear an existing fixed device area. Points without
+an explicit mapping remain unassigned, even if a Google room or point name matches
+an HA area. This avoids assigning points from another home by name alone.
 Mappings survive HA/integration reloads and are included in HA configuration
 backups. Removing the integration entry deletes its local mappings. Area renames update the displayed names; deleting an area clears its
 effective association. Create a new mapping if that area is later replaced.

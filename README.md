@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.12.2.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.12.3.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -100,6 +100,10 @@ area. A new **WiFi associated area** sensor follows each client's current wirele
 point, while its fixed HA device area stays unchanged. Mappings are stored locally
 and survive integration reloads. The map shows the mapped point areas and client
 area estimates. A point association estimates coverage, not physical room presence.
+
+Point mappings also fill an unassigned HA area on the WiFi Point device itself.
+A different manually assigned point area is preserved. Google `OK` quality
+ratings are shown as **Good** / **Boa**; measured RSSI has its own classification.
 
 The same page groups confirmed-target restarts and speed tests with request
 confirmation and operation status. It also proposes names for generic Google

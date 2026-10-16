@@ -100,6 +100,59 @@ async def test_area_follows_roaming_and_never_changes_fixed_device_area(real_has
     assert await real_hass.config_entries.async_unload(entry.entry_id)
 
 
+async def test_point_mapping_fills_point_area_but_preserves_manual_overrides_and_other_networks(real_hass, monkeypatch):
+    areas = area_registry.async_get(real_hass)
+    first, second, manual = [areas.async_create(name) for name in ("Example office", "Example studio", "Manual area")]
+    network = network_fixture()
+    entry = await setup_fixture(real_hass, monkeypatch, {"networks": {"home": network, "other": copy.deepcopy(network)}})
+    registry = device_registry.async_get(real_hass)
+    own = registry.async_get_device_by_identifier((DOMAIN, f"{entry.entry_id}:home:point:point"), entry.entry_id)
+    foreign = registry.async_get_device_by_identifier((DOMAIN, f"{entry.entry_id}:other:point:point"), entry.entry_id)
+    client = registry.async_get_device_by_identifier((DOMAIN, f"{entry.entry_id}:home:client:client0"), entry.entry_id)
+    ids = {d.id for d in device_registry.async_entries_for_config_entry(registry, entry.entry_id)}
+    registry.async_update_device(client.id, area_id=manual.id)
+    assert own.area_id is None and foreign.area_id is None
+    point = carrier(real_hass, "point", "clients", sid="point")
+    await call(real_hass, "set_point_area", {"entity_id": point.entity_id, "area_id": first.id})
+    assert registry.async_get(own.id).area_id == first.id
+    assert registry.async_get(foreign.id).area_id is None
+    await call(real_hass, "set_point_area", {"entity_id": point.entity_id, "area_id": second.id})
+    assert registry.async_get(own.id).area_id == second.id
+    registry.async_update_device(own.id, area_id=manual.id)
+    await call(real_hass, "set_point_area", {"entity_id": point.entity_id, "area_id": first.id})
+    await entry.runtime_data.async_refresh()
+    assert registry.async_get(own.id).area_id == manual.id
+    assert carrier(real_hass, "client", "associated_area").state == first.name
+    await call(real_hass, "set_point_area", {"entity_id": point.entity_id, "area_id": None})
+    assert registry.async_get(own.id).area_id == manual.id
+    assert registry.async_get(client.id).area_id == manual.id
+    assert {d.id for d in device_registry.async_entries_for_config_entry(registry, entry.entry_id)} == ids
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_saved_mapping_populates_new_point_device_on_setup_without_a_second_poll(real_hass, monkeypatch):
+    from homeassistant.helpers.storage import Store
+    from test_stabilization_ha import entry_for_test
+
+    from custom_components.google_wifi_insights.api import CloudClient
+
+    area = area_registry.async_get(real_hass).async_create("Example office")
+    entry = entry_for_test()
+    await Store(real_hass, 1, f"{DOMAIN}.{entry.entry_id}.areas").async_save({"home": {"point": area.id}})
+    poll = AsyncMock(side_effect=lambda: {"networks": {"home": network_fixture()}})
+    monkeypatch.setattr(CloudClient, "snapshot", poll)
+    await real_hass.config_entries.async_add(entry)
+    await real_hass.async_block_till_done()
+    registry = device_registry.async_get(real_hass)
+    own = registry.async_get_device_by_identifier((DOMAIN, f"{entry.entry_id}:home:point:point"), entry.entry_id)
+    assert own.area_id == area.id and poll.call_count == 1
+    assert carrier(real_hass, "point", "clients").attributes["mapped_area_id"] == area.id
+    assert await real_hass.config_entries.async_reload(entry.entry_id)
+    await real_hass.async_block_till_done()
+    assert registry.async_get(own.id).area_id == area.id
+    assert await real_hass.config_entries.async_unload(entry.entry_id)
+
+
 @pytest.mark.parametrize("change", ["disconnected", "wired", "missing-ap", "offline-point", "unreachable", "failed-network"], ids=str)
 async def test_noncurrent_wireless_area_is_unknown(real_hass, monkeypatch, change):
     area = area_registry.async_get(real_hass).async_create("Example office")

@@ -7,7 +7,7 @@ import unicodedata
 from collections import Counter
 
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import area_registry, entity_registry
+from homeassistant.helpers import area_registry, device_registry, entity_registry
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
@@ -75,7 +75,7 @@ def name_proposals(clients, records):
 
 
 class WifiManagement:
-    """Persist mappings per entry and network, without changing HA device areas."""
+    """Persist point mappings while keeping client device areas independent."""
 
     def __init__(self, hass, entry):
         self.hass = hass
@@ -116,6 +116,7 @@ class WifiManagement:
             for pid, point in network["points"].items():
                 area = registry.async_get_area(self.mappings.get(nid, {}).get(pid, ""))
                 point.update(mapped_area_id=area.id if area else None, mapped_area=area.name if area else None)
+                self.sync_point_device_area(nid, pid, point.get("mapped_area_id"))
             for client in network["clients"].values():
                 point = network["points"].get(client.get("ap_id"), {})
                 current = (network.get("reachable") is not False and client.get("connected") is True
@@ -125,6 +126,17 @@ class WifiManagement:
                               associated_area=point.get("mapped_area") if current else None,
                               area_source="wifi_point" if current and point.get("mapped_area_id") else None)
         return snapshot
+
+    def sync_point_device_area(self, nid, pid, area_id, previous_area_id=None):
+        """Fill an unassigned point area; retain a different manual HA assignment."""
+        if not area_id or not area_registry.async_get(self.hass).async_get_area(area_id):
+            return
+        registry = device_registry.async_get(self.hass)
+        own = registry.async_get_device_by_identifier(
+            (DOMAIN, f"{self.entry.entry_id}:{nid}:point:{pid}"), self.entry.entry_id
+        )
+        if own and own.area_id != area_id and own.area_id in (None, previous_area_id):
+            registry.async_update_device(own.id, area_id=area_id)
 
     async def async_set_location(self, nid, name):
         label = location_label(name)
@@ -142,6 +154,7 @@ class WifiManagement:
         if area_id and not area_registry.async_get(self.hass).async_get_area(area_id):
             raise HomeAssistantError("Select an existing Home Assistant area")
         async with self._lock:
+            previous_area_id = self.mappings.get(nid, {}).get(pid)
             updated = {key: dict(points) for key, points in self.mappings.items()}
             points = updated.setdefault(nid, {})
             if area_id:
@@ -150,6 +163,7 @@ class WifiManagement:
                 points.pop(pid, None)
             await self._store.async_save(updated)
             self.mappings = updated
+            self.sync_point_device_area(nid, pid, area_id, previous_area_id)
 
     def response(self, nid, network):
         """Use cached discovery; opening management does not poll Google."""

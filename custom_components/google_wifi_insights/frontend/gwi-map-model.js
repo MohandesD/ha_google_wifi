@@ -121,8 +121,11 @@ export function signal(value, unavailable = false, wired = false, language="en")
   return { key, label: `${t(key)} · ${t.number(rssi)} dBm`, bars: { excellent: 4, good: 3, fair: 2, weak: 1 }[key], rssi, source: "rssi" };
 }
 
-export function quality(category, source, unavailable = false, language="en") {
+export function quality(category, source, unavailable = false, language="en", googleRating) {
   const t=translate(language);
+  // Raw provider ratings keep the display correct with older backend normalization.
+  if(googleRating!==undefined && googleRating!==null)
+    category=({GREAT:"excellent",OK:"good",WEAK:"weak"})[googleRating];
   if(unavailable || !["excellent","good","fair","weak"].includes(category) || !["google_connection_rating","google_mesh_rating"].includes(source))
     return { key:"unknown",label:t(unavailable?"unavailable":"no_rating"),bars:0 };
   return { key:category,label:t(category)+" · Google",bars:{excellent:4,good:3,fair:2,weak:1}[category],source };
@@ -131,7 +134,7 @@ export function quality(category, source, unavailable = false, language="en") {
 function connection(a,language) {
   const t=translate(language);
   const wired=["WIRED","ETHERNET","CONNECTION_TYPE_WIRED"].includes(a.connection_type);
-  const rating=quality(a.signal_quality,a.quality_source,false,language);
+  const rating=quality(a.signal_quality,a.quality_source,false,language,a.google_rating);
   const measured=signal(a.rssi,false,false,language);
   if(a.rssi_source==="shelly_wifi_status" && measured.key!=="unknown")return {...measured,measuredBy:"Shelly"};
   if(wired) return { ...rating,label:rating.key==="unknown"?t("wired"):`${t("wired")} · ${rating.label}`,bars:0,wired:true };
@@ -169,7 +172,7 @@ export function mapModel(states, config = {}, language="en") {
         unavailable, clients: [], count: ["unknown", "unavailable"].includes(state.state) ? null : Number.isFinite(Number(state.state)) ? Number(state.state) : null,
         isRoot: a.is_root === true, rootId: a.root_ap_id || null,
         area:unavailable?null:a.mapped_area,areaId:unavailable?null:a.mapped_area_id,
-        mesh: quality(a.mesh_quality,a.mesh_quality_source,unavailable || a.online !== true,locale),
+        mesh: quality(a.mesh_quality,a.mesh_quality_source,unavailable || a.online !== true,locale,a.mesh_rating),
       });
     }
   }
@@ -190,7 +193,7 @@ export function mapModel(states, config = {}, language="en") {
       ownDeviceId:a.gwi_device_id || null,roaming:a.roaming_supported===true && a.radio_available===true,
       rssiSource:a.rssi_source || null,rssiObservedAt:a.rssi_observed_at || null,
       channel:a.wifi_channel,bssid:a.wifi_bssid,
-      googleQuality:quality(a.signal_quality,a.quality_source,false,locale),
+      googleQuality:quality(a.signal_quality,a.quality_source,false,locale,a.google_rating),
       wifiTest:a.wifi_test_mbps,wifiTestAt:a.wifi_test_at,wifiTestPoint:a.wifi_test_point,
       usageWindows:a.usage_windows || {},
       paused:a.internet_paused,priorityUntil:a.priority_until,controls:[],
