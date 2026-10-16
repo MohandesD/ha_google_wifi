@@ -1,4 +1,4 @@
-"""HA services bound to real registry entities and their current cloud network."""
+"""HA services bound to real registry entities and their current network."""
 import voluptuous as vol
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
@@ -12,7 +12,7 @@ def register_services(hass):
     if hass.services.has_service(DOMAIN, "google_action"):
         return
 
-    def resolve(entity_id, *, allow_unavailable=False):
+    def resolve(entity_id, *, allow_unavailable=False, allow_local=False):
         entity = entity_registry.async_get(hass).async_get(entity_id)
         state = hass.states.get(entity_id)
         if not entity or entity.platform != DOMAIN or not state:
@@ -29,7 +29,7 @@ def register_services(hass):
         item = network if kind == "network" and sid == nid else network.get("points" if kind == "point" else "clients", {}).get(sid)
         if not allow_unavailable and network.get("reachable") is False:
             raise HomeAssistantError("Google WiFi network is unavailable; wait for a successful update")
-        if not item or network.get("source") != "google_cloud":
+        if not item or network.get("source") not in (("google_cloud", "local_status") if allow_local else ("google_cloud",)):
             raise HomeAssistantError("Select a current Google account entity")
         return coordinator, nid, kind, sid
 
@@ -110,6 +110,14 @@ def register_services(hass):
         await coordinator.async_set_point_area(nid, sid, call.data["area_id"])
         return coordinator.management.response(nid, coordinator.data["networks"][nid])
 
+    async def network_location(call):
+        await authorized(call)
+        coordinator, nid, kind, _ = resolve(call.data["entity_id"], allow_unavailable=True, allow_local=True)
+        if kind != "network":
+            raise HomeAssistantError("Select a Google WiFi network entity")
+        location = await coordinator.async_set_network_location(nid, call.data["name"])
+        return {"scope": f"{coordinator.config_entry.entry_id}:{nid}", "location": location}
+
     base = {vol.Required("entity_id"): str}
     hass.services.async_register(DOMAIN, "google_action", action, schema=vol.Schema({**base, vol.Required("action"): vol.In(ACTION_KINDS), vol.Optional("parameters", default={}): dict}), supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "get_usage_history", history, schema=vol.Schema({**base, vol.Required("resolution", default="hour"): vol.In(("minute", "hour", "day", "month"))}), supports_response=SupportsResponse.ONLY)
@@ -117,6 +125,7 @@ def register_services(hass):
     hass.services.async_register(DOMAIN, "get_google_metrics", telemetry, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "get_management", management, schema=vol.Schema(base), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_point_area", point_area, schema=vol.Schema({**base, vol.Required("area_id"): vol.Any(None, str)}), supports_response=SupportsResponse.OPTIONAL)
+    hass.services.async_register(DOMAIN, "set_network_location", network_location, schema=vol.Schema({**base, vol.Required("name"): vol.Any(None, str)}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_name_sync", naming, schema=vol.Schema({**base, vol.Required("enabled"): bool}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "rename_client", naming, schema=vol.Schema({**base, vol.Required("expected_google_name"): str, vol.Required("expected_ha_name"): str, vol.Required("expected_mac"): str}), supports_response=SupportsResponse.ONLY)
     for service in ("undo_name", "verify_name"):

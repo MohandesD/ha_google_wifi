@@ -1,7 +1,9 @@
-"""Local point/area mappings and conservative, read-only Google name proposals."""
+"""Local network organization and conservative Google name proposals."""
 
 import asyncio
+import hashlib
 import re
+import unicodedata
 from collections import Counter
 
 from homeassistant.exceptions import HomeAssistantError
@@ -10,6 +12,23 @@ from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
 from .identity import ha_records, identity_index, normalize_mac
+
+
+def location_label(value):
+    """Validate a local display label, never a Google home ID or LAN anchor."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or any(not c.isprintable() for c in value):
+        raise HomeAssistantError("Use a printable location name of at most 64 characters")
+    value = " ".join(unicodedata.normalize("NFKC", value).split())
+    if len(value) > 64:
+        raise HomeAssistantError("Use a printable location name of at most 64 characters")
+    return value or None
+
+
+def location_details(label):
+    """Group equal labels across entries without changing network identity."""
+    return {"id": hashlib.sha256(label.casefold().encode()).hexdigest()[:24], "name": label} if label else None
 
 
 def generic_name(name, station_id):
@@ -62,9 +81,11 @@ class WifiManagement:
         self.hass = hass
         self.entry = entry
         self._store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.areas")
+        self._locations_store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.locations")
         self._lock = asyncio.Lock()
         self._loaded = False
         self.mappings = {}
+        self.locations = {}
 
     async def async_load(self):
         if self._loaded:
@@ -77,11 +98,21 @@ class WifiManagement:
                 self.mappings = {nid: {pid: aid for pid, aid in points.items()
                                        if isinstance(pid, str) and isinstance(aid, str)}
                                  for nid, points in saved.items() if isinstance(nid, str) and isinstance(points, dict)}
+            saved_locations = await self._locations_store.async_load()
+            if isinstance(saved_locations, dict):
+                for nid, label in saved_locations.items():
+                    if isinstance(nid, str) and isinstance(label, str):
+                        try:
+                            if valid := location_label(label):
+                                self.locations[nid] = valid
+                        except HomeAssistantError:
+                            continue
             self._loaded = True
 
     def apply(self, snapshot):
         registry = area_registry.async_get(self.hass)
         for nid, network in snapshot["networks"].items():
+            network["location"] = location_details(self.locations.get(nid))
             for pid, point in network["points"].items():
                 area = registry.async_get_area(self.mappings.get(nid, {}).get(pid, ""))
                 point.update(mapped_area_id=area.id if area else None, mapped_area=area.name if area else None)
@@ -94,6 +125,18 @@ class WifiManagement:
                               associated_area=point.get("mapped_area") if current else None,
                               area_source="wifi_point" if current and point.get("mapped_area_id") else None)
         return snapshot
+
+    async def async_set_location(self, nid, name):
+        label = location_label(name)
+        async with self._lock:
+            updated = dict(self.locations)
+            if label:
+                updated[nid] = label
+            else:
+                updated.pop(nid, None)
+            await self._locations_store.async_save(updated)
+            self.locations = updated
+        return location_details(label)
 
     async def async_set_area(self, nid, pid, area_id):
         if area_id and not area_registry.async_get(self.hass).async_get_area(area_id):
@@ -123,6 +166,7 @@ class WifiManagement:
             row["entity_id"] = target("client", row["station_id"], "point")
         return {
             "network_id": nid, "scope": f"{self.entry.entry_id}:{nid}", "name": network["name"],
+            "location": location_details(self.locations.get(nid)),
             "entity_id": target("network", nid, "diagnosis"),
             "areas": sorted([{"id": area.id, "name": area.name} for area in
                              area_registry.async_get(self.hass).areas.values()], key=lambda row: row["name"].casefold()),

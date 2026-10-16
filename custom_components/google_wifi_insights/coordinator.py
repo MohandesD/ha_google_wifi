@@ -171,6 +171,21 @@ class WifiCoordinator(DataUpdateCoordinator):
         if self.last_update_success:
             self.async_set_updated_data(self.management.apply(deepcopy(self.data)))
 
+    async def async_set_network_location(self, nid, name):
+        """Save local organization even during outages, without polling Google."""
+        if self._stopping or nid not in (self.data or {}).get("networks", {}):
+            raise HomeAssistantError("Select a known Google WiFi network")
+        location = await self.management.async_set_location(nid, name)
+        if not self._stopping:
+            # Updating metadata must not clear an existing coordinator failure.
+            updated = self.management.apply(deepcopy(self.data))
+            if self.last_update_success:
+                self.async_set_updated_data(updated)
+            else:
+                self.data = updated
+                self.async_update_listeners()
+        return location
+
     def _update_device_metadata(self, snapshot):
         """Refresh only our network/point records, retaining user names and IDs."""
         registry = device_registry.async_get(self.hass)

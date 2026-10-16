@@ -54,7 +54,7 @@ dashboard. A simulated Home Assistant frame provides ordinary sidebar context,
 Roboto typography and demo-only Material Design icons. These assets are local;
 see [credits](../CREDITS.md) for their licenses.
 
-Use the language/scenario selectors at the bottom, Overview/Map/Management tabs,
+Use the language/scenario selectors at the bottom, Overview/Map/Management/Locations tabs,
 information disclosures and history controls to check desktop/mobile layout, missing signal and partial
 network failure. Fixture updates arrive every three seconds for scroll/focus
 regression checks. Stop the server with Ctrl+C. README screenshots are taken from
@@ -62,7 +62,9 @@ this demo, never from a private installation.
 
 For screenshot capture, use `?capture=1` to hide the demo controls and stop the
 three-second fixture updates. Start at `&view=map` or `&view=management` to open
-those views directly; the default is Overview. Wait for **24 connected clients**
+those views directly; use `&view=locations&scenario=homes` for two fictional cloud
+homes and a separate local-status entry. Its location saves change only fixture
+objects. The default is Overview. Wait for **24 connected clients**
 or the populated management controls before capturing. Use ordinary viewport
 captures and scroll to individual sections rather than shrinking a whole long
 page into an unreadable image. The small demo badge, generic demo user, names,

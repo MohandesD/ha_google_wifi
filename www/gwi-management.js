@@ -1,5 +1,5 @@
 // Management uses HA services and cached discovery. No provider credentials enter the UI.
-import {languageOf,mapModel,operationFeedback} from './gwi-map-model.js?v=0.11.1';
+import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.12.0';
 
 const WORDS={
  en:{title:'Network management',intro:'Map Wi-Fi points to Home Assistant areas and launch network actions.',network:'Network',refresh:'Refresh view',loading:'Loading management…',empty:'Connect a Google account to manage a network.',admin:'A Home Assistant administrator is required to manage this network.',failed:'Management is unavailable. Check the integration and try refreshing.',unavailable:'This network is unavailable. Wait for a successful update.',areas:'Points and areas',areaLabel:'Area',areaHint:'Each device gets a WiFi associated area sensor, based on its current wireless point. This estimates the area; it does not change the fixed device area in Home Assistant.',unmapped:'No area mapped',save:'Save area',saved:'Area mapping saved.',online:'Online',offline:'Offline or unknown',names:'Review unnamed devices',nameHint:'Suggestions use an exact MAC match with Home Assistant. Personalized Google names and ambiguous matches are preserved.',nameLimit:'Automatic naming starts disabled.',noNames:'No unnamed devices with an unambiguous HA MAC match.',proposed:'Suggested HA name',google:'Google name',copy:'Copy suggested name',copied:'Name copied. Apply it in Google Home.',copyFailed:'Copy unavailable. Select and copy the suggested name below.',guide:'Google naming instructions',actions:'Quick actions',actionHint:'Requests are sent only after confirmation. Tests may affect throughput; restarts temporarily interrupt connectivity.',restart_network:'Restart network',restart_point:'Restart point',test_internet:'Test Internet speed',test_mesh:'Test mesh to primary',test_local:'Test local speed',test_clients:'Test WiFi clients',confirm:'Confirm request',cancel:'Cancel',confirmHint:'Send this request to the selected target?',sending:'Sending request…',accepted:'Google accepted the request. Completion is not yet confirmed.',completed:'Google reports the operation completed.',unconfirmed:'The result is unconfirmed. Check the action status before sending again.',actionFailed:'The request failed or its delivery is unconfirmed. Check the action status before sending again.',latest:'Latest operation',status:'Status',primary:'Primary point',selectName:'Suggested device name'},
@@ -17,7 +17,7 @@ const CSS=`:host{display:block;padding:20px;color:var(--primary-text-color);font
 
 export class GwiManagement extends HTMLElement {
  constructor(){super();this.attachShadow({mode:'open'});this._generation=0;this._drafts=new Map();this._selectedNames=new Map();}
- setConfig(value){this._config=value||{};}
+ setConfig(value){if(value?.locations_path!=null&&!isLocalHaPath(value.locations_path))throw Error('locations_path must be a local HA path');this._config=value||{};if(this._connected&&this._hass)this._update();}
  connectedCallback(){this._connected=true;if(this._hass)this._update();}
  disconnectedCallback(){this._connected=false;this._generation++;this._loading=false;this._attempted=false;if(this._batch)this._batch.stopRequested=true;}
  set hass(value){this._hass=value;if(this._connected)this._update();}
@@ -25,11 +25,11 @@ export class GwiManagement extends HTMLElement {
   const language=languageOf(this._hass),admin=this._hass?.user?.is_admin===true;
   if(language!==this._language||!this._built){this._language=language;this._build();}
   this._admin=admin;
-  const networks=mapModel(this._hass?.states).filter(n=>n.source==='google_cloud');
-  const signature=JSON.stringify(networks.map(n=>[n.scope,n.name]));
+  const networks=mapModel(this._hass?.states,this._config).filter(n=>n.source==='google_cloud');
+  const signature=JSON.stringify(networks.map(n=>[n.scope,n.name,n.locationName]));
   if(signature!==this._networksSignature){
    this._networksSignature=signature;this._selector.replaceChildren();
-   for(const n of networks){const option=node('option',n.name);option.value=n.scope;this._selector.append(option);}
+   for(const n of networks){const option=node('option',(n.locationName?n.locationName+' · ':'')+n.name);option.value=n.scope;this._selector.append(option);}
   }
   this._networks=networks;
   if(!networks.some(n=>n.scope===this._scope))this._changeScope(networks[0]?.scope);
@@ -59,7 +59,7 @@ export class GwiManagement extends HTMLElement {
  }
  _t(key){return WORDS[this._language||'en'][key]||key;}
  _tf(key,values){return this._t(key).replace(/\{(\w+)\}/g,(_,name)=>String(values[name]));}
- _say(key){this._message=key;this._status.textContent=key?this._t(key):'';}
+ _say(key){this._message=key;this._status.textContent=key?this._t(key):'';if(key==='empty'){const link=node('a',this._language==='pt'?'Localizações e passos de ligação':'Locations and connection steps');link.href=this._config?.locations_path||'/config/integrations/integration/google_wifi_insights';this._status.append(document.createTextNode(' '),link);}}
  _changeScope(scope){if(this._batch)this._batch.stopRequested=true;this._batch=null;this._selectedNames.clear();this._scope=scope;this._generation++;this._data=null;this._loading=false;this._attempted=false;this._confirmation=null;this._content.replaceChildren();this._say(null);}
  async _call(service,data){const result=await this._hass.callWS({type:'call_service',domain:'google_wifi_insights',service,service_data:data,return_response:true});return result.response;}
  async _load(){

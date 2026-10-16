@@ -6,6 +6,11 @@ currently available Google account network. Local-only mode has no cloud client
 association inventory. Existing dashboard cards keep working; the Management
 page is part of the bundled sidebar panel.
 
+Version 0.12.0 adds a shared location/network filter and a **Locations** page for
+multiple homes and setup guidance. [Location labels](LOCATIONS.md) are independent
+of the existing point-to-area mappings below. Assign each cloud network its home
+before mapping points when accounts expose more than one house.
+
 ![Point and area management with fictional data](images/management-demo.png)
 
 ## Map points to existing areas

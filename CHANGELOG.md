@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.0 — Locations and guided connection setup (beta)
+
+- Add a **Locations** page to label each independent network by home, building or
+  location, reusing labels across local/cloud entries without merging identities.
+  Persist labels per config entry/network and expose them on the assessment entity.
+- Add common location and network selectors for Overview, Map and Management.
+  Retain an unfiltered location inventory so unassigned networks remain accessible.
+- Replace the misleading local-mode Google validation message with an explanation
+  of missing client associations and a link to connection steps. Distinguish local
+  status, cloud networks with no connected clients and unavailable cloud queries.
+- Guide users through selecting the Google Home account/home, adding a cloud
+  account, using an existing entry or renewing authentication, and mapping areas.
+- Add an administrator-checked local metadata service, available during outages
+  without clearing failures or sending Google requests. Location labels do not
+  change Google homes, LAN permissions, device identities, areas or naming settings.
+- Test persistence, cleanup, outage behavior, access checks, cross-home isolation,
+  delayed replies, UI focus/disclosure retention and EN/PT localization. Add a
+  fictional multi-home demo and documentation. Complete integration update needed.
+
 ## 0.11.1 — One-time name batches (beta)
 
 - Add per-device checkboxes, select-all, **Rename selected** and **Rename all

@@ -39,9 +39,10 @@ async def async_unload_entry(hass, entry):
 
 
 async def async_remove_entry(hass, entry):
-    """Remove only this entry's private area mappings and naming history."""
+    """Remove only this entry's private mappings, locations and naming history."""
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.areas").async_remove()
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.names").async_remove()
+    await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.locations").async_remove()
 
 
 async def async_remove_config_entry_device(hass, entry, device):

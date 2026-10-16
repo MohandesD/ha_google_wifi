@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {JSDOM} from 'jsdom';
-import {languageOf,mapModel,operationFeedback} from '../www/gwi-map-model.js';
+import {languageOf,mapModel,operationFeedback,isLocalHaPath} from '../www/gwi-map-model.js';
 
 const source=await readFile(new URL('../www/gwi-management.js',import.meta.url),'utf8');
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
@@ -22,7 +22,7 @@ function fixture(){
 function environment(handler){
  const dom=new JSDOM('<main></main>',{url:'http://ha.example/google-wifi-insights/management',pretendToBeVisual:true});
  const calls=[],copied=[];
- const context=vm.createContext({HTMLElement:dom.window.HTMLElement,document:dom.window.document,customElements:dom.window.customElements,languageOf,mapModel,operationFeedback,navigator:{clipboard:{writeText:async value=>copied.push(value)}}});
+ const context=vm.createContext({HTMLElement:dom.window.HTMLElement,document:dom.window.document,customElements:dom.window.customElements,languageOf,mapModel,operationFeedback,isLocalHaPath,navigator:{clipboard:{writeText:async value=>copied.push(value)}}});
  vm.runInContext(source.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,''),context);
  const card=dom.window.document.createElement('google-wifi-management');dom.window.document.querySelector('main').append(card);
  const hass={...fixture(),callWS:async request=>{calls.push(request);return {response:await (handler?handler(request):data(request.service_data.entity_id==='sensor.entry_two'?'entry:two':'entry:one'))};}};

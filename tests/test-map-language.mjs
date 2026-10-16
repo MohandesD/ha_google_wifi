@@ -119,6 +119,16 @@ test('automatic return paths stay within the current HA panel',()=>{
   assert.equal(overviewPath({overview_path:'//example.invalid'}),null);
 });
 
+test('local map explains missing client inventory and links to scoped setup steps',()=>{
+  const {card}=cardEnvironment({locations_path:'/alternate-wifi/locations'});
+  card.hass={language:'en',states:{'sensor.local':{state:'insufficient_radio_data',attributes:{gwi_kind:'network',gwi_metric:'diagnosis',gwi_scope:'local',data_source:'local_status',device_name:'Example LAN'}},'sensor.point':{state:'unknown',attributes:{gwi_kind:'point',gwi_metric:'clients',gwi_item_id:'point',gwi_scope:'local',data_source:'local_status',device_name:'Example point',online:true}}}};
+  assert.match(card.shadowRoot.textContent,/Local status does not include connected devices/);
+  assert.doesNotMatch(card.shadowRoot.textContent,/require validation/);
+  const all=[];function visit(n){all.push(n);for(const c of n.children||[])visit(c);}visit(card.shadowRoot);
+  assert.equal(all.find(n=>n.tag==='a'&&n.textContent.includes('See connection steps')).href,'/alternate-wifi/locations');
+  assert.throws(()=>card.setConfig({locations_path:'https://example.invalid'}));
+});
+
 test('rendered restart feedback follows Google states and belongs to its own control',()=>{
   const {card}=cardEnvironment();
   const states={

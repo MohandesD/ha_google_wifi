@@ -7,18 +7,20 @@ let tick=0;
 const entities={};
 const parameters=new URLSearchParams(location.search);
 const capture=parameters.get('capture')==='1';
+if(parameters.get('scenario')==='homes')document.querySelector('#scenario').value='homes';
 document.documentElement.classList.toggle('capture',capture);
 const now=()=>new Date().toISOString();
 const names=['Hall point','Office point','Studio point','Upstairs point'];
 const demoAreas=[{id:'hall',name:'Hall'},{id:'office',name:'Office'},{id:'studio',name:'Studio'},{id:'upstairs',name:'Upstairs'}];
 const areaMappings={point0:'hall',point1:'office',point2:'studio',point3:'upstairs'};
+const demoLocations={example:{id:'demo-home',name:'Example home'},'remote-example':{id:'demo-workshop',name:'Example workshop'},'local-example':{id:'demo-home',name:'Example home'}};
 const proposedName='Reading tablet';
 const demoNaming={enabled:false,paused_reason:null,history:[],excluded_station_ids:[]};
 let demoGoogleName='Unnamed device';
 const namingSummary=()=>({enabled:demoNaming.enabled,paused_reason:null,last_state:demoNaming.history.at(-1)?.state||'idle',verified_count:demoNaming.history.filter(r=>r.state==='verified').length,unconfirmed_count:0});
 function demoRename(automatic=false){const record={request_id:'demo-name-'+(demoNaming.history.length+1),station_id:'client5',mac_address:'02:00:00:00:00:06',old_name:demoGoogleName,new_name:proposedName,state:'verified',kind:'rename',automatic};demoGoogleName=record.new_name;demoNaming.history.push(record);return record;}
 function management(){
- return {scope:'example',network_id:'example',name:'Demo WiFi',entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
+ return {scope:'example',network_id:'example',name:'Demo WiFi',location:demoLocations.example,entity_id:'sensor.demo_example_network_network_diagnosis',areas:demoAreas,
   points:names.map((name,i)=>({id:`point${i}`,name,entity_id:`sensor.demo_example_point_point${i}_clients`,area_id:areaMappings[`point${i}`],online:true,is_root:i===0})),
   name_candidates:demoGoogleName==='Unnamed device'?[{station_id:'client5',entity_id:'sensor.demo_example_client_client5_point',google_name:demoGoogleName,proposed_name:proposedName,mac_address:'02:00:00:00:00:06'}]:[],rename:{...demoNaming,...namingSummary(),state:'schema_verified_android_client',provider_state:'demo_only',writable:true}};
 }
@@ -91,7 +93,24 @@ function build(){
     state('unavailable-example','network','network','diagnosis','unavailable','Second example network');
     state('unavailable-example','point','old-point','clients','unavailable','Unavailable example point');
   }
-  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},states:entities,callWS:async request=>{
+  if(document.querySelector('#scenario').value==='homes'){
+    state('remote-example','network','remote','diagnosis','quality_data_available','Workshop WiFi');
+    for(let i=0;i<2;i++)state('remote-example','point','point'+i,'clients',i===0?1:0,i===0?'Workshop primary':'Annex point',{online:true,is_root:i===0,root_ap_id:'point0'});
+    state('remote-example','client','tablet','point','Workshop primary','Example work tablet',{connected:true,ap_id:'point0',connection_type:'WIRELESS',ip_address:'198.51.100.20',mac_address:'02:00:00:00:10:20'});
+    state('local-example','network','local','diagnosis','insufficient_radio_data','Demo LAN status',{data_source:'local_status'});
+    state('local-example','point','local-point','clients','unknown','Hall local status',{data_source:'local_status',online:true,is_root:true});
+  }
+  for(const s of Object.values(entities))if(s.attributes.gwi_kind==='network'&&s.attributes.gwi_metric==='diagnosis'){
+    const location=demoLocations[s.attributes.gwi_scope];Object.assign(s.attributes,{network_location:location?.name||null,network_location_id:location?.id||null,gwi_entry_id:'fictional-entry'});
+  }
+  return {language:document.querySelector('#language').value,locale:{language:document.querySelector('#language').value},config:{time_zone:'UTC'},user:{is_admin:true},services:{google_wifi_insights:{set_network_location:{}}},states:entities,callWS:async request=>{
+   if(request.service==='set_network_location'){
+    const target=entities[request.service_data.entity_id];if(target?.attributes.gwi_kind!=='network')throw Error('Unknown demo network');
+    const scope=target.attributes.gwi_scope,name=request.service_data.name?.normalize('NFKC').trim().replace(/\s+/g,' ')||null;
+    if(name&&name.length>64)throw Error('Invalid demo label');
+    demoLocations[scope]=name?{id:'demo-'+name.toLowerCase().replace(/\W/g,'-'),name}:null;
+    panel.hass=build();return {response:{scope,location:demoLocations[scope]}};
+   }
    if(request.service==='get_management')return {response:management()};
    if(request.service==='set_point_area'){const point=management().points.find(p=>p.entity_id===request.service_data.entity_id);if(!point)throw Error('Unknown demo point');areaMappings[point.id]=request.service_data.area_id;return {response:management()};}
    if(['set_name_sync','rename_client','undo_name','verify_name'].includes(request.service)){
@@ -109,7 +128,7 @@ function build(){
 }
 function update(){panel.hass=build();}
 panel.panel={config:{map_path:'/google-wifi-insights/mapa'}};
-panel.route={path:parameters.get('view')==='map'?'/mapa':parameters.get('view')==='management'?'/management':'/overview'};
+panel.route={path:parameters.get('view')==='locations'?'/locations':parameters.get('view')==='map'?'/mapa':parameters.get('view')==='management'?'/management':'/overview'};
 document.querySelector('#language').addEventListener('change',update);
 document.querySelector('#scenario').addEventListener('change',update);
 document.addEventListener('hass-more-info',event=>{

@@ -1,5 +1,10 @@
 # Google authentication
 
+For multiple houses or a local-status entry without clients, start with
+[Locations and connection setup](LOCATIONS.md). The dashboard guide distinguishes
+missing client data from authentication failures and helps select the correct
+Google account/home before renewing credentials.
+
 Google WiFi Insights uses the unofficial Google Play Services authentication
 method documented by [gpsoauth](https://github.com/simon-weber/gpsoauth#alternative-flow).
 It does not offer a registered Google OAuth application or automatically read

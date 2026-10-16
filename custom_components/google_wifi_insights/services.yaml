@@ -91,6 +91,20 @@ set_point_area:
       required: true
       selector:
         area:
+set_network_location:
+  name: Set network location
+  description: Save a home, building or location label in HA for a known cloud or local network. Equal labels group networks in the dashboard. Does not change Google homes, point identity, LAN access or HA device areas. Use null or an empty name to clear the label. Available during outages.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    name:
+      required: true
+      description: A printable location name with up to 64 characters. Null clears the location.
+      selector:
+        text:
 set_name_sync:
   name: Set automatic Google naming
   description: Enable or disable automatic remediation of generic Google names for one network. Enabling requires an interactive administrator. Disabled by default; errors pause writes and uncertain requests are never retried automatically.

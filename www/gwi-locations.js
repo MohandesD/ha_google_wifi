@@ -1,0 +1,76 @@
+// Location labels organize networks locally; they never assert point identity.
+import {languageOf,mapModel} from './gwi-map-model.js?v=0.12.0';
+
+const TEXT={
+ en:{title:'Locations and connection setup',intro:'Give each network a home, building or location label. Networks with the same label appear together in the location filter.',networks:'Your networks',none:'No networks discovered yet. Follow the connection steps below.',label:'Home / building / location',placeholder:'For example: Main home or Workshop',save:'Save location',clear:'Clear location',saving:'Saving…',saved:'Location saved in Home Assistant.',failed:'Could not save. Check the integration and try again.',update:'Update the integration to use location labels.',admin:'An administrator can edit locations. Connection guidance is available below.',local:'Local status only',cloud:'Google account',unavailable:'Network query unavailable',connected:'Connected devices',points:'Points',unknown:'Not supplied',unassigned:'No location assigned',localHint:'Local point endpoints supply status and firmware, but no client associations. This is a data limitation, not a pending Google validation.',cloudHint:'This network is already supplied by a linked Google account. A separate local entry can still appear for LAN status.',emptyCloud:'Google has supplied no currently connected devices for this network. Check the selected home in Google Home; zero devices alone does not mean authentication failed.',offlineHint:'The last network identity is retained during the outage. Check the integration for an authentication repair or connection error.',guide:'How to see connected devices for each home',showGuide:'Open connection steps',step1:'In Google Home, select the correct Google account and home. Open Wi-Fi and confirm that you can see this network and its devices. If it is missing, ask the home administrator for access.',step2:'In Home Assistant, open Google WiFi settings → Add entry → Google account and clients. Use the same account. Follow the authentication guide below; enter credentials only in the HA form.',step3:'If that account is already configured, keep its entry. Check for an authentication repair, or use Configure → Renew Google authentication. A local entry remains status-only after a cloud account is added.',step4:'Return here and assign each network its location. Select its Google account network in Overview, Map or Management. In Management, map its points to the appropriate HA areas.',remote:'A remote home can use Google cloud data without direct LAN access. Private IP addresses and point names do not identify a home reliably. Location labels do not enable LAN access or merge duplicate points.',settings:'Open Google WiFi settings',auth:'Authentication guide',privacy:'Labels are stored only in this HA instance and shared by its users. They do not rename Google Home houses, move devices, change fixed HA areas or alter network access.',pointAreas:'Points → HA areas remain separate from the location label.',invalid:'Use a printable name of at most 64 characters.'},
+ pt:{title:'Localizações e configuração da ligação',intro:'Dê a cada rede o nome da casa, edifício ou localização. As redes com o mesmo nome aparecem juntas no filtro de localização.',networks:'As suas redes',none:'Ainda não foram descobertas redes. Siga os passos de ligação abaixo.',label:'Casa / edifício / localização',placeholder:'Por exemplo: Casa principal ou Oficina',save:'Guardar localização',clear:'Limpar localização',saving:'A guardar…',saved:'Localização guardada no Home Assistant.',failed:'Não foi possível guardar. Verifique a integração e tente novamente.',update:'Atualize a integração para usar as localizações.',admin:'Um administrador pode editar as localizações. Os passos de ligação estão disponíveis abaixo.',local:'Apenas estado local',cloud:'Conta Google',unavailable:'Consulta da rede indisponível',connected:'Dispositivos ligados',points:'Points',unknown:'Não disponibilizado',unassigned:'Sem localização atribuída',localHint:'Os endpoints locais dos points fornecem estado e firmware, mas não os dispositivos ligados. É uma limitação dos dados, não uma validação Google pendente.',cloudHint:'Esta rede já é disponibilizada por uma conta Google ligada. Pode continuar a existir uma entrada local para o estado LAN.',emptyCloud:'A Google não forneceu dispositivos atualmente ligados a esta rede. Confirme a casa selecionada no Google Home; zero dispositivos, por si só, não significa falha de autenticação.',offlineHint:'A identidade da rede é mantida durante a indisponibilidade. Verifique na integração se há um pedido de reautenticação ou um erro de ligação.',guide:'Como ver os dispositivos ligados em cada casa',showGuide:'Abrir passos de ligação',step1:'No Google Home, selecione a conta Google e a casa corretas. Abra Wi-Fi e confirme que vê esta rede e os seus dispositivos. Se não aparecer, peça acesso ao administrador da casa.',step2:'No Home Assistant, abra as definições Google WiFi → Adicionar entrada → Conta Google e clientes. Use a mesma conta. Siga o guia de autenticação abaixo; introduza as credenciais apenas no formulário do HA.',step3:'Se essa conta já estiver configurada, mantenha a respetiva entrada. Verifique se existe um pedido de reautenticação ou use Configurar → Renovar autenticação Google. Uma entrada local continua apenas com estado local depois de adicionar a conta.',step4:'Volte aqui e atribua uma localização a cada rede. Selecione a rede da conta Google em Visão geral, Mapa ou Gestão. Em Gestão, associe os points às divisões HA adequadas.',remote:'Uma casa remota pode usar os dados cloud Google sem acesso LAN direto. IPs privados e nomes dos points não identificam uma casa de forma fiável. As localizações não dão acesso LAN nem fundem points duplicados.',settings:'Abrir definições Google WiFi',auth:'Guia de autenticação',privacy:'Os nomes ficam guardados apenas nesta instância HA e são partilhados pelos seus utilizadores. Não renomeiam casas no Google Home, não movem dispositivos, não alteram divisões fixas HA nem o acesso à rede.',pointAreas:'As associações Points → divisões HA são independentes da localização.',invalid:'Use um nome com caracteres visíveis e até 64 caracteres.'},
+};
+const node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
+const button=(text,action)=>{const n=node('button',text);n.type='button';n.addEventListener('click',action);return n;};
+const CSS=`:host{display:block;padding:20px;color:var(--primary-text-color);font:14px/1.5 var(--paper-font-body1_-_font-family,system-ui)}h1{font-size:24px;margin:0}h2{font-size:19px}h3{font-size:17px;margin:0}p{max-width:90ch;color:var(--secondary-text-color)}.networks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;margin:20px 0}.network,details{padding:20px;border:1px solid var(--divider-color);border-radius:16px;background:var(--card-background-color)}.badges,.buttons{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.badge{background:var(--secondary-background-color);padding:4px 10px;border-radius:18px;font-size:12px}.hint{border-inline-start:3px solid var(--primary-color);padding-inline-start:12px}.point-list{font-size:13px;overflow-wrap:anywhere}label{display:grid;gap:6px;margin:16px 0 10px}input,button{font:inherit;color:inherit;border:1px solid var(--divider-color);border-radius:8px;min-height:44px;box-sizing:border-box;padding:10px 12px;background:var(--card-background-color)}input{width:100%}button{cursor:pointer}button.primary{background:var(--primary-color);color:var(--text-primary-color,#fff);border-color:transparent}button:disabled{opacity:.5;cursor:default}a{color:var(--primary-color)}input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--primary-color);outline-offset:3px}summary{cursor:pointer;min-height:44px;display:flex;gap:12px;align-items:center;font-size:18px;font-weight:600;list-style:none}summary::-webkit-details-marker{display:none}summary::before{content:'▸';font-size:24px}details[open]>summary::before{content:'▾'}li{max-width:90ch;margin:12px 0}.links{display:flex;gap:16px;flex-wrap:wrap}.feedback{min-height:1.5em}[hidden]{display:none!important}@media(max-width:500px){:host{padding:12px}.network,details{padding:14px}}`;
+
+export class GwiLocations extends HTMLElement{
+ constructor(){super();this.attachShadow({mode:'open'});this._cards=new Map();this._drafts=new Map();this._busy=new Set();this._generation=0;}
+ setConfig(){}
+ connectedCallback(){this._connected=true;this._update();}
+ disconnectedCallback(){this._connected=false;this._generation++;}
+ set hass(value){this._hass=value;if(this._connected)this._update();}
+ _t(key){return TEXT[this._language||'en'][key];}
+ _update(){
+  const language=languageOf(this._hass);if(!this._built||language!==this._language){this._language=language;this._build();}
+  const networks=mapModel(this._hass?.states);this._networks=networks;
+  this._admin=this._hass?.user?.is_admin===true;this._notice.textContent=this._admin?'':this._t('admin');
+  const supported=Boolean(this._hass?.services?.google_wifi_insights?.set_network_location);
+  this._empty.hidden=networks.length>0;
+  const labels=[...new Set(networks.map(n=>n.locationName).filter(Boolean))].sort();
+  if(JSON.stringify(labels)!==this._labelSignature){this._labelSignature=JSON.stringify(labels);this._list.replaceChildren(...labels.map(name=>{const o=node('option');o.value=name;return o;}));}
+  for(const [scope,card]of this._cards)if(!networks.some(n=>n.scope===scope)){card.host.remove();this._cards.delete(scope);this._drafts.delete(scope);}
+  for(const n of networks){
+   if(!this._cards.has(n.scope))this._create(n.scope);
+   const c=this._cards.get(n.scope),busy=this._busy.has(n.scope);c.title.textContent=n.name;
+   c.source.textContent=this._t(n.source==='local_status'?'local':'cloud');
+   c.location.textContent=n.locationName||this._t('unassigned');c.input.setAttribute('aria-label',this._t('label')+' · '+n.name);
+   c.status.textContent=n.unavailable?this._t('unavailable'):`${this._t('points')}: ${n.points.length} · ${this._t('connected')}: ${n.source==='local_status'?this._t('unknown'):n.clients.length}`;
+   c.points.textContent=n.points.map(p=>p.name).join(' · ');
+   c.hint.textContent=this._t(n.source==='local_status'?'localHint':n.unavailable?'offlineHint':!n.clients.length?'emptyCloud':'cloudHint');
+   if(!this._drafts.has(n.scope)&&c.input!==this.shadowRoot.activeElement)c.input.value=n.locationName||'';
+   c.input.disabled=Boolean(!this._admin||busy||!supported);c.save.disabled=c.clear.disabled=Boolean(!this._admin||busy||!supported||!n.entityId);
+   c.compat.textContent=supported?'':this._t('update');
+  }
+ }
+ _build(){
+  this._built=true;this._cards.clear();this._labelSignature=null;
+  this.shadowRoot.replaceChildren(node('style',CSS),node('h1',this._t('title')),node('p',this._t('intro')));
+  this._notice=node('p');this._notice.setAttribute('role','status');this._empty=node('p',this._t('none'));
+  this._list=node('datalist');this._list.id='gwi-location-names';this._grid=node('div');this._grid.className='networks';this._grid.setAttribute('aria-label',this._t('networks'));
+  this._guide=node('details');const summary=node('summary',this._t('guide'));this._guide.append(summary);const steps=node('ol');for(const key of ['step1','step2','step3','step4'])steps.append(node('li',this._t(key)));this._guide.append(steps,node('p',this._t('remote')));
+  const links=node('p');links.className='links';
+  for(const [text,href]of [['settings','/config/integrations/integration/google_wifi_insights'],['auth','https://github.com/spkon/ha_google_wifi/blob/main/docs/AUTHENTICATION.md']]){const a=node('a',this._t(text));a.href=href;if(href.startsWith('https:')){a.target='_blank';a.rel='noopener noreferrer';}links.append(a);}
+  this._guide.append(links);this._guide.open=true;
+  this.shadowRoot.append(this._notice,this._empty,this._list,this._grid,this._guide,node('p',this._t('privacy')),node('p',this._t('pointAreas')));
+ }
+ _create(scope){
+  const host=node('section');host.className='network';host.dataset.scope=scope;
+  const title=node('h2'),source=node('span'),location=node('span');source.className=location.className='badge';const badges=node('div');badges.className='badges';badges.append(source,location);
+  const status=node('p'),points=node('p'),hint=node('p');points.className='point-list';hint.className='hint';
+  const label=node('label',this._t('label')),input=node('input');input.type='text';input.maxLength=64;input.placeholder=this._t('placeholder');input.setAttribute('list','gwi-location-names');input.setAttribute('aria-label',this._t('label'));input.addEventListener('input',()=>this._drafts.set(scope,input.value));label.append(input);
+  const save=button(this._t('save'),()=>this._save(scope,input.value)),clear=button(this._t('clear'),()=>this._save(scope,null));save.className='primary';const buttons=node('div');buttons.className='buttons';buttons.append(save,clear);
+  const feedback=node('p');feedback.className='feedback';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');const compat=node('p');
+  const guide=button(this._t('showGuide'),()=>{this._guide.open=true;this._guide.querySelector('summary').focus();this._guide.scrollIntoView?.({block:'nearest',behavior:'smooth'});});
+  host.append(title,badges,status,points,hint,label,buttons,feedback,compat,guide);this._grid.append(host);
+  const card={host,title,source,location,status,points,hint,input,save,clear,feedback,compat};this._cards.set(scope,card);if(this._drafts.has(scope))input.value=this._drafts.get(scope);
+ }
+ async _save(scope,name){
+  const network=this._networks.find(n=>n.scope===scope);if(!this._admin||!network?.entityId||this._busy.has(scope)||!this._hass?.services?.google_wifi_insights?.set_network_location)return;
+  if(name!==null&&(/[\p{Cc}\p{Cf}]/u.test(name)||name.length>64)){this._cards.get(scope).feedback.textContent=this._t('invalid');return;}
+  this._busy.add(scope);const generation=this._generation;this._cards.get(scope).feedback.textContent=this._t('saving');this._update();
+  try{
+   const result=await this._hass.callWS({type:'call_service',domain:'google_wifi_insights',service:'set_network_location',service_data:{entity_id:network.entityId,name:name?.trim()||null},return_response:true});
+   if(result?.response?.scope!==scope||!Object.hasOwn(result.response,'location')||result.response.location!==null&&(typeof result.response.location?.id!=='string'||typeof result.response.location?.name!=='string'))throw Error('Wrong location response');
+   if(generation!==this._generation||!this._connected||!this._cards.has(scope))return;
+   this._drafts.set(scope,result.response.location?.name||'');const c=this._cards.get(scope);c.input.value=result.response.location?.name||'';c.feedback.textContent=this._t('saved');
+  }catch{if(generation===this._generation&&this._connected&&this._cards.has(scope))this._cards.get(scope).feedback.textContent=this._t('failed');}
+  finally{this._busy.delete(scope);if(this._connected&&generation===this._generation)this._update();}
+ }
+}
+if(!customElements.get('google-wifi-locations'))customElements.define('google-wifi-locations',GwiLocations);

@@ -107,6 +107,10 @@ class WifiEntity(CoordinatorEntity):
                 "gwi_scope": self._scope, "gwi_network_id": self.network_id,
                 "gwi_item_id": self.item_id,
                 "data_source": self.item.get("source"),
+                **({"gwi_entry_id": self._entry_id,
+                    "network_location": self.coordinator.management.locations.get(self.network_id),
+                    "network_location_id": (self.item.get("location") or {}).get("id")}
+                   if self.kind == "network" and self.key == "diagnosis" else {}),
                 "device_name": self.item.get("name", self._attr_device_info["name"])}
 
     @property
@@ -134,6 +138,10 @@ class WifiEntity(CoordinatorEntity):
             "gwi_network_id": self.network_id,
             "gwi_item_id": self.item_id,
         }
+        if self.kind == "network" and self.key == "diagnosis":
+            attributes.update(gwi_entry_id=self._entry_id,
+                              network_location=self.coordinator.management.locations.get(self.network_id),
+                              network_location_id=(item.get("location") or {}).get("id"))
         if self.kind == "client":
             # The Connected point sensor is the map's canonical client carrier.
             # Do not duplicate changing traffic/radio fields on every identity

@@ -28,7 +28,7 @@ const TEXT = {
     query_unavailable:"Network query unavailable",local_mode:"Local mode · clients and signal not provided",
     client_groups:"Devices connected to each point",collapse:"Collapse devices",
     more_one:"Show {count} more device",more_other:"Show {count} more devices",
-    local_associations:"Client associations require validation with the Google account",no_observation:"No current observation",
+    local_associations:"Local status does not include connected devices.",local_setup:"See connection steps in Locations",location:"Location",unlocated:"No location assigned",no_observation:"No current observation",
     no_associations:"No clients with a confirmed association",unassigned:"Point not identified",
     limits:"RSSI in dBm is measured by the device radio; Google ratings are shown separately. Google does not report channel utilization, retries or radio paths between points, so these measurements do not establish saturation. Grey indicates missing data.",
     config_error:"Use a text title and max_clients between 1 and 100.",
@@ -62,7 +62,7 @@ const TEXT = {
     query_unavailable:"Consulta indisponível",local_mode:"Modo local · clientes e sinal não disponibilizados",
     client_groups:"Dispositivos ligados a cada ponto",collapse:"Recolher dispositivos",
     more_one:"Ver mais {count} dispositivo",more_other:"Ver mais {count} dispositivos",
-    local_associations:"Associações de clientes por validar com a conta Google",no_observation:"Sem observação atual",
+    local_associations:"O estado local não inclui os dispositivos ligados.",local_setup:"Ver passos de ligação em Localizações",location:"Localização",unlocated:"Sem localização atribuída",no_observation:"Sem observação atual",
     no_associations:"Sem clientes com associação confirmada",unassigned:"Ponto por identificar",
     limits:"O RSSI em dBm é medido pelo rádio do dispositivo; as classificações Google aparecem separadas. A Google não disponibiliza ocupação do canal, retransmissões nem percursos entre pontos, pelo que estas medições não demonstram saturação. Cinzento indica dados em falta.",
     config_error:"Use um título de texto e max_clients entre 1 e 100.",
@@ -154,7 +154,7 @@ export function mapModel(states, config = {}, language="en") {
     const a = state.attributes || {};
     if (a.gwi_kind === "network" && a.gwi_metric === "diagnosis") {
       const n = network(a);
-      if (n) { n.entityId=entityId;n.nameSync=a.name_sync;n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
+      if (n) { n.entityId=entityId;n.entryId=a.gwi_entry_id;n.locationId=a.network_location_id||null;n.locationName=a.network_location||null;n.nameSync=a.name_sync;n.name = a.device_name || "Google WiFi"; n.source = a.data_source; n.unavailable = state.state === "unavailable"; }
     }
   }
   for (const [entityId, state] of entries) {
@@ -234,7 +234,7 @@ export function mapModel(states, config = {}, language="en") {
       if(target)(target.controls ||= []).push({entityId,key:a.gwi_metric,name:a.friendly_name || a.gwi_metric,state:state.state,feedback:a.operation_feedback});
     }
   }
-  return [...networks.values()].map(n => {
+  return [...networks.values()].filter(n=>!config.location_id||(n.locationId||'unassigned')===config.location_id).map(n => {
     for(const p of n.points) {
       p.clients.sort((a,b)=>rank[a.signal.key]-rank[b.signal.key] || a.name.localeCompare(b.name,locale));
       p.ratedClients=p.clients.filter(c=>c.signal.key!=="unknown").length;

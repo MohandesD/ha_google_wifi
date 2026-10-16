@@ -1,6 +1,6 @@
-import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.11.1";
-import {formatBytes} from "./gwi-usage-history.js?v=0.11.1";
-import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.11.1";
+import { mapModel, translate, languageOf, isLocalHaPath, overviewPath, operationFeedback } from "./gwi-map-model.js?v=0.12.0";
+import {formatBytes} from "./gwi-usage-history.js?v=0.12.0";
+import {pointInformation,networkInformation,informationSummary,informationCss,renderInformation} from "./gwi-information.js?v=0.12.0";
 
 const CSS = `
   :host { display:block; color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif); }
@@ -89,6 +89,8 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if ((this._config.title!=null && typeof this._config.title !== "string") || !Number.isInteger(this._config.max_clients) || this._config.max_clients < 1 || this._config.max_clients > 100)
       throw new Error(translate(this._language)("config_error"));
     if (this._config.overview_path != null && !isLocalHaPath(this._config.overview_path))
+      throw new Error(translate(this._language)("navigation_config_error"));
+    if (this._config.locations_path != null && !isLocalHaPath(this._config.locations_path))
       throw new Error(translate(this._language)("navigation_config_error"));
     this._signature=undefined;
     this._updateStates(this._states || {});
@@ -272,8 +274,13 @@ class GoogleWifiInsightsMap extends HTMLElement {
     if(!this._model?.length) content.append(element("p","empty",t("no_entities")));
     for(const n of this._model || []) {
       const section = element("section","network"); section.append(element("h3",null,n.name));
+      section.append(element("p","meta",t("location")+" · "+(n.locationName||t("unlocated"))));
       const operation=this._operationBanner(n.operation);if(operation)section.append(operation);
       section.append(element("p",null,t(n.unavailable?"query_unavailable":n.source==="local_status"?"local_mode":"connected_clients",{count:n.clients.length})));
+      if(n.source==="local_status") {
+        const setup=element("a","back-link",t("local_setup"));
+        setup.href=this._config.locations_path||'/config/integrations/integration/google_wifi_insights';section.append(setup);
+      }
       if(n.source!=="local_status") {
         const summary=element("div","summary"); summary.append(element("span",null,t("coverage",{count:n.ratedClients,total:n.clients.length})));
         summary.append(element("span",n.weakClients?"weak-count":"",t("weak_clients",{count:n.weakClients}))); section.append(summary,this._meshOverview(n));
