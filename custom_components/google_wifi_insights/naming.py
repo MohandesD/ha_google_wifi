@@ -18,7 +18,8 @@ from .operations import now_iso
 AUTO_INTERVAL = 300
 AUTO_BATCH_SIZE = 3
 HISTORY_LIMIT = 100
-MAX_CONCURRENT_NAMES = 3
+DEFAULT_CONCURRENT_NAMES = 3
+MAX_CONCURRENT_NAMES = 10
 
 
 class NameSync:
@@ -31,6 +32,8 @@ class NameSync:
         self._station_locks = {}
         self._gate = asyncio.Condition()
         self._active = self._admitted = self._operations = 0
+        self._group_network = None
+        self._group_limit = DEFAULT_CONCURRENT_NAMES
         self._failure_revision = {}
         self._loaded = False
         self._data = {}
@@ -55,13 +58,15 @@ class NameSync:
         data = self.network(nid)
         history = data.get("history", [])
         return {"enabled": data.get("enabled") is True, "paused_reason": data.get("paused_reason"),
+                "max_concurrent": self.concurrency(nid),
                 "last_state": history[-1]["state"] if history else "idle",
                 "verified_count": sum(r["state"] == "verified" for r in history),
                 "unconfirmed_count": sum(r["state"] == "unconfirmed" for r in history)}
 
     def response(self, nid):
         history = self.network(nid).get("history", [])
-        return {**self.summary(nid), "writable": True, "max_concurrent": MAX_CONCURRENT_NAMES, "state": "schema_verified_android_client",
+        return {**self.summary(nid), "writable": True, "concurrency_configurable": True,
+                "concurrency_min": 1, "concurrency_max": MAX_CONCURRENT_NAMES, "state": "schema_verified_android_client",
                 "provider_state": history[-1]["state"] if history else "not_tested",
                 "history": deepcopy(self.network(nid).get("history", [])[-20:]),
                 "excluded_station_ids": list(self.network(nid).get("excluded", []))}
@@ -69,6 +74,16 @@ class NameSync:
     @property
     def busy(self):
         return self._operations > 0
+
+    def concurrency(self, nid):
+        value = self.network(nid).get("max_concurrent", DEFAULT_CONCURRENT_NAMES)
+        return value if type(value) is int and 1 <= value <= MAX_CONCURRENT_NAMES else DEFAULT_CONCURRENT_NAMES
+
+    async def async_set_concurrency(self, nid, limit):
+        """Persist a local limit; already admitted requests finish normally."""
+        if type(limit) is not int or not 1 <= limit <= MAX_CONCURRENT_NAMES:
+            raise HomeAssistantError(f"Parallel name requests must be an integer from 1 to {MAX_CONCURRENT_NAMES}")
+        await self._change(nid, lambda row: row.update(max_concurrent=limit))
 
     @asynccontextmanager
     async def _operation(self, nid, sid):
@@ -81,10 +96,13 @@ class NameSync:
                 async with self._gate:
                     # Drain each group before admitting another. Queued network
                     # actions can acquire the existing FIFO action lock between groups.
-                    await self._gate.wait_for(lambda: self._active == 0 or self._admitted < MAX_CONCURRENT_NAMES)
+                    await self._gate.wait_for(lambda: self._active == 0 or (
+                        self._group_network == nid and self._admitted < self._group_limit))
                     if self._active == 0:
                         await self.coordinator.client._action_lock.acquire()
                         self._admitted = 0
+                        self._group_network = nid
+                        self._group_limit = self.concurrency(nid)
                     self._active += 1
                     self._admitted += 1
                 try:

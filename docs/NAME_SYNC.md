@@ -33,11 +33,15 @@ network, MACs and old/new names in the confirmation before sending. Each request
 still uses fresh Google/HA identity checks, a durable intent and verified
 read-back through the existing single-device service.
 
-From version 0.12.1, manual batches process up to **three devices concurrently**.
-Each group finishes before the next starts. This is a conservative integration
-limit, not a published Google quota. The installed backend advertises its limit
-as `rename.max_concurrent`; an older backend keeps the panel serial until the
-complete integration is updated.
+From version 0.14.0, **Simultaneous name requests** in Management accepts **1–10**
+per network, with a default of three. An administrator saves the local policy
+separately from automatic naming. Each group finishes before the next starts.
+Changes apply to the next group, without cancelling or expanding the current
+one. These are integration bounds, not a published Google quota. The backend
+advertises `rename.max_concurrent` and `concurrency_configurable`. Older backends
+keep their advertised limit (or serial dispatch when absent) and show an update
+notice instead of a setting they cannot save. The complete backend update needs
+an HA restart.
 
 Progress shows verified, in-progress, skipped, review and not-sent counts, plus
 individual outcomes in preview order. Concurrent service responses are not merged:
@@ -46,7 +50,7 @@ A changed preview is skipped before dispatch. An unconfirmed or rejected result
 stops the remaining queue, with no automatic replay. Pending journal entries
 cannot be selected again. Keep Management open until completion; leaving the
 view, losing administrator access or losing the network stops further dispatch.
-**Stop pending requests** stops further dispatch. Up to three requests already in
+**Stop pending requests** stops further dispatch. Requests already in
 progress may still finish and their results remain visible. Check **Recent name
 changes** after any uncertain result or closed
 browser before starting another batch.
@@ -68,8 +72,9 @@ Each rename rechecks the current Google name and MAC using fresh Google reads,
 then rechecks the HA match against the preview. The sensitive-information lookup
 for this check does not rely on the normal MAC cache. The integration saves an
 intent record before writing and checks local identity again after that save.
-Up to three naming operations for different clients share the config entry's
-network-action exclusion. Requests for the same client remain serialized, as do
+Up to the selected network's configured number of naming operations for different
+clients share the config entry's network-action exclusion. Groups do not mix
+networks. Requests for the same client remain serialized, as do
 intent-storage updates. Each group releases the exclusion before admitting the
 next, so a queued restart or network test is not starved. A failed peer prevents
 other members of the group that have not yet sent their write from sending it.
@@ -132,6 +137,7 @@ an unattended automation cannot enable this feature or apply a manual rename.
 | Service | Required fields | Behavior |
 | --- | --- | --- |
 | `google_wifi_insights.set_name_sync` | `entity_id`, `enabled` | Use any verified entity in the intended network. Enable/resume explicitly; disable also works while the network is unavailable and from HA automations. |
+| `google_wifi_insights.set_name_concurrency` | Network `entity_id`, integer `max_concurrent` | Save a local 1–10 limit, default three, for this network. No Google request and no change to automatic naming. Works during outages. |
 | `google_wifi_insights.rename_client` | Client `entity_id`, `expected_google_name`, `expected_mac`, `expected_ha_name` | Apply an unchanged proposal returned by `get_management`; no arbitrary replacement name. |
 | `google_wifi_insights.verify_name` | Network member `entity_id`, history `request_id` | Fresh read only, scoped to that network. Never repeats a write. |
 | `google_wifi_insights.undo_name` | Network member `entity_id`, history `request_id` | Undo the latest verified rename after fresh identity checks. |
@@ -141,7 +147,8 @@ operation. `rename.history` contains private intent/verification records;
 `rename.provider_state` is `not_tested` before a request. `rename.state` describes
 the source of the implemented schema, not proof that the backend accepts it for
 your account. Compact `name_sync` status on network diagnostic attributes records
-enabled/paused state and counts, without adding the identity history to Recorder.
+enabled/paused state, concurrency limit and counts, without adding the identity
+history to Recorder.
 
 ## Privacy
 

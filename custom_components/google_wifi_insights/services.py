@@ -6,6 +6,13 @@ from homeassistant.helpers import entity_registry
 
 from .capabilities import ACTION_KINDS, safe_metadata
 from .const import DOMAIN
+from .naming import MAX_CONCURRENT_NAMES
+
+
+def name_concurrency_limit(value):
+    if type(value) is not int or not 1 <= value <= MAX_CONCURRENT_NAMES:
+        raise vol.Invalid(f"Use an integer from 1 to {MAX_CONCURRENT_NAMES}")
+    return value
 
 
 def register_services(hass):
@@ -126,6 +133,14 @@ def register_services(hass):
         await coordinator.async_set_client_area_sync(nid, call.data["enabled"], call.data["include_matched_devices"])
         return coordinator.management.response(nid, coordinator.data["networks"][nid])
 
+    async def name_concurrency(call):
+        await authorized(call)
+        coordinator, nid, kind, _ = resolve(call.data["entity_id"], allow_unavailable=True)
+        if kind != "network":
+            raise HomeAssistantError("Select a Google WiFi network entity")
+        await coordinator.names.async_set_concurrency(nid, call.data["max_concurrent"])
+        return coordinator.management.response(nid, coordinator.data["networks"][nid])
+
     base = {vol.Required("entity_id"): str}
     hass.services.async_register(DOMAIN, "google_action", action, schema=vol.Schema({**base, vol.Required("action"): vol.In(ACTION_KINDS), vol.Optional("parameters", default={}): dict}), supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "get_usage_history", history, schema=vol.Schema({**base, vol.Required("resolution", default="hour"): vol.In(("minute", "hour", "day", "month"))}), supports_response=SupportsResponse.ONLY)
@@ -136,6 +151,7 @@ def register_services(hass):
     hass.services.async_register(DOMAIN, "set_network_location", network_location, schema=vol.Schema({**base, vol.Required("name"): vol.Any(None, str)}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_client_area_sync", client_area_sync, schema=vol.Schema({**base, vol.Required("enabled"): bool, vol.Optional("include_matched_devices", default=False): bool}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "set_name_sync", naming, schema=vol.Schema({**base, vol.Required("enabled"): bool}), supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "set_name_concurrency", name_concurrency, schema=vol.Schema({**base, vol.Required("max_concurrent"): name_concurrency_limit}), supports_response=SupportsResponse.ONLY)
     hass.services.async_register(DOMAIN, "rename_client", naming, schema=vol.Schema({**base, vol.Required("expected_google_name"): str, vol.Required("expected_ha_name"): str, vol.Required("expected_mac"): str}), supports_response=SupportsResponse.ONLY)
     for service in ("undo_name", "verify_name"):
         hass.services.async_register(DOMAIN, service, naming, schema=vol.Schema({**base, vol.Required("request_id"): str}), supports_response=SupportsResponse.ONLY)

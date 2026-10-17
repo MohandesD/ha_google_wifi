@@ -77,3 +77,9 @@ Version 0.11.0 establishes the Android rename request schema and implements
 read-back/undo and opt-in automatic remediation. Independent live Google-account
 validation remains pending; static protocol evidence and isolated fixtures do not
 establish current provider acceptance. See [NAME_SYNC.md](NAME_SYNC.md).
+
+The 0.14.0 UI and naming-policy beta was checked with isolated HA fixtures and
+the released panel's fictional browser demo. It adds chart selection/zoom,
+contextual operation feedback, location boundaries and configurable naming
+concurrency. These checks do not add live Google-account compatibility evidence
+or run network actions on a household installation.

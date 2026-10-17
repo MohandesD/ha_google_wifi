@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.14.0 — Usage chart detail and clearer network controls (beta)
+
+- Add byte and time axes to network/client usage charts, with selectable
+  intervals, exact byte values, keyboard navigation, record tables and local
+  zoom around an interval. Preserve selection and scroll across HA refreshes;
+  leave missing intervals and directional values unknown.
+- Identify each operation result by its action, target and date/time. Preserve
+  action context when Management changes language. Accepted requests remain
+  distinct from Google-confirmed completion.
+- Group Map networks into bordered location sections with sticky home headings
+  and location navigation. Repeated network names and point IDs remain scoped.
+- Let administrators save 1–10 simultaneous naming operations per network, with
+  a default of three. Enforce the setting in the backend and apply changes only
+  after the current group drains. Saving never starts renaming or enables it.
+- Cover the configurable limits, durable persistence, admin validation, chart
+  interaction and location/result presentation with isolated HA and DOM tests.
+  Public screenshots use only the fictional released-panel demo.
+
+The new backend setting requires the complete integration update and an HA
+restart. Older loaded backends keep their existing naming limit and show an
+update notice. This release does not change normal polling or automatic naming's
+existing three-candidate, five-minute cadence.
+
 ## 0.13.0 — Device areas following Wi-Fi Points (beta)
 
 - Add per-network, opt-in HA device area following in **Management → Points and

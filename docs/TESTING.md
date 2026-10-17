@@ -32,11 +32,20 @@ latest release. It also runs HACS/hassfest, Python runtime dependency auditing a
 brand assets satisfy the HACS branding check; default-catalogue submission is separate.
 
 Naming concurrency tests use event barriers rather than timing-based speed claims.
-They verify three overlapping client operations, durable per-client intent,
+They verify the default three overlapping client operations, configurable limits
+of 1, 5 and 10, durable persistence, invalid-value/admin rejection and changes
+that drain the active group before using the next limit. They also verify durable per-client intent,
 same-client duplicate prevention, network-action fairness, cancellation cleanup
 and shared HTTP 429 cooldowns. Frontend tests exercise bounded groups, late and
 out-of-order replies, stop/failure behavior, cached refresh failures and older
 backend compatibility. These checks do not measure live Google throughput.
+
+The 0.14.0 UI checks cover labeled byte/time axes, HA time zones, exact interval
+selection, keyboard navigation, local five-bucket zoom, zero versus missing data,
+stale history replies and selection/scroll/disclosure retention. Location identity
+groups repeated network names without mixing homes. Completed badges identify
+the action, escaped target and date in both supported languages; Management keeps
+action context through language changes. No physical network action is needed.
 
 The archive uses fixed timestamps, stable permissions, sorted members and LF text.
 The verifier checks versions, translations, mirrored UI, archive/source identity,

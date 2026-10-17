@@ -1,6 +1,6 @@
 # Screenshot provenance
 
-Except for the area-following image noted below, screenshots in this directory
+Except for the later images noted below, screenshots in this directory
 were captured in a browser on 2026-10-16 from the **0.12.2** panel components,
 imported directly by `tools/demo.html`.
 They show the shared network selector, manual naming controls and revised layouts.
@@ -37,6 +37,8 @@ JavaScript objects.
 | `connection-guide-demo.png` | Connection steps reached from a local-status network. |
 | `management-mobile-demo.png` | Management on a narrow screen, with every tab and the single network selector visible. |
 | `area-following-demo.png` | The 0.13.0 client area-following controls, with only Google WiFi records enabled in the fictional demo. |
+| `usage-detail-demo.png` | The 0.14.0 usage chart with byte/time axes, selected interval, exact values and local five-interval zoom. Captured on 2026-10-17. |
+| `naming-limit-demo.png` | The 0.14.0 Management page with a locally simulated limit of five simultaneous name requests. Automatic naming stays disabled. Captured on 2026-10-17. |
 
 Each image is an ordinary viewport capture, so some continue below the visible
 area as in Home Assistant. Browser JPEG captures are converted to PNG without

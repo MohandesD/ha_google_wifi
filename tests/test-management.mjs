@@ -387,6 +387,52 @@ test('a failed cached refresh stops later parallel groups without replay',async(
 for(const concurrency of [undefined,0,-1,'3',99])test('parallel capability is bounded and older backends remain serial: '+concurrency,async()=>{
  const pending=[];const {root,calls}=batchEnvironment(({record})=>new Promise(resolve=>pending.push(()=>resolve(record))),{count:6,concurrency});await settle();
  click(root,'Rename all eligible');click(root,'Confirm request');await settle();
- assert.equal(calls.filter(c=>c.service==='rename_client').length,concurrency===99?3:1);
+ assert.equal(calls.filter(c=>c.service==='rename_client').length,1);
  click(root,'Stop pending requests');for(const finish of pending)finish();await settle();
+});
+
+test('an administrator saves a network-specific parallel limit without enabling or sending renames',async()=>{
+ const limits=new Map();
+ const {root,card,calls,dom,hass}=environment(request=>{
+  const scope=request.service_data.entity_id==='sensor.entry_two'?'entry:two':'entry:one';
+  if(request.service==='set_name_concurrency')limits.set(scope,request.service_data.max_concurrent);
+  return {...data(scope),rename:{writable:true,enabled:false,concurrency_configurable:true,max_concurrent:limits.get(scope)||3}};
+ });await settle();
+ const input=root.querySelector('input[type=number]');input.value='5';input.dispatchEvent(new dom.window.Event('input'));input.focus();
+ for(let i=0;i<50;i++)card.hass={...hass};assert.equal(root.activeElement,input);assert.equal(input.value,'5');
+ click(root,'Save request limit');await settle();assert.deepEqual({...calls.at(-1).service_data},{entity_id:'sensor.entry_one',max_concurrent:5});
+ assert.match(root.textContent,/Up to 5 devices/);assert.match(root.textContent,/request limit saved/);assert.equal(card._data.rename.enabled,false);
+ card.setConfig({network_entity:'sensor.entry_two'});await settle();assert.equal(root.querySelector('input[type=number]').value,'3');
+ assert.equal(calls.filter(c=>c.service!=='get_management').length,1);
+});
+
+test('limit validation and local outage settings preserve admin and backend capability checks',async()=>{
+ const {root,card,calls,hass}=environment(request=>({...data(),rename:{writable:true,enabled:false,concurrency_configurable:true,max_concurrent:request.service_data.max_concurrent||3}}));await settle();
+ for(const value of ['','0','11','2.5']){root.querySelector('input[type=number]').value=value;click(root,'Save request limit');await settle();assert.equal(calls.length,1);}
+ assert.match(root.textContent,/whole number/);
+ hass.states['sensor.entry_one'].state='unavailable';card.hass={...hass};root.querySelector('input[type=number]').value='1';const save=root.querySelector('button[data-write=name-concurrency]');assert.equal(save.disabled,false);save.click();await settle();
+ assert.equal(calls.at(-1).service,'set_name_concurrency');assert.equal(card._data.rename.enabled,false);
+ card.hass={...hass,user:{is_admin:false}};assert.equal(root.querySelector('input[type=number]'),null);
+ const old=environment(()=>({...data(),rename:{writable:true,max_concurrent:3}}));await settle();assert.equal(old.root.querySelector('input[type=number]'),null);assert.match(old.root.textContent,/configure the request limit/);
+});
+
+test('a late limit reply cannot change the limit of another home',async()=>{
+ let finish;
+ const {card,root}=environment(request=>request.service==='set_name_concurrency'?new Promise(resolve=>finish=resolve):({...data(request.service_data.entity_id==='sensor.entry_two'?'entry:two':'entry:one'),rename:{writable:true,concurrency_configurable:true,max_concurrent:3}}));await settle();
+ root.querySelector('input[type=number]').value='8';click(root,'Save request limit');card.setConfig({network_entity:'sensor.entry_two'});
+ finish({...data(),rename:{writable:true,concurrency_configurable:true,max_concurrent:8}});await settle();await settle();assert.equal(card._data.scope,'entry:two');assert.equal(root.querySelector('input[type=number]').value,'3');
+});
+
+test('a configured limit above three actually admits five requests and still drains before stopping',async()=>{
+ const pending=[];const {root,calls,card}=batchEnvironment(({record})=>new Promise(resolve=>pending.push(()=>resolve(record))),{count:8,concurrency:5});await settle();
+ click(root,'Rename all eligible');click(root,'Confirm request');await settle();assert.equal(calls.filter(c=>c.service==='rename_client').length,5);assert.equal(card._batch.active.size,5);
+ click(root,'Stop pending requests');for(const finish of pending)finish();await settle();await settle();assert.equal(card._batch.running,false);assert.equal(calls.filter(c=>c.service==='rename_client').length,5);assert.equal(card._data.rename.enabled,false);
+});
+
+test('completed action messages retain their action and target when HA language changes',async()=>{
+ const {root,calls,card,hass}=environment(request=>request.service==='google_action'?{state:'DONE'}:data());await settle();
+ click(root,'Test mesh to primary');click(root,'Confirm request');await settle();
+ assert.match(card._status.textContent,/Test mesh to primary · Example point: Google reports the operation completed/);
+ card.hass={...hass,language:'pt'};assert.match(card._status.textContent,/Testar mesh até ao principal · Example point/);
+ assert.equal(calls.filter(c=>c.service==='google_action').length,1);
 });

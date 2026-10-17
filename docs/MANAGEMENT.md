@@ -138,14 +138,31 @@ Use **Apply name in Google** to review and confirm an individual suggestion.
 To rename several devices once, tick their checkboxes and use **Rename selected**,
 or choose **Rename all eligible**. Review the complete network/name/MAC list and
 confirm. These actions leave automatic naming unchanged. From version 0.12.1,
-up to three devices run concurrently with individual identity checks, durable
+up to the configured number of devices run concurrently with individual identity checks, durable
 intent and read-back verification. Each group finishes before the next begins.
 The panel shows active, verified, skipped, review and not-sent counts. A rejected
 or unconfirmed result stops new requests; already active requests may still
 complete. Keep the page open; **Stop pending requests** stops the remaining queue
 without recalling sent requests. Pending journal entries cannot be selected for
-another batch. An older backend retains serial behavior and shows an upgrade
-notice until the complete integration is updated.
+another batch. An older backend retains its advertised limit, or serial behavior
+when no limit is supplied, and shows an update notice for the new setting.
+
+From version 0.14.0, an administrator can set **Simultaneous name requests** to a
+whole number from **1 to 10**, then press **Save request limit**. The default is
+three for each network. The integration enforces the limit on the server as well
+as in the panel. Saving is local: it does not rename a device or enable automatic
+naming. It also works while the cloud network is unavailable. This is a local
+integration ceiling, not a documented Google quota.
+
+A changed limit applies when the next group starts. Already admitted operations
+finish with the previous limit. A browser batch captures its dispatch limit when
+confirmed; a change from another administrator can further reduce its actual
+concurrency on the server. Refresh Management before starting a new batch to see
+changes made elsewhere. Settings survive HA/integration reloads and are included
+in HA configuration backups. The new service requires the complete integration
+update and HA restart; an older loaded backend displays an update notice.
+
+![Configurable rename limit with fictional data](images/naming-limit-demo.png)
 
 To continue correcting new generic names automatically, expand **Automatic naming**
 below the suggestions, use **Enable automatic naming** and confirm the selected
@@ -180,6 +197,11 @@ failed and unconfirmed operations. Google accepting a request is not proof that
 a point has restarted or a test completed. The UI never retries an uncertain
 write. Refreshing this page reads cached HA data only; it neither runs tests nor
 forces a Google poll.
+
+Status badges on Map and Overview include the action, target and date/time in the
+HA time zone. Management messages identify the action and target too, including
+when the language changes. A retained **Completed** result describes that dated
+Google operation; it does not assert current connectivity.
 
 ## Services and privacy
 

@@ -4,7 +4,7 @@ Google/Nest WiFi custom integration for Home Assistant: network overview, client
 association map, usage history, available Google controls and local Shelly RSSI.
 It can coexist with Home Assistant's official `google_wifi` integration.
 
-**Beta 0.13.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
+**Beta 0.14.0.** This repository is `spkon/ha_google_wifi`. The project is public and licensed under MIT. It is an
 unofficial community integration, not maintained by Google or Home Assistant.
 
 [Support development on Buy Me a Coffee](https://buymeacoffee.com/spkon)
@@ -73,7 +73,8 @@ no household inventory or live-network capture is included.
 - Google's connection/mesh ratings and current download/upload traffic.
 - Saved WAN, client WiFi and mesh speed tests with original dates/tested points.
 - Network and client usage graphs: minutes over one hour, hours over 24 hours,
-  days over 7 or 30 days, with partial coverage visible and no invented zeroes.
+  days over 7 or 30 days, with byte/time axes, selectable intervals, exact values,
+  local zoom and a record table. Partial coverage stays visible without invented zeroes.
 - Point/network restarts, tests, client Internet pause/priority, point lights and
   typed administrator services for supported group/insight actions.
 - MAC-verified Shelly RSSI/BSSID/channel and eligible roaming controls.
@@ -86,7 +87,11 @@ no household inventory or live-network capture is included.
   credentials and provisioning secrets.
 - Sanitized additional telemetry, capability status and explicit operation results.
 - Live restart/speed-test feedback: sending, accepted, running and completed states
-  reported by Google, with separate failure and unconfirmed-delivery states.
+  reported by Google, with the action, target and date beside each result and
+  separate failure and unconfirmed-delivery states.
+- Location boundaries and sticky home headings on the map, with shortcuts between homes.
+
+See [usage chart controls](docs/USAGE_CHARTS.md) for selection, zoom and missing data.
 
 The [capability inventory](docs/CAPABILITIES.md) distinguishes implemented actions,
 verified reads and configuration features whose write schemas remain unverified.
@@ -122,8 +127,9 @@ preserved; uncertain results pause automatic writes and are never retried.
 For a one-time cleanup, select device checkboxes and use **Rename selected**, or
 choose **Rename all eligible**. Version 0.11.1 confirms the complete proposal list,
 shows progress and stops on an unconfirmed or rejected result. It does not
-enable automatic naming. Manual batches process up to three devices concurrently,
-with individual identity checks and read-back verification. Keep Management open
+enable automatic naming. An administrator can choose **1–10 simultaneous name requests**
+per network in Management; the default is three. Each request retains individual
+identity checks and read-back verification. Keep Management open
 while the batch runs; use **Stop pending requests** to stop the remaining queue.
 Already active requests may still finish. A failure stops subsequent groups.
 

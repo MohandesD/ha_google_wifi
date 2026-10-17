@@ -92,8 +92,20 @@ export function operationFeedback(operation, language="en") {
   const busy=["queued","sending","accepted","running"].includes(phase);
   const stageNote=busy&&operation.action==="test_mesh"?{preparing_server:"action_mesh_preparing_note",measuring:"action_mesh_measuring_note"}[operation.stage]:null;
   const note={monitoring_timeout:"action_timeout_note",authentication_required:"action_auth_note",rate_limited:"action_rate_note",status_unavailable:"action_status_missing_note"}[operation.status_error] || stageNote || (phase==="unconfirmed"?"action_unconfirmed_note":phase==="failed"?"action_failed_note":"action_google_note");
-  return {phase,label:t("action_"+phase),actionLabel:t("action_"+operation.action),busy:["queued","sending","accepted","running"].includes(phase),
+  const actionKey="action_"+operation.action,actionLabel=t(actionKey);
+  return {phase,label:t("action_"+phase),actionLabel:actionLabel===actionKey?(languageOf(language)==="pt"?"Ação da rede":"Network action"):actionLabel,busy,
     symbol:{completed:"✓",failed:"!",cancelled:"−",unconfirmed:"?"}[phase]||"◌",note:t(note),at:operation.finished_at||operation.updated_at||operation.requested_at};
+}
+
+// Location identity keeps identically named networks in separate homes.
+export function locationGroups(networks=[]) {
+  const groups=new Map();
+  for(const network of networks){
+    const key=network.locationId?'id:'+network.locationId:network.locationName?'name:'+network.locationName:'unassigned';
+    if(!groups.has(key))groups.set(key,{key,name:network.locationName||null,networks:[]});
+    groups.get(key).networks.push(network);
+  }
+  return [...groups.values()];
 }
 
 export function translate(language="en") {

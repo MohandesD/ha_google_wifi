@@ -1,5 +1,5 @@
 // Management uses HA services and cached discovery. No provider credentials enter the UI.
-import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.13.0';
+import {languageOf,mapModel,operationFeedback,isLocalHaPath} from './gwi-map-model.js?v=0.14.0';
 
 const WORDS={
  en:{title:'Network management',intro:'Map Wi-Fi points to Home Assistant areas and launch network actions.',network:'Network',refresh:'Refresh view',loading:'Loading management…',empty:'Connect a Google account to manage a network.',admin:'A Home Assistant administrator is required to manage this network.',failed:'Management is unavailable. Check the integration and try refreshing.',unavailable:'This network is unavailable. Wait for a successful update.',areas:'Points and areas',areaLabel:'Area',areaHint:'Each device gets a WiFi associated area sensor based on its current wireless point. This estimates coverage rather than physical presence. Device areas stay unchanged unless area following is enabled below.',unmapped:'No area mapped',save:'Save area',saved:'Area mapping saved.',online:'Online',offline:'Offline or unknown',names:'Review unnamed devices',nameHint:'Suggestions use an exact MAC match with Home Assistant. Personalized Google names and ambiguous matches are preserved.',nameLimit:'Automatic naming starts disabled.',noNames:'No unnamed devices with an unambiguous HA MAC match.',proposed:'Suggested HA name',google:'Google name',copy:'Copy suggested name',copied:'Name copied. Apply it in Google Home.',copyFailed:'Copy unavailable. Select and copy the suggested name below.',guide:'Google naming instructions',actions:'Quick actions',actionHint:'Requests are sent only after confirmation. Tests may affect throughput; restarts temporarily interrupt connectivity.',restart_network:'Restart network',restart_point:'Restart point',test_internet:'Test Internet speed',test_mesh:'Test mesh to primary',test_local:'Test local speed',test_clients:'Test WiFi clients',confirm:'Confirm request',cancel:'Cancel',confirmHint:'Send this request to the selected target?',sending:'Sending request…',accepted:'Google accepted the request. Completion is not yet confirmed.',completed:'Google reports the operation completed.',unconfirmed:'The result is unconfirmed. Check the action status before sending again.',actionFailed:'The request failed or its delivery is unconfirmed. Check the action status before sending again.',latest:'Latest operation',status:'Status',primary:'Primary point',selectName:'Suggested device name'},
@@ -25,6 +25,8 @@ Object.assign(WORDS.pt,{manualNames:'Renomear agora',manualHint:'Renomeie uma ve
 const button=(text,action)=>{const n=node('button',text);n.type='button';n.addEventListener('click',action);return n;};
 Object.assign(WORDS.en,{batchHint:'Review every proposed change below. Up to {limit} devices run at once, with individual identity checks and verification. New requests stop on a rejected or unconfirmed result; requests already in progress may still complete. This does not enable automatic naming. Keep this page open until the batch finishes.',batchWorking:'{active} in progress · {done} of {total} checked',batchSummary:'{verified} verified · {active} in progress · {skipped} skipped · {review} to review · {remaining} not sent',stopBatch:'Stop pending requests',batchStopping:'Stopping new requests. {active} requests are still in progress and may complete.',batchConcurrency:'Up to {limit} devices at once',batchUpgrade:'The installed backend supports one device at a time. Update the complete integration for parallel renaming.',batchRefreshFailed:'Could not refresh the verified management view. Remaining requests were not sent.'});
 Object.assign(WORDS.pt,{batchHint:'Reveja cada alteração abaixo. São processados até {limit} dispositivos em simultâneo, com validação da identidade e confirmação individuais. Novos pedidos param se houver rejeição ou falta de confirmação; os que já estão em curso podem terminar. Isto não ativa a renomeação automática. Mantenha esta página aberta até terminar.',batchWorking:'{active} em curso · {done} de {total} verificados',batchSummary:'{verified} confirmados · {active} em curso · {skipped} ignorados · {review} para rever · {remaining} não enviados',stopBatch:'Parar pedidos pendentes',batchStopping:'A parar novos pedidos. Existem {active} pedidos em curso que ainda podem terminar.',batchConcurrency:'Até {limit} dispositivos em simultâneo',batchUpgrade:'O backend instalado suporta um dispositivo de cada vez. Atualize a integração completa para renomear em paralelo.',batchRefreshFailed:'Não foi possível atualizar a vista de gestão confirmada. Os pedidos restantes não foram enviados.'});
+Object.assign(WORDS.en,{concurrencyLabel:'Simultaneous name requests',concurrencyHelp:'Choose 1–10 per network. Applies to the next group; requests already sent can finish. Saving does not rename devices or enable automatic naming.',concurrencySave:'Save request limit',concurrencySaved:'Simultaneous name request limit saved.',concurrencyFailed:'Could not save the request limit.',concurrencyInvalid:'Enter a whole number from 1 to 10.',concurrencyUpgrade:'Update the complete integration and reload it to configure the request limit.'});
+Object.assign(WORDS.pt,{concurrencyLabel:'Pedidos de nomes em simultâneo',concurrencyHelp:'Escolha de 1 a 10 por rede. Aplica-se ao próximo grupo; os pedidos já enviados podem terminar. Guardar não renomeia dispositivos nem ativa a renomeação automática.',concurrencySave:'Guardar limite de pedidos',concurrencySaved:'Limite de pedidos de nomes em simultâneo guardado.',concurrencyFailed:'Não foi possível guardar o limite de pedidos.',concurrencyInvalid:'Introduza um número inteiro de 1 a 10.',concurrencyUpgrade:'Atualize a integração completa e recarregue-a para configurar o limite de pedidos.'});
 const CSS=`*{box-sizing:border-box}
 :host{display:block;container-type:inline-size;overflow-wrap:anywhere;padding:20px;color:var(--primary-text-color);font:14px/1.5 var(--paper-font-body1_-_font-family,system-ui)}
 h1{font-size:24px;margin:0}
@@ -63,6 +65,11 @@ button{cursor:pointer}
 button.danger{color:var(--error-color,#b3261e);border-color:currentColor}
 .confirmation .buttons{margin-top:12px}
 .name-settings-actions{margin:12px 0 20px}
+.concurrency-setting{margin:16px 0;padding:14px;border:1px solid var(--divider-color);border-radius:10px}
+.concurrency-setting label{display:grid;gap:6px}
+.concurrency-setting input{width:100px}
+.concurrency-setting .buttons{align-items:flex-end}
+.concurrency-setting p{margin-bottom:0}
 .name-history{margin-top:16px;border:1px solid var(--divider-color);border-radius:10px;padding:0 14px}
 .name-history summary{cursor:pointer;min-height:48px;padding:12px 0;font-weight:600}
 .name-history summary:focus-visible{outline:3px solid var(--primary-color);outline-offset:2px}
@@ -146,12 +153,12 @@ export class GwiManagement extends HTMLElement {
   label.append(this._selector);this._refresh=button('',()=>this._load());this._refresh.setAttribute('aria-label',this._t('refresh'));const refreshIcon=node('ha-icon');refreshIcon.className='refresh-icon';refreshIcon.setAttribute('icon','mdi:refresh');refreshIcon.setAttribute('aria-hidden','true');const refreshLabel=node('span',this._t('refresh'));refreshLabel.className='refresh-label';this._refresh.append(refreshIcon,refreshLabel);toolbar.append(label,this._refresh);
   header.append(toolbar);this._status=node('p');this._status.className='page-status';this._status.setAttribute('role','status');this._status.setAttribute('aria-live','polite');
   this._content=node('div');this.shadowRoot.append(header,this._status,this._content);
-  this._say(this._message);
+  this._say(this._message,this._messageContext);
   if(this._data)this._renderContent();
  }
  _t(key){return WORDS[this._language||'en'][key]||key;}
  _tf(key,values){return this._t(key).replace(/\{(\w+)\}/g,(_,name)=>String(values[name]));}
- _say(key){this._message=key;this._status.textContent=key?this._t(key):'';if(key==='empty'){const link=node('a',this._language==='pt'?'Localizações e passos de ligação':'Locations and connection steps');link.href=this._config?.locations_path||'/config/integrations/integration/google_wifi_insights';this._status.append(document.createTextNode(' '),link);}}
+ _say(key,context=null){this._message=key;this._messageContext=context;this._status.textContent=key?(context?this._t(context.action)+' · '+context.target+': ':'')+this._t(key):'';if(key==='empty'){const link=node('a',this._language==='pt'?'Localizações e passos de ligação':'Locations and connection steps');link.href=this._config?.locations_path||'/config/integrations/integration/google_wifi_insights';this._status.append(document.createTextNode(' '),link);}}
  _changeScope(scope){if(this._batch)this._batch.stopRequested=true;this._batch=null;this._selectedNames.clear();this._automaticSettings=this._history=null;this._scope=scope;this._generation++;this._data=null;this._loading=false;this._attempted=false;this._confirmation=null;this._content.replaceChildren();this._say(null);}
  async _call(service,data){const result=await this._hass.callWS({type:'call_service',domain:'google_wifi_insights',service,service_data:data,return_response:true});return result.response;}
  async _load(){
@@ -194,7 +201,13 @@ export class GwiManagement extends HTMLElement {
   if(this._data.rename?.writable){
    names.append(node('h3',this._t('manualNames')),node('p',this._t('manualHint')));
    names.append(node('p',this._tf('batchConcurrency',{limit:this._nameConcurrency()})));
-   if(this._nameConcurrency()===1)names.append(node('p',this._t('batchUpgrade')));
+   this._concurrencyInput=null;
+   if(this._data.rename.concurrency_configurable===true){
+    const setting=node('div');setting.className='concurrency-setting';const controls=node('div');controls.className='buttons';
+    const label=node('label',this._t('concurrencyLabel')),input=node('input');input.type='number';input.min='1';input.max='10';input.step='1';input.required=true;input.setAttribute('aria-label',this._t('concurrencyLabel'));
+    const key=this._scope+':name-concurrency';input.value=this._drafts.has(key)?this._drafts.get(key):this._nameConcurrency();input.addEventListener('input',()=>this._drafts.set(key,input.value));label.append(input);this._concurrencyInput=input;
+    const save=button(this._t('concurrencySave'),()=>this._saveNameConcurrency());save.dataset.write='name-concurrency';save.dataset.entity=this._data.entity_id||'';controls.append(label,save);setting.append(controls,node('p',this._t('concurrencyHelp')));names.append(setting);
+   }else names.append(node('p',this._t('concurrencyUpgrade')));
    const toolbar=node('div');toolbar.className='buttons name-controls';
    const allLabel=node('label',this._t('selectAll'));allLabel.className='select-all';
    this._selectAllNames=node('input');this._selectAllNames.type='checkbox';this._selectAllNames.setAttribute('aria-label',this._t('selectAll'));this._selectAllNames.style.cssText='width:20px;min-height:20px';
@@ -257,16 +270,16 @@ export class GwiManagement extends HTMLElement {
    const target=b.dataset.target===this._data?.network_id?network:network?.points.find(p=>p.id===b.dataset.target),operation=target?.operation;
    const pending=operation?.action===b.dataset.action&&['queued','sending','accepted','running'].includes(operation?.phase);
    const mayDisableNames=b.dataset.write==='name-toggle'&&(network?.nameSync||this._data?.rename)?.enabled;
-   const localAreaSetting=b.dataset.write==='client-areas';
+   const localAreaSetting=['client-areas','name-concurrency'].includes(b.dataset.write);
    const changed=b.dataset.expectedName!==undefined&&this._hass?.states[b.dataset.entity]?.attributes?.google_name!==b.dataset.expectedName;
    b.disabled=Boolean((disabled&&!mayDisableNames&&!localAreaSetting)||this._busy||!this._admin||!b.dataset.entity||pending||changed);
   }
   for(const select of this._content.querySelectorAll('select'))select.disabled=Boolean(disabled);
-  for(const input of [this._areaFollowToggle,this._areaMatchedToggle])if(input)input.disabled=Boolean(this._busy||this._loading||!this._admin);
+  for(const input of [this._areaFollowToggle,this._areaMatchedToggle,this._concurrencyInput])if(input)input.disabled=Boolean(this._busy||this._loading||!this._admin);
   this._updateNameSelection();
  }
  _nameFingerprint(c){return JSON.stringify([c.station_id,c.entity_id,c.google_name,c.mac_address,c.proposed_name]);}
- _nameConcurrency(){const value=this._data?.rename?.max_concurrent;return Number.isInteger(value)&&value>0?Math.min(value,3):1;}
+ _nameConcurrency(){const value=this._data?.rename?.max_concurrent;return Number.isInteger(value)&&value>=1&&value<=10?value:1;}
  _eligibleNames(){
   if(!this._data?.rename?.writable)return [];
   const pending=new Set((this._data.rename.history||[]).filter(r=>r.state==='unconfirmed').map(r=>r.station_id));
@@ -364,6 +377,19 @@ export class GwiManagement extends HTMLElement {
   catch{if(generation===this._generation)this._say('actionFailed');}
   finally{this._busy=false;this._updateDisabled();}
  }
+ async _saveNameConcurrency(){
+  if(this._busy||!this._admin||this._data?.rename?.concurrency_configurable!==true)return;
+  const limit=Number(this._concurrencyInput.value);
+  if(!Number.isInteger(limit)||limit<1||limit>10){this._say('concurrencyInvalid');this._concurrencyInput.reportValidity();return;}
+  const generation=this._generation,scope=this._scope;
+  this._busy=true;this._updateDisabled();
+  try{const data=await this._call('set_name_concurrency',{entity_id:this._data.entity_id,max_concurrent:limit});
+   if(generation!==this._generation||!this._connected)return;
+   if(data?.scope!==scope||data.rename?.max_concurrent!==limit)throw Error('Wrong network or limit');
+   this._drafts.delete(scope+':name-concurrency');this._data=data;this._say('concurrencySaved');this._renderContent();
+  }catch{if(generation===this._generation)this._say('concurrencyFailed');}
+  finally{this._busy=false;if(this._connected)this._update();else this._updateDisabled();}
+ }
  async _saveClientAreas(){
   if(this._busy||!this._admin||!this._data?.client_area_sync?.supported)return;
   const generation=this._generation,scope=this._scope;
@@ -395,11 +421,12 @@ export class GwiManagement extends HTMLElement {
  }
  async _execute(){
   const request=this._confirmation;if(!request||this._busy||!this._admin||this._network()?.unavailable)return;
-  this._confirmation=null;this._confirmHost.replaceChildren();this._busy=true;this._say('sending');this._updateDisabled();const generation=this._generation;
+  const context={action:request.action,target:request.target.name};
+  this._confirmation=null;this._confirmHost.replaceChildren();this._busy=true;this._say('sending',context);this._updateDisabled();const generation=this._generation;
   try{const result=await this._call('google_action',{entity_id:request.target.entity_id,action:request.action});
    if(generation!==this._generation||!this._connected)return;
-   this._say(result?.state==='DONE'?'completed':['CREATED','RUNNING','PENDING','QUEUED'].includes(result?.state)?'accepted':'unconfirmed');
-  }catch{if(generation===this._generation)this._say('actionFailed');}
+   this._say(result?.state==='DONE'?'completed':['CREATED','RUNNING','PENDING','QUEUED'].includes(result?.state)?'accepted':'unconfirmed',context);
+  }catch{if(generation===this._generation)this._say('actionFailed',context);}
   finally{this._busy=false;this._updateDisabled();}
  }
  _updateFeedback(){
@@ -410,7 +437,8 @@ export class GwiManagement extends HTMLElement {
   for(const item of this._feedbackNodes||[]){
    const target=item.target.kind==='network'?network:network?.points.find(p=>p.id===item.target.id);
    const feedback=operationFeedback(target?.operation,this._language);
-   item.node.textContent=feedback?this._t('latest')+': '+feedback.actionLabel+' · '+feedback.label+'\n'+feedback.note:'';
+   const at=feedback?.at?new Date(feedback.at).toLocaleString(this._language,{timeZone:this._hass?.config?.time_zone}):'';
+   item.node.textContent=feedback?this._t('latest')+': '+feedback.actionLabel+' · '+item.target.name+' · '+feedback.label+(at?' · '+at:'')+'\n'+feedback.note:'';
   }
  }
 }

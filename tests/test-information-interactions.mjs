@@ -131,3 +131,25 @@ test('map updates retain both outer and nested firmware disclosures and JSON pos
  outer.querySelector('summary').click();card.hass={states,language:'en'};
  assert.equal(outer.open,false);card.remove();
 });
+
+test('map separates locations by identity and location navigation focuses the correct home',async()=>{
+ const {card,dom}=await cardEnvironment('google-wifi-insights-map.js','google-wifi-insights-map');
+ const next={};
+ for(const [scope,location,name]of [['one','home-a','Example house'],['two','home-b','Example studio'],['three','home-a','Example house']]){
+  next['sensor.'+scope]={state:'quality_unknown',attributes:{gwi_scope:scope,gwi_kind:'network',gwi_metric:'diagnosis',device_name:'Google WiFi',network_location_id:location,network_location:name,data_source:'google_cloud'}};
+ }
+ card.hass={states:next,language:'en'};const groups=card.shadowRoot.querySelectorAll('.location-group');assert.equal(groups.length,2);
+ assert.equal(groups[0].querySelectorAll('.network').length,2);assert.equal(groups[1].querySelectorAll('.network').length,1);
+ assert.match(groups[0].querySelector('.location-header').textContent,/Example house.*2 networks/);
+ const target=groups[1].querySelector('header');let scrolled=false;target.scrollIntoView=()=>{scrolled=true;};card.shadowRoot.querySelectorAll('.location-nav button')[1].click();assert.ok(scrolled);assert.equal(card.shadowRoot.activeElement,target);
+ assert.match(card.shadowRoot.querySelector('style').textContent,/\.location-header[^}]*position:sticky/);
+ assert.equal(dom.window.document.querySelector('main').textContent,'');card.remove();
+});
+
+for(const [file,type]of [['google-wifi-insights-map.js','google-wifi-insights-map'],['google-wifi-dashboard-ui.js','google-wifi-dashboard-ui']])test('contextual completion is visible and escaped in '+type,async()=>{
+ const {card,dom}=await cardEnvironment(file,type);
+ const operation={action:'test_mesh',target_name:'Example <img src=x> point',phase:'completed',finished_at:'2026-10-17T10:00:00Z'};
+ const badge=card._operationBadge(operation);const host=dom.window.document.createElement('div');if(typeof badge==='string')host.innerHTML=badge;else host.append(badge);
+ assert.match(host.textContent,/Mesh speed test/);assert.match(host.textContent,/Example <img src=x> point/);assert.match(host.textContent,/Completed/);assert.match(host.textContent,/2026/);assert.equal(host.querySelector('img'),null);
+ card._language='pt';const pt=card._operationBadge(operation);if(typeof pt==='string')host.innerHTML=pt;else host.replaceChildren(pt);assert.match(host.textContent,/Teste de velocidade mesh/);assert.match(host.textContent,/Concluído/);card.remove();
+});

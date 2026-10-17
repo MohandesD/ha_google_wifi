@@ -135,6 +135,24 @@ set_name_sync:
       required: true
       selector:
         boolean:
+set_name_concurrency:
+  name: Set parallel name requests
+  description: Store the maximum simultaneous name requests for one Google WiFi network. Applies to the next group; requests already sent finish normally. Does not enable automatic naming or send a Google command.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: google_wifi_insights
+    max_concurrent:
+      required: true
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: box
 rename_client:
   name: Apply a proposed Google name
   description: Apply the current exact-MAC HA name to a generic Google client name. Requires an interactive administrator, the preview values and fresh identity validation. Saves intent before sending and verifies the resulting Google name.
